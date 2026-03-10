@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Multi-tenancy
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  cui       String?
+  regCom    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             User[]
+  clients           Client[]
+  projects          Project[]
+  documents         Document[]
+  documentTemplates DocumentTemplate[]
+  services          Service[]
+  employees         Employee[]
+  vehicles          Vehicle[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  email        String
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         Role     @default(OPERATOR)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  documents     Document[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  OPERATOR
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// Business domain
+
+enum ClientType {
+  PERSON
+  COMPANY
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Client {
+  id        String     @id @default(cuid())
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  type      ClientType
+  status    ClientStatus @default(ACTIVE)
+
+  // Company fields
+  companyName String?
+  cui         String?
+
+  // Person fields
+  firstName String?
+  lastName  String?
+
+  // Common fields
+  address   String
+  city      String
+  county    String
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects       Project[]
+  contactPersons ContactPerson[]
+
+  @@index([tenantId])
+}
+
+model ContactPerson {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  firstName String
+  lastName  String
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+model Project {
+  id        String        @id @default(cuid())
+  tenantId  String
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  clientId  String
+  client    Client        @relation(fields: [clientId], references: [id])
+  type      ProjectType
+  name      String
+  address   String
+  city      String
+  county    String
+  status    ProjectStatus @default(DRAFT)
+  metadata  Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  documents Document[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([clientId])
+}
+
+enum ProjectType {
+  BRANSAMENT
+  CONDUCTA
+  REVIZIE_CENTRALA
+  DOSAR_ISCIR
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  DOCUMENTS_PENDING
+  SUBMITTED
+  APPROVED
+  COMPLETED
+  REJECTED
+}
+
+model DocumentTemplate {
+  id          String           @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?          @relation(fields: [tenantId], references: [id])
+  category    DocumentCategory
+  name        String
+  description String?
+  content     String?          @db.Text
+  s3Key       String?
+  sortOrder   Int              @default(0)
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  documents Document[]
+
+  @@index([tenantId, category])
+}
+
+enum DocumentCategory {
+  CARTE_BRANSAMENT
+  CARTE_CONDUCTA
+  DOSAR_ISCIR
+  REVIZIE_CENTRALA
+  GDPR
+  SERVICE_AGREEMENT
+}
+
+model Document {
+  id            String         @id @default(cuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  projectId     String
+  project       Project        @relation(fields: [projectId], references: [id])
+  templateId    String?
+  template      DocumentTemplate? @relation(fields: [templateId], references: [id])
+  generatedById String?
+  generatedBy   User?          @relation(fields: [generatedById], references: [id])
+  name          String
+  s3Key         String?
+  status        DocumentStatus @default(PENDING)
+  errorMessage  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([tenantId, status])
+}
+
+enum DocumentStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+  UPLOADED
+}
+
+model Vehicle {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  licensePlate    String
+  make            String
+  model           String
+  year            Int?
+  vin             String?
+  fuelType        String?
+  insuranceExpiry DateTime?
+  itpExpiry       DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([tenantId])
+}
+
+model Employee {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  firstName   String
+  lastName    String
+  position    String?
+  phone       String?
+  email       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  name        String
+  description String?
+  unit        String?
+  price       Decimal? @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
