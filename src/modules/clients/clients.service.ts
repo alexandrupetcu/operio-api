@@ -3,7 +3,13 @@ import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateClientInput, UpdateClientInput } from "./clients.schema.js";
 
-const clientInclude = { contactPersons: true } as const;
+const clientInclude = {
+  contactPersons: true,
+  equipment: true,
+  country: { select: { id: true, name: true, emoji: true } },
+  state: { select: { id: true, name: true } },
+  city: { select: { id: true, name: true } },
+} as const;
 
 export async function list(
   fastify: FastifyInstance,
@@ -19,8 +25,9 @@ export async function list(
         { firstName: { contains: query.search, mode: "insensitive" as const } },
         { lastName: { contains: query.search, mode: "insensitive" as const } },
         { email: { contains: query.search, mode: "insensitive" as const } },
-        { city: { contains: query.search, mode: "insensitive" as const } },
         { cui: { contains: query.search, mode: "insensitive" as const } },
+        { city: { name: { contains: query.search, mode: "insensitive" as const } } },
+        { state: { name: { contains: query.search, mode: "insensitive" as const } } },
       ],
     }),
   };
@@ -55,7 +62,7 @@ export async function create(
   tenantId: string,
   input: CreateClientInput
 ) {
-  const { contactPersons, ...clientData } = input.type === "COMPANY"
+  const { contactPersons, equipment, ...clientData } = input.type === "COMPANY"
     ? input
     : { ...input, contactPersons: undefined };
 
@@ -66,6 +73,16 @@ export async function create(
       ...(contactPersons?.length && {
         contactPersons: {
           create: contactPersons.map(({ id: _id, ...cp }) => cp),
+        },
+      }),
+      ...(equipment?.length && {
+        equipment: {
+          create: equipment.map(({ id: _id, ...eq }) => ({
+            type: eq.type ?? "CENTRALA",
+            name: eq.name,
+            fuel: eq.fuel,
+            serial: eq.serial,
+          })),
         },
       }),
     },
@@ -81,7 +98,7 @@ export async function update(
 ) {
   await getById(fastify, tenantId, id);
 
-  const { contactPersons, ...clientData } = input.type === "COMPANY"
+  const { contactPersons, equipment, ...clientData } = input.type === "COMPANY"
     ? input
     : { ...input, contactPersons: undefined };
 
@@ -106,6 +123,30 @@ export async function update(
         } else {
           await tx.contactPerson.create({
             data: { clientId: id, firstName: cp.firstName, lastName: cp.lastName, phone: cp.phone, email: cp.email },
+          });
+        }
+      }
+    }
+
+    // Handle equipment (for both PERSON and COMPANY)
+    if (equipment) {
+      const keepIds = equipment
+        .filter((eq) => eq.id)
+        .map((eq) => eq.id as string);
+
+      await tx.equipment.deleteMany({
+        where: { clientId: id, id: { notIn: keepIds } },
+      });
+
+      for (const eq of equipment) {
+        if (eq.id) {
+          await tx.equipment.update({
+            where: { id: eq.id },
+            data: { type: eq.type ?? "CENTRALA", name: eq.name, fuel: eq.fuel, serial: eq.serial },
+          });
+        } else {
+          await tx.equipment.create({
+            data: { clientId: id, type: eq.type ?? "CENTRALA", name: eq.name, fuel: eq.fuel, serial: eq.serial },
           });
         }
       }

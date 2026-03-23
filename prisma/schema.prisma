@@ -18,6 +18,12 @@ model Tenant {
   email     String?
   cui       String?
   regCom    String?
+  countryId Int?
+  country   Country? @relation(fields: [countryId], references: [id])
+  stateId   Int?
+  state     State?   @relation(fields: [stateId], references: [id])
+  cityId    Int?
+  city      City?    @relation(fields: [cityId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -29,6 +35,12 @@ model Tenant {
   services          Service[]
   employees         Employee[]
   vehicles          Vehicle[]
+  workflowTemplates WorkflowTemplate[]
+  actionPlans       ActionPlan[]
+
+  @@index([countryId])
+  @@index([stateId])
+  @@index([cityId])
 }
 
 model User {
@@ -97,18 +109,26 @@ model Client {
   lastName  String?
 
   // Common fields
-  address   String
-  city      String
-  county    String
-  phone     String?
-  email     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  address    String
+  countryId  Int?
+  country    Country?  @relation(fields: [countryId], references: [id])
+  stateId    Int?
+  state      State?    @relation(fields: [stateId], references: [id])
+  cityId     Int?
+  city       City?     @relation(fields: [cityId], references: [id])
+  phone      String?
+  email      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   projects       Project[]
   contactPersons ContactPerson[]
+  equipment      Equipment[]
 
   @@index([tenantId])
+  @@index([countryId])
+  @@index([stateId])
+  @@index([cityId])
 }
 
 model ContactPerson {
@@ -125,6 +145,24 @@ model ContactPerson {
   @@index([clientId])
 }
 
+enum EquipmentType {
+  CENTRALA
+}
+
+model Equipment {
+  id        String        @id @default(cuid())
+  clientId  String
+  client    Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type      EquipmentType @default(CENTRALA)
+  name      String
+  fuel      String?
+  serial    String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([clientId])
+}
+
 model Project {
   id        String        @id @default(cuid())
   tenantId  String
@@ -136,12 +174,17 @@ model Project {
   address   String
   city      String
   county    String
-  status    ProjectStatus @default(DRAFT)
-  metadata  Json?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  observations       String?
+  status             ProjectStatus @default(DRAFT)
+  metadata           Json?
+  scheduledDate      DateTime?
+  assignedEmployeeId String?
+  assignedEmployee   Employee?     @relation(fields: [assignedEmployeeId], references: [id])
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  documents Document[]
+  documents  Document[]
+  actionPlan ActionPlan?
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -157,6 +200,7 @@ enum ProjectType {
 
 enum ProjectStatus {
   DRAFT
+  SCHEDULED
   IN_PROGRESS
   DOCUMENTS_PENDING
   SUBMITTED
@@ -255,6 +299,8 @@ model Employee {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  projects Project[]
+
   @@index([tenantId])
 }
 
@@ -271,4 +317,162 @@ model Service {
   updatedAt   DateTime @updatedAt
 
   @@index([tenantId])
+}
+
+// Geography (countries, states, cities)
+
+model Country {
+  id            Int     @id
+  name          String
+  iso3          String  @unique @db.Char(3)
+  iso2          String  @unique @db.Char(2)
+  numericCode   String?
+  phonecode     String?
+  capital       String?
+  currency      String?
+  currencyName  String?
+  currencySymbol String?
+  tld           String?
+  native        String?
+  region        String?
+  subregion     String?
+  nationality   String?
+  latitude      Decimal? @db.Decimal(10, 8)
+  longitude     Decimal? @db.Decimal(11, 8)
+  emoji         String?
+  emojiU        String?
+
+  states  State[]
+  cities  City[]
+  clients Client[]
+  tenants Tenant[]
+
+  @@index([name])
+}
+
+model State {
+  id          Int     @id
+  name        String
+  countryId   Int
+  country     Country @relation(fields: [countryId], references: [id])
+  countryCode String  @db.Char(2)
+  stateCode   String?
+  type        String?
+  latitude    Decimal? @db.Decimal(10, 8)
+  longitude   Decimal? @db.Decimal(11, 8)
+
+  cities  City[]
+  clients Client[]
+  tenants Tenant[]
+
+  @@index([countryId])
+  @@index([name])
+}
+
+model City {
+  id          Int     @id
+  name        String
+  stateId     Int
+  state       State   @relation(fields: [stateId], references: [id])
+  countryId   Int
+  country     Country @relation(fields: [countryId], references: [id])
+  countryCode String  @db.Char(2)
+  stateCode   String?
+  latitude    Decimal? @db.Decimal(10, 8)
+  longitude   Decimal? @db.Decimal(11, 8)
+
+  clients Client[]
+  tenants Tenant[]
+
+  @@index([stateId])
+  @@index([countryId])
+  @@index([name])
+}
+
+// Workflow & Action Plans
+
+model WorkflowTemplate {
+  id          String       @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id])
+  projectType ProjectType
+  name        String
+  description String?
+  isDefault   Boolean      @default(false)
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  steps       WorkflowTemplateStep[]
+  actionPlans ActionPlan[]
+
+  @@index([tenantId, projectType])
+}
+
+model WorkflowTemplateStep {
+  id                  String           @id @default(cuid())
+  templateId          String
+  template            WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  sortOrder           Int
+  name                String
+  description         String?
+  institution         String?
+  estimatedDays       Int              @default(30)
+  requiredDocuments   String[]
+  dependsOnStepOrder  Int?
+  isSelectable        Boolean          @default(false)
+  isSelectedByDefault Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([templateId])
+}
+
+enum ActionTaskStatus {
+  TODO
+  IN_PROGRESS
+  WAITING
+  COMPLETED
+  SKIPPED
+}
+
+model ActionPlan {
+  id         String            @id @default(cuid())
+  tenantId   String
+  tenant     Tenant            @relation(fields: [tenantId], references: [id])
+  projectId  String            @unique
+  project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  templateId String?
+  template   WorkflowTemplate? @relation(fields: [templateId], references: [id])
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  tasks ActionTask[]
+
+  @@index([tenantId])
+}
+
+model ActionTask {
+  id              String           @id @default(cuid())
+  actionPlanId    String
+  actionPlan      ActionPlan       @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+  sortOrder       Int
+  name            String
+  description     String?
+  institution     String?
+  status          ActionTaskStatus @default(TODO)
+  estimatedDays   Int?
+  startDate       DateTime?
+  dueDate         DateTime?
+  completedDate   DateTime?
+  notes           String?          @db.Text
+  dependsOnTaskId String?
+  dependsOnTask   ActionTask?      @relation("TaskDependency", fields: [dependsOnTaskId], references: [id])
+  dependentTasks  ActionTask[]     @relation("TaskDependency")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([actionPlanId])
+  @@index([dueDate])
+  @@index([status])
 }

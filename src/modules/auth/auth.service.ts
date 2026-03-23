@@ -75,24 +75,26 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
       id: result.tenant.id,
       name: result.tenant.name,
       slug: result.tenant.slug,
+      countryId: result.tenant.countryId,
+      country: null,
     },
   };
 }
 
 export async function login(fastify: FastifyInstance, input: LoginInput) {
-  const tenant = await fastify.prisma.tenant.findUnique({
-    where: { slug: input.tenantSlug },
-  });
-  if (!tenant) {
-    throw fastify.httpErrors.unauthorized("Invalid credentials");
-  }
-
-  const user = await fastify.prisma.user.findUnique({
-    where: { tenantId_email: { tenantId: tenant.id, email: input.email } },
+  const user = await fastify.prisma.user.findFirst({
+    where: { email: input.email },
+    include: {
+      tenant: {
+        include: { country: { select: { id: true, name: true, emoji: true } } },
+      },
+    },
   });
   if (!user || !user.isActive) {
     throw fastify.httpErrors.unauthorized("Invalid credentials");
   }
+
+  const tenant = user.tenant;
 
   const valid = await verifyPassword(user.passwordHash, input.password);
   if (!valid) {
@@ -128,6 +130,8 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
+      countryId: tenant.countryId,
+      country: tenant.country,
     },
   };
 }

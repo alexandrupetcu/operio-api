@@ -16,7 +16,6 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
-  tenantSlug: z.string(),
 });
 
 export const refreshSchema = z.object({

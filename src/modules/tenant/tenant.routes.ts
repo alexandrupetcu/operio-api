@@ -9,6 +9,9 @@ const updateTenantSchema = z.object({
   email: z.string().email().max(100).optional().nullable(),
   cui: z.string().max(20).optional().nullable(),
   regCom: z.string().max(30).optional().nullable(),
+  countryId: z.number().int().positive().optional().nullable(),
+  stateId: z.number().int().positive().optional().nullable(),
+  cityId: z.number().int().positive().optional().nullable(),
 });
 
 export default async function tenantRoutes(fastify: FastifyInstance) {
@@ -17,6 +20,11 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
   fastify.get("/", async (request) => {
     return fastify.prisma.tenant.findUniqueOrThrow({
       where: { id: request.tenantId },
+      include: {
+        country: { select: { id: true, name: true, emoji: true } },
+        state: { select: { id: true, name: true } },
+        city: { select: { id: true, name: true } },
+      },
     });
   });
 
@@ -27,6 +35,11 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
       return fastify.prisma.tenant.update({
         where: { id: request.tenantId },
         data: body,
+        include: {
+          country: { select: { id: true, name: true, emoji: true } },
+          state: { select: { id: true, name: true } },
+          city: { select: { id: true, name: true } },
+        },
       });
     },
   });

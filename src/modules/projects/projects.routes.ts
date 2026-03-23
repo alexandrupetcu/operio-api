@@ -4,6 +4,7 @@ import { paginationSchema } from "../../lib/pagination.js";
 import {
   createProjectSchema,
   updateProjectSchema,
+  createProjectWithClientSchema,
 } from "./projects.schema.js";
 import * as projectsService from "./projects.service.js";
 
@@ -20,6 +21,14 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
     });
   });
 
+  fastify.get("/calendar", async (request) => {
+    const { from, to } = request.query as { from?: string; to?: string };
+    if (!from || !to) {
+      throw fastify.httpErrors.badRequest("from and to query params are required");
+    }
+    return projectsService.calendar(fastify, request.tenantId, from, to);
+  });
+
   fastify.get<{ Params: { id: string } }>("/:id", async (request) => {
     return projectsService.getById(
       fastify,
@@ -34,6 +43,20 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const body = createProjectSchema.parse(request.body);
       const project = await projectsService.create(
+        fastify,
+        request.tenantId,
+        body
+      );
+      return reply.status(201).send(project);
+    }
+  );
+
+  fastify.post(
+    "/wizard",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request, reply) => {
+      const body = createProjectWithClientSchema.parse(request.body);
+      const project = await projectsService.createWithClient(
         fastify,
         request.tenantId,
         body

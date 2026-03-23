@@ -18,6 +18,9 @@ import servicesRoutes from "./modules/services/services.routes.js";
 import employeesRoutes from "./modules/employees/employees.routes.js";
 import vehiclesRoutes from "./modules/vehicles/vehicles.routes.js";
 import anafRoutes from "./modules/anaf/anaf.routes.js";
+import workflowTemplatesRoutes from "./modules/workflow-templates/workflow-templates.routes.js";
+import actionPlansRoutes from "./modules/action-plans/action-plans.routes.js";
+import geographyRoutes from "./modules/geography/geography.routes.js";
 
 export async function buildServer() {
   const fastify = Fastify({
@@ -61,6 +64,9 @@ export async function buildServer() {
   await fastify.register(employeesRoutes, { prefix: "/api/employees" });
   await fastify.register(vehiclesRoutes, { prefix: "/api/vehicles" });
   await fastify.register(anafRoutes, { prefix: "/api/anaf" });
+  await fastify.register(workflowTemplatesRoutes, { prefix: "/api/workflow-templates" });
+  await fastify.register(actionPlansRoutes, { prefix: "/api/action-plans" });
+  await fastify.register(geographyRoutes, { prefix: "/api/geography" });
 
   // Health check
   fastify.get("/api/health", async () => ({ status: "ok" }));

@@ -91,7 +91,100 @@ async function main() {
     },
   });
 
+  // Seed default workflow templates (system-wide, tenantId = null)
+
+  // BRANSAMENT / CONDUCTA template
+  const bransamentSteps = [
+    { sortOrder: 0, name: "Depunere cerere Certificat Urbanism", institution: "Primăria", estimatedDays: 30, isSelectable: false },
+    { sortOrder: 1, name: "Obținere Certificat Urbanism", institution: "Primăria", estimatedDays: 0, isSelectable: false },
+    { sortOrder: 2, name: "Aviz Mediu", institution: "Agenția de Mediu", estimatedDays: 30, dependsOnStepOrder: 1, isSelectable: true, isSelectedByDefault: true },
+    { sortOrder: 3, name: "Aviz Canal", institution: "Compania de Apă", estimatedDays: 30, dependsOnStepOrder: 1, isSelectable: true, isSelectedByDefault: true },
+    { sortOrder: 4, name: "Aviz Poliție", institution: "Poliția Rutieră", estimatedDays: 30, dependsOnStepOrder: 1, isSelectable: true, isSelectedByDefault: false },
+    { sortOrder: 5, name: "Aviz Telecom", institution: "Telekom/Digi", estimatedDays: 30, dependsOnStepOrder: 1, isSelectable: true, isSelectedByDefault: false },
+    { sortOrder: 6, name: "Aviz Electrică", institution: "Distribuție Energie", estimatedDays: 30, dependsOnStepOrder: 1, isSelectable: true, isSelectedByDefault: false },
+    { sortOrder: 7, name: "Depunere dosar Autorizație Construire", institution: "Primăria", estimatedDays: 30, isSelectable: false },
+    { sortOrder: 8, name: "Obținere Autorizație Construire", institution: "Primăria", estimatedDays: 0, isSelectable: false },
+    { sortOrder: 9, name: "Execuție lucrări", estimatedDays: 14, isSelectable: false },
+    { sortOrder: 10, name: "Recepție finală", estimatedDays: 7, isSelectable: false },
+  ];
+
+  // Create for BRANSAMENT
+  await prisma.workflowTemplate.upsert({
+    where: { id: "system-bransament-default" },
+    update: {},
+    create: {
+      id: "system-bransament-default",
+      tenantId: null,
+      projectType: "BRANSAMENT",
+      name: "Branșament Standard",
+      description: "Flux standard pentru proiecte de branșament gaz",
+      isDefault: true,
+      steps: { create: bransamentSteps },
+    },
+  });
+
+  // Create for CONDUCTA (same steps)
+  await prisma.workflowTemplate.upsert({
+    where: { id: "system-conducta-default" },
+    update: {},
+    create: {
+      id: "system-conducta-default",
+      tenantId: null,
+      projectType: "CONDUCTA",
+      name: "Extindere Conductă Standard",
+      description: "Flux standard pentru proiecte de extindere conductă",
+      isDefault: true,
+      steps: { create: bransamentSteps },
+    },
+  });
+
+  // REVIZIE_CENTRALA template
+  await prisma.workflowTemplate.upsert({
+    where: { id: "system-revizie-default" },
+    update: {},
+    create: {
+      id: "system-revizie-default",
+      tenantId: null,
+      projectType: "REVIZIE_CENTRALA",
+      name: "Revizie Centrală Standard",
+      description: "Flux standard pentru revizii de centrală termică",
+      isDefault: true,
+      steps: {
+        create: [
+          { sortOrder: 0, name: "Programare revizie", estimatedDays: 0 },
+          { sortOrder: 1, name: "Deplasare și inspecție", estimatedDays: 1 },
+          { sortOrder: 2, name: "Completare raport revizie", estimatedDays: 3 },
+          { sortOrder: 3, name: "Predare documente client", estimatedDays: 2 },
+        ],
+      },
+    },
+  });
+
+  // DOSAR_ISCIR template
+  await prisma.workflowTemplate.upsert({
+    where: { id: "system-iscir-default" },
+    update: {},
+    create: {
+      id: "system-iscir-default",
+      tenantId: null,
+      projectType: "DOSAR_ISCIR",
+      name: "Dosar ISCIR Standard",
+      description: "Flux standard pentru dosare ISCIR",
+      isDefault: true,
+      steps: {
+        create: [
+          { sortOrder: 0, name: "Pregătire documentație", estimatedDays: 5 },
+          { sortOrder: 1, name: "Convocare ISCIR", institution: "ISCIR", estimatedDays: 14 },
+          { sortOrder: 2, name: "Inspecție ISCIR", institution: "ISCIR", estimatedDays: 1 },
+          { sortOrder: 3, name: "Completare proces verbal", estimatedDays: 3 },
+          { sortOrder: 4, name: "Predare documente", estimatedDays: 2 },
+        ],
+      },
+    },
+  });
+
   console.log("Seed completed: tenant 'demo' with admin@demo.com / password123");
+  console.log("Seed completed: default workflow templates created");
 }
 
 main()

@@ -45,7 +45,14 @@ async function processJob(job: Job<DocumentJobData>) {
     // Fetch project + client data
     const project = await prisma.project.findUniqueOrThrow({
       where: { id: projectId },
-      include: { client: true },
+      include: {
+        client: {
+          include: {
+            city: { select: { name: true } },
+            state: { select: { name: true } },
+          },
+        },
+      },
     });
 
     // Build template data from project and client
@@ -60,8 +67,8 @@ async function processJob(job: Job<DocumentJobData>) {
       client_cui: project.client.cui || "",
       client_type: project.client.type,
       client_address: project.client.address,
-      client_city: project.client.city,
-      client_county: project.client.county,
+      client_city: project.client.city?.name || "",
+      client_county: project.client.state?.name || "",
       client_phone: project.client.phone || "",
       client_email: project.client.email || "",
       // Project fields
