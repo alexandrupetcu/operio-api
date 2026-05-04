@@ -4,6 +4,7 @@ import {
   DeleteObjectCommand,
   CreateBucketCommand,
   HeadBucketCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3Client } from "../config/s3.js";
@@ -65,4 +66,44 @@ export async function deleteFile(key: string) {
       Key: key,
     })
   );
+}
+
+/**
+ * Ensure a tenant "folder" exists in the bucket.
+ * S3/MinIO folders are key prefixes — we create a zero-byte placeholder
+ * the first time so the tenant directory is visible in the console.
+ */
+export async function ensureTenantFolder(tenantId: string): Promise<void> {
+  const result = await s3Client.send(
+    new ListObjectsV2Command({
+      Bucket: env.S3_BUCKET,
+      Prefix: `${tenantId}/`,
+      MaxKeys: 1,
+    })
+  );
+
+  const exists = (result.Contents?.length ?? 0) > 0 || (result.CommonPrefixes?.length ?? 0) > 0;
+  if (!exists) {
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: env.S3_BUCKET,
+        Key: `${tenantId}/.keep`,
+        Body: Buffer.alloc(0),
+        ContentType: "application/octet-stream",
+      })
+    );
+  }
+}
+
+/**
+ * Build the S3 key for a step file upload.
+ * Structure: {tenantId}/{projectId}/{stepInstanceId}/{filename}
+ */
+export function buildStepFileKey(
+  tenantId: string,
+  projectId: string,
+  stepInstanceId: string,
+  filename: string
+): string {
+  return `${tenantId}/${projectId}/${stepInstanceId}/${filename}`;
 }

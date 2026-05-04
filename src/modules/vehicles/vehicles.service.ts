@@ -53,8 +53,9 @@ export async function create(
     data: {
       tenantId,
       ...input,
-      insuranceExpiry: input.insuranceExpiry ? new Date(input.insuranceExpiry) : null,
       itpExpiry: input.itpExpiry ? new Date(input.itpExpiry) : null,
+      insuranceExpiry: input.insuranceExpiry ? new Date(input.insuranceExpiry) : null,
+      vignetteExpiry: input.vignetteExpiry ? new Date(input.vignetteExpiry) : null,
     },
   });
 }
@@ -70,11 +71,14 @@ export async function update(
     where: { id },
     data: {
       ...input,
+      ...(input.itpExpiry !== undefined && {
+        itpExpiry: input.itpExpiry ? new Date(input.itpExpiry) : null,
+      }),
       ...(input.insuranceExpiry !== undefined && {
         insuranceExpiry: input.insuranceExpiry ? new Date(input.insuranceExpiry) : null,
       }),
-      ...(input.itpExpiry !== undefined && {
-        itpExpiry: input.itpExpiry ? new Date(input.itpExpiry) : null,
+      ...(input.vignetteExpiry !== undefined && {
+        vignetteExpiry: input.vignetteExpiry ? new Date(input.vignetteExpiry) : null,
       }),
     },
   });

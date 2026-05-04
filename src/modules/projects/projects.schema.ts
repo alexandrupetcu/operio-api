@@ -3,12 +3,13 @@ import { createClientSchema } from "../clients/clients.schema.js";
 
 export const createProjectSchema = z.object({
   clientId: z.string().cuid(),
-  type: z.enum(["BRANSAMENT", "CONDUCTA", "REVIZIE_CENTRALA", "DOSAR_ISCIR"]),
+  projectTypeId: z.string().cuid(),
   name: z.string().min(1).max(200),
   address: z.string().min(1),
   city: z.string().min(1),
   county: z.string().min(1),
   observations: z.string().optional().nullable(),
+  participareISC: z.boolean().optional(),
   metadata: z.any().optional(),
   scheduledDate: z.string().datetime().optional(),
   assignedEmployeeId: z.string().cuid().optional(),
@@ -20,18 +21,8 @@ export const updateProjectSchema = z.object({
   city: z.string().min(1).optional(),
   county: z.string().min(1).optional(),
   observations: z.string().optional().nullable(),
-  status: z
-    .enum([
-      "DRAFT",
-      "SCHEDULED",
-      "IN_PROGRESS",
-      "DOCUMENTS_PENDING",
-      "SUBMITTED",
-      "APPROVED",
-      "COMPLETED",
-      "REJECTED",
-    ])
-    .optional(),
+  participareISC: z.boolean().optional(),
+  status: z.string().optional(),
   metadata: z.any().optional(),
   scheduledDate: z.string().datetime().optional().nullable(),
   assignedEmployeeId: z.string().cuid().optional().nullable(),
@@ -43,12 +34,13 @@ export const createProjectWithClientSchema = z.object({
     createClientSchema,
   ]),
   project: z.object({
-    type: z.enum(["BRANSAMENT", "CONDUCTA", "REVIZIE_CENTRALA", "DOSAR_ISCIR"]),
+    projectTypeId: z.string().cuid(),
     name: z.string().min(1).max(200),
     address: z.string().min(1),
     city: z.string().min(1),
     county: z.string().min(1),
     observations: z.string().optional().nullable(),
+    participareISC: z.boolean().optional(),
     metadata: z.any().optional(),
   }),
   scheduling: z

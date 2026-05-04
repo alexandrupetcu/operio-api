@@ -7,36 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Multi-tenancy
+// ─── Multi-tenancy ──────────────────────────────────────────────────────────
 
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  address   String?
-  phone     String?
-  email     String?
-  cui       String?
-  regCom    String?
-  countryId Int?
-  country   Country? @relation(fields: [countryId], references: [id])
-  stateId   Int?
-  state     State?   @relation(fields: [stateId], references: [id])
-  cityId    Int?
-  city      City?    @relation(fields: [cityId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  address      String?
+  phone        String?
+  email        String?
+  cui          String?
+  regCom       String?
+  isVatPayer       Boolean  @default(false)
+  adminName        String?
+  iscirNumber      String?  // ex: "89C - 689"
+  iscirDate        String?  // ex: "12.07.2023"
+  stampS3Key       String?
+  signatureS3Key String?
+  timezone     String   @default("Europe/Bucharest")
+  locale       String   @default("ro")
+  settingsJson Json?
+  brandingJson Json?
+  countryId    Int?
+  country      Country? @relation(fields: [countryId], references: [id])
+  stateId      Int?
+  state        State?   @relation(fields: [stateId], references: [id])
+  cityId       Int?
+  city         City?    @relation(fields: [cityId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  users             User[]
-  clients           Client[]
-  projects          Project[]
-  documents         Document[]
-  documentTemplates DocumentTemplate[]
-  services          Service[]
-  employees         Employee[]
-  vehicles          Vehicle[]
-  workflowTemplates WorkflowTemplate[]
-  actionPlans       ActionPlan[]
+  users                 User[]
+  clients               Client[]
+  projects              Project[]
+  projectTypes          ProjectType[]
+  documents             Document[]
+  documentTemplates     DocumentTemplate[]
+  services              Service[]
+  employees             Employee[]
+  vehicles              Vehicle[]
+  workflowDefinitions   WorkflowDefinition[]
+  workflowInstances     WorkflowInstance[]
+  tasks                 Task[]
+  scheduledJobs         ScheduledJob[]
+  notifications         Notification[]
+  notificationTemplates NotificationTemplate[]
+  auditLogs             AuditLog[]
+  outboxEvents          OutboxEvent[]
+  drawingTemplates      DrawingTemplate[]
+  signingSessions       SigningSession[]
+  appointments          Appointment[]
+  emailInboxes          EmailInbox[]
+  emailIngestionEnabled Boolean  @default(false)
+  registrySeries        RegistrySeries[]
+  registryEntries       RegistryEntry[]
+  emailIngestLogs       EmailIngestLog[]
 
   @@index([countryId])
   @@index([stateId])
@@ -45,9 +70,9 @@ model Tenant {
 
 model User {
   id           String   @id @default(cuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  email        String
+  tenantId     String?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  email        String   @unique
   passwordHash String
   firstName    String
   lastName     String
@@ -56,14 +81,22 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  refreshTokens RefreshToken[]
-  documents     Document[]
+  refreshTokens         RefreshToken[]
+  documents             Document[]
+  createdWorkflows      WorkflowDefinition[]  @relation("WorkflowCreatedBy")
+  assignedStepInstances WorkflowStepInstance[] @relation("StepAssignedUser")
+  assignedTasks         Task[]                @relation("TaskAssignedUser")
+  auditLogs             AuditLog[]
+  signingSessions       SigningSession[]
+  createdRegistryEntries RegistryEntry[]      @relation("RegistryCreator")
+  voidedRegistryEntries  RegistryEntry[]      @relation("RegistryVoider")
 
   @@unique([tenantId, email])
   @@index([tenantId])
 }
 
 enum Role {
+  MASTER_ADMIN
   ADMIN
   MANAGER
   OPERATOR
@@ -81,7 +114,7 @@ model RefreshToken {
   @@index([token])
 }
 
-// Business domain
+// ─── Business Domain ────────────────────────────────────────────────────────
 
 enum ClientType {
   PERSON
@@ -89,43 +122,58 @@ enum ClientType {
 }
 
 enum ClientStatus {
+  PROSPECT
   ACTIVE
   INACTIVE
 }
 
 model Client {
-  id        String     @id @default(cuid())
-  tenantId  String
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  type      ClientType
-  status    ClientStatus @default(ACTIVE)
-
-  // Company fields
+  id          String       @id @default(cuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  type        ClientType
+  status      ClientStatus @default(PROSPECT)
   companyName String?
   cui         String?
+  firstName   String?
+  lastName    String?
+  phone       String?
+  email       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  // Person fields
-  firstName String?
-  lastName  String?
-
-  // Common fields
-  address    String
-  countryId  Int?
-  country    Country?  @relation(fields: [countryId], references: [id])
-  stateId    Int?
-  state      State?    @relation(fields: [stateId], references: [id])
-  cityId     Int?
-  city       City?     @relation(fields: [cityId], references: [id])
-  phone      String?
-  email      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  projects       Project[]
-  contactPersons ContactPerson[]
-  equipment      Equipment[]
+  addresses       ClientAddress[]
+  projects        Project[]
+  contactPersons  ContactPerson[]
+  equipment       Equipment[]
+  documents       ClientDocument[]
+  tasks           Task[]
+  notifications   Notification[]
+  appointments    Appointment[]
+  registryEntries RegistryEntry[]
 
   @@index([tenantId])
+}
+
+model ClientAddress {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  label     String?
+  address   String
+  countryId Int?
+  country   Country? @relation(fields: [countryId], references: [id])
+  stateId   Int?
+  state     State?   @relation(fields: [stateId], references: [id])
+  cityId    Int?
+  city      City?    @relation(fields: [cityId], references: [id])
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  equipment Equipment[]
+
+  @@index([clientId])
   @@index([countryId])
   @@index([stateId])
   @@index([cityId])
@@ -150,113 +198,182 @@ enum EquipmentType {
 }
 
 model Equipment {
-  id        String        @id @default(cuid())
-  clientId  String
-  client    Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  type      EquipmentType @default(CENTRALA)
-  name      String
-  fuel      String?
-  serial    String?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id              String         @id @default(cuid())
+  clientId        String
+  client          Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientAddressId String?
+  clientAddress   ClientAddress? @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
+  type            EquipmentType  @default(CENTRALA)
+  name            String?
+  internalName    String?
+  fuel            String?
+  serial          String?
+  deviceType      String?   // MURALA, STATIV, etc.
+  power           String?   // KW, ex: "24"
+  airSupply       String?   // aspirat | insuflat
+  feeding         String?   // manuala | automata
+  location        String?   // BUCATARIE, CENTRALA TERMICA
+  fuelIscir       String?   // G20, G25, etc.
+  deviceAge       String?   // nou | vechi
+  revisions       EquipmentRevision[]
+  appointments    Appointment[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([clientId])
+  @@index([clientAddressId])
 }
 
-model Project {
-  id        String        @id @default(cuid())
-  tenantId  String
-  tenant    Tenant        @relation(fields: [tenantId], references: [id])
-  clientId  String
-  client    Client        @relation(fields: [clientId], references: [id])
-  type      ProjectType
-  name      String
-  address   String
-  city      String
-  county    String
-  observations       String?
-  status             ProjectStatus @default(DRAFT)
-  metadata           Json?
-  scheduledDate      DateTime?
-  assignedEmployeeId String?
-  assignedEmployee   Employee?     @relation(fields: [assignedEmployeeId], references: [id])
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+model EquipmentRevision {
+  id              String    @id @default(cuid())
+  equipmentId     String
+  equipment       Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  revisionDate    DateTime
+  status          String    @default("COMPLETED") // PENDING, PROCESSING, COMPLETED, FAILED
+  s3Key           String?
+  fileName        String?
+  operatorName    String?
+  operatorAddress String?
+  operatorPhone   String?
+  operatorEmail   String?
+  analyzerName    String?
+  analyzerSerial  String?
+  location        String?
+  pdfEquipmentName   String?
+  pdfEquipmentSerial String?
+  pdfClientAddress   String?
+  analysisData    Json?
+  rawText         String?   @db.Text
+  notes           String?   @db.Text
+  sourceEmailId   String?
+  iscirDocumentId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  documents  Document[]
-  actionPlan ActionPlan?
+  appointment     Appointment?
+
+  @@index([equipmentId])
+  @@index([equipmentId, revisionDate])
+}
+
+// ─── Project Types (configurable per tenant) ────────────────────────────────
+
+model ProjectType {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  code         String
+  name         String
+  description  String?
+  isActive     Boolean  @default(true)
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projects            Project[]
+  workflowDefinitions WorkflowDefinition[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+}
+
+// ─── Projects ───────────────────────────────────────────────────────────────
+
+model Project {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id])
+  clientId                  String
+  client                    Client    @relation(fields: [clientId], references: [id])
+  projectTypeId             String
+  projectType               ProjectType @relation(fields: [projectTypeId], references: [id])
+  name                      String
+  address                   String
+  city                      String
+  county                    String
+  observations              String?
+  participareISC            Boolean   @default(false)
+  status                    String    @default("draft")
+  priority                  String    @default("normal")
+  metadata                  Json?
+  scheduledDate             DateTime?
+  assignedEmployeeId        String?
+  assignedEmployee          Employee? @relation(fields: [assignedEmployeeId], references: [id])
+  currentWorkflowInstanceId String?
+  drawingS3Key              String?
+  drawingJson               Json?
+  openedAt                  DateTime  @default(now())
+  closedAt                  DateTime?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  documents         ProjectDocument[]
+  workflowInstances WorkflowInstance[]
+  tasks             Task[]
+  notifications     Notification[]
+  teamMembers       ProjectTeamMember[]
+  appointments      Appointment[]
+  registryEntries   RegistryEntry[]
 
   @@index([tenantId])
   @@index([tenantId, status])
+  @@index([tenantId, projectTypeId])
   @@index([clientId])
+  @@index([tenantId, assignedEmployeeId])
 }
 
-enum ProjectType {
-  BRANSAMENT
-  CONDUCTA
-  REVIZIE_CENTRALA
-  DOSAR_ISCIR
+// ─── Project Team Members ──────────────────────────────────────────────
+
+model ProjectTeamMember {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employeeId  String?
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+  role        String
+  name        String
+  credentials Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([projectId, role])
+  @@index([projectId])
 }
 
-enum ProjectStatus {
-  DRAFT
-  SCHEDULED
-  IN_PROGRESS
-  DOCUMENTS_PENDING
-  SUBMITTED
-  APPROVED
-  COMPLETED
-  REJECTED
+// ─── Documents ──────────────────────────────────────────────────────────────
+
+model TemplateCategory {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  icon        String?  // lucide icon name
+  color       String?  // tailwind color (e.g. "blue", "amber")
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  templates DocumentTemplate[]
 }
 
 model DocumentTemplate {
-  id          String           @id @default(cuid())
-  tenantId    String?
-  tenant      Tenant?          @relation(fields: [tenantId], references: [id])
-  category    DocumentCategory
-  name        String
-  description String?
-  content     String?          @db.Text
-  s3Key       String?
-  sortOrder   Int              @default(0)
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id           String            @id @default(cuid())
+  tenantId     String?
+  tenant       Tenant?           @relation(fields: [tenantId], references: [id])
+  categoryCode String
+  category     TemplateCategory  @relation(fields: [categoryCode], references: [code])
+  name         String
+  description  String?
+  content      String?           @db.Text
+  s3Key        String?
+  sortOrder    Int               @default(0)
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   documents Document[]
 
-  @@index([tenantId, category])
-}
-
-enum DocumentCategory {
-  CARTE_BRANSAMENT
-  CARTE_CONDUCTA
-  DOSAR_ISCIR
-  REVIZIE_CENTRALA
-  GDPR
-  SERVICE_AGREEMENT
-}
-
-model Document {
-  id            String         @id @default(cuid())
-  tenantId      String
-  tenant        Tenant         @relation(fields: [tenantId], references: [id])
-  projectId     String
-  project       Project        @relation(fields: [projectId], references: [id])
-  templateId    String?
-  template      DocumentTemplate? @relation(fields: [templateId], references: [id])
-  generatedById String?
-  generatedBy   User?          @relation(fields: [generatedById], references: [id])
-  name          String
-  s3Key         String?
-  status        DocumentStatus @default(PENDING)
-  errorMessage  String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  @@index([tenantId])
-  @@index([projectId])
-  @@index([tenantId, status])
+  @@index([tenantId, categoryCode])
 }
 
 enum DocumentStatus {
@@ -265,41 +382,208 @@ enum DocumentStatus {
   COMPLETED
   FAILED
   UPLOADED
+  SIGNING
+  SIGNED
 }
 
+enum SigningStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum SignatoryStatus {
+  PENDING
+  SIGNED
+  DECLINED
+}
+
+model Document {
+  id            String          @id @default(cuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  templateId    String?
+  template      DocumentTemplate? @relation(fields: [templateId], references: [id])
+  generatedById String?
+  generatedBy   User?           @relation(fields: [generatedById], references: [id])
+  name          String
+  s3Key         String?
+  status        DocumentStatus  @default(PENDING)
+  errorMessage  String?
+  contextJson   Json?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  projects        ProjectDocument[]
+  clients         ClientDocument[]
+  signingSessions SigningSession[]
+  registryEntries RegistryEntry[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model ProjectDocument {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([projectId, documentId])
+  @@index([projectId])
+  @@index([documentId])
+}
+
+model ClientDocument {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([clientId, documentId])
+  @@index([clientId])
+  @@index([documentId])
+}
+
+// ─── Document Signing ────────────────────────────────────────────────────────
+
+model SigningSession {
+  id                  String        @id @default(cuid())
+  tenantId            String
+  tenant              Tenant        @relation(fields: [tenantId], references: [id])
+  documentId          String
+  document            Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdById         String
+  createdBy           User          @relation(fields: [createdById], references: [id])
+  status              SigningStatus @default(DRAFT)
+  message             String?
+  documentHash        String        // SHA-256 hash of the PDF at session creation
+  expiresAt           DateTime
+  completedAt         DateTime?
+  signedDocumentS3Key String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  signatories Signatory[]
+  events      SigningEvent[]
+
+  @@index([tenantId])
+  @@index([documentId])
+}
+
+model Signatory {
+  id               String          @id @default(cuid())
+  signingSessionId String
+  signingSession   SigningSession  @relation(fields: [signingSessionId], references: [id], onDelete: Cascade)
+  name             String
+  email            String
+  phone            String?
+  role             String
+  signOrder        Int
+  token            String          @unique @default(cuid())
+  status           SignatoryStatus @default(PENDING)
+  signatureS3Key   String?
+  signedAt         DateTime?
+  declinedAt       DateTime?
+  declineReason    String?
+  ipAddress        String?
+  userAgent        String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  events SigningEvent[]
+
+  @@index([signingSessionId])
+  @@index([token])
+}
+
+model SigningEvent {
+  id               String         @id @default(cuid())
+  signingSessionId String
+  signingSession   SigningSession @relation(fields: [signingSessionId], references: [id], onDelete: Cascade)
+  signatoryId      String?
+  signatory        Signatory?     @relation(fields: [signatoryId], references: [id], onDelete: Cascade)
+  eventType        String         // SESSION_CREATED, INVITATION_SENT, DOCUMENT_VIEWED, SIGNATURE_SUBMITTED, SIGNATURE_DECLINED, SESSION_COMPLETED, SESSION_CANCELLED, SESSION_EXPIRED, REMINDER_SENT
+  documentHash     String         // SHA-256 hash of the PDF at event time
+  ipAddress        String?
+  userAgent        String?
+  metadata         Json?
+  createdAt        DateTime       @default(now())
+
+  @@index([signingSessionId])
+  @@index([signatoryId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+// ─── Fleet & Staff ──────────────────────────────────────────────────────────
+
 model Vehicle {
-  id              String    @id @default(cuid())
-  tenantId        String
-  tenant          Tenant    @relation(fields: [tenantId], references: [id])
-  licensePlate    String
-  make            String
-  model           String
-  year            Int?
-  vin             String?
-  fuelType        String?
-  insuranceExpiry DateTime?
-  itpExpiry       DateTime?
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  licensePlate      String
+  make              String
+  model             String
+  year              Int?
+  vin               String?
+  fuelType          String?
+  avgKmPerMonth     Int?
+  // Expiry dates
+  itpExpiry         DateTime?
+  insuranceExpiry   DateTime?
+  vignetteExpiry    DateTime?
+  // Document S3 keys
+  talonS3Key        String?
+  civS3Key          String?
+  rcaS3Key          String?
+  vignetteS3Key     String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  revisions     VehicleRevision[]
+  notifications Notification[]
 
   @@index([tenantId])
 }
 
+model VehicleRevision {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date      DateTime
+  km        Int
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([vehicleId])
+}
+
 model Employee {
-  id          String   @id @default(cuid())
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  firstName   String
-  lastName    String
-  position    String?
-  phone       String?
-  email       String?
-  isActive    Boolean  @default(true)
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  firstName    String
+  lastName     String
+  employeeType String   @default("intern") // intern | colaborator
+  position     String?  // instalator, proiectant, rte, diriginte, verificator, sudor
+  phone        String?
+  email        String?
+  credentials  Json?
+  isActive     Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  projects Project[]
+  projects        Project[]
+  teamAssignments ProjectTeamMember[]
+  appointments    Appointment[]
 
   @@index([tenantId])
 }
@@ -319,160 +603,635 @@ model Service {
   @@index([tenantId])
 }
 
-// Geography (countries, states, cities)
+// ─── Geography ──────────────────────────────────────────────────────────────
 
 model Country {
-  id            Int     @id
-  name          String
-  iso3          String  @unique @db.Char(3)
-  iso2          String  @unique @db.Char(2)
-  numericCode   String?
-  phonecode     String?
-  capital       String?
-  currency      String?
-  currencyName  String?
+  id             Int      @id
+  name           String
+  iso3           String   @unique @db.Char(3)
+  iso2           String   @unique @db.Char(2)
+  numericCode    String?
+  phonecode      String?
+  capital        String?
+  currency       String?
+  currencyName   String?
   currencySymbol String?
-  tld           String?
-  native        String?
-  region        String?
-  subregion     String?
-  nationality   String?
-  latitude      Decimal? @db.Decimal(10, 8)
-  longitude     Decimal? @db.Decimal(11, 8)
-  emoji         String?
-  emojiU        String?
+  tld            String?
+  native         String?
+  region         String?
+  subregion      String?
+  nationality    String?
+  latitude       Decimal? @db.Decimal(10, 8)
+  longitude      Decimal? @db.Decimal(11, 8)
+  emoji          String?
+  emojiU         String?
 
-  states  State[]
-  cities  City[]
-  clients Client[]
-  tenants Tenant[]
+  states          State[]
+  cities          City[]
+  clientAddresses ClientAddress[]
+  tenants         Tenant[]
 
   @@index([name])
 }
 
 model State {
-  id          Int     @id
+  id          Int      @id
   name        String
   countryId   Int
-  country     Country @relation(fields: [countryId], references: [id])
-  countryCode String  @db.Char(2)
+  country     Country  @relation(fields: [countryId], references: [id])
+  countryCode String   @db.Char(2)
   stateCode   String?
   type        String?
   latitude    Decimal? @db.Decimal(10, 8)
   longitude   Decimal? @db.Decimal(11, 8)
 
-  cities  City[]
-  clients Client[]
-  tenants Tenant[]
+  cities          City[]
+  clientAddresses ClientAddress[]
+  tenants         Tenant[]
 
   @@index([countryId])
   @@index([name])
 }
 
 model City {
-  id          Int     @id
+  id          Int      @id
   name        String
   stateId     Int
-  state       State   @relation(fields: [stateId], references: [id])
+  state       State    @relation(fields: [stateId], references: [id])
   countryId   Int
-  country     Country @relation(fields: [countryId], references: [id])
-  countryCode String  @db.Char(2)
+  country     Country  @relation(fields: [countryId], references: [id])
+  countryCode String   @db.Char(2)
   stateCode   String?
   latitude    Decimal? @db.Decimal(10, 8)
   longitude   Decimal? @db.Decimal(11, 8)
 
-  clients Client[]
-  tenants Tenant[]
+  clientAddresses ClientAddress[]
+  tenants         Tenant[]
 
   @@index([stateId])
   @@index([countryId])
   @@index([name])
 }
 
-// Workflow & Action Plans
+// ─── Workflow Definition Layer ──────────────────────────────────────────────
 
-model WorkflowTemplate {
-  id          String       @id @default(cuid())
-  tenantId    String?
-  tenant      Tenant?      @relation(fields: [tenantId], references: [id])
-  projectType ProjectType
-  name        String
-  description String?
-  isDefault   Boolean      @default(false)
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+model WorkflowDefinition {
+  id               String    @id @default(cuid())
+  tenantId         String?
+  tenant           Tenant?   @relation(fields: [tenantId], references: [id])
+  baseDefinitionId String?
+  baseDefinition   WorkflowDefinition?  @relation("WorkflowInheritance", fields: [baseDefinitionId], references: [id])
+  derivedDefinitions WorkflowDefinition[] @relation("WorkflowInheritance")
+  projectTypeId    String?
+  projectType      ProjectType? @relation(fields: [projectTypeId], references: [id])
+  code             String
+  name             String
+  entityType       String    @default("project")
+  version          Int       @default(1)
+  status           String    @default("draft") // draft, published, archived
+  description      String?
+  category         String?   // "general", "document_generation", "approval", etc.
+  isActive         Boolean   @default(true)
+  configJson       Json?
+  publishedAt      DateTime?
+  createdById      String?
+  createdBy        User?     @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  steps       WorkflowTemplateStep[]
-  actionPlans ActionPlan[]
+  steps             WorkflowStep[]
+  transitions       WorkflowTransition[]
+  workflowInstances WorkflowInstance[]
 
-  @@index([tenantId, projectType])
+  @@unique([tenantId, code, version])
+  @@index([tenantId])
+  @@index([tenantId, code])
+  @@index([tenantId, status])
+  @@index([tenantId, projectTypeId])
+  @@index([tenantId, isActive])
+  @@index([tenantId, category])
+  @@index([baseDefinitionId])
 }
 
-model WorkflowTemplateStep {
-  id                  String           @id @default(cuid())
-  templateId          String
-  template            WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  sortOrder           Int
-  name                String
-  description         String?
-  institution         String?
-  estimatedDays       Int              @default(30)
-  requiredDocuments   String[]
-  dependsOnStepOrder  Int?
-  isSelectable        Boolean          @default(false)
-  isSelectedByDefault Boolean          @default(true)
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+model WorkflowStep {
+  id                   String             @id @default(cuid())
+  tenantId             String?
+  workflowDefinitionId String
+  workflowDefinition   WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  code                 String
+  name                 String
+  stepType             String             @default("human_task") // human_task, timer_wait, decision, document_generation, notification, approval, system_action, final
+  orderIndex           Int                @default(0)
+  isStart              Boolean            @default(false)
+  isTerminal           Boolean            @default(false)
+  joinMode             String?            // null (default), "all" (wait for all spawned siblings), "any" (continue on first)
+  nameTemplate         String?            // e.g. "Depune cerere la {{filing.institution}}" — resolved per-instance at runtime
+  configJson           Json?
+  formSchemaJson       Json?
+  validationSchemaJson Json?
+  uiSchemaJson         Json?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
-  @@index([templateId])
+  outgoingTransitions WorkflowTransition[] @relation("TransitionFrom")
+  incomingTransitions WorkflowTransition[] @relation("TransitionTo")
+  actions             WorkflowStepAction[]
+  stepInstances       WorkflowStepInstance[]
+
+  @@unique([workflowDefinitionId, code])
+  @@index([tenantId])
+  @@index([workflowDefinitionId])
+  @@index([workflowDefinitionId, orderIndex])
+  @@index([workflowDefinitionId, stepType])
+  @@index([workflowDefinitionId, isStart])
+  @@index([workflowDefinitionId, isTerminal])
 }
 
-enum ActionTaskStatus {
-  TODO
-  IN_PROGRESS
-  WAITING
-  COMPLETED
-  SKIPPED
+model WorkflowTransition {
+  id                   String             @id @default(cuid())
+  tenantId             String?
+  workflowDefinitionId String
+  workflowDefinition   WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  fromStepId           String
+  fromStep             WorkflowStep       @relation("TransitionFrom", fields: [fromStepId], references: [id], onDelete: Cascade)
+  toStepId             String
+  toStep               WorkflowStep       @relation("TransitionTo", fields: [toStepId], references: [id], onDelete: Cascade)
+  transitionType       String             @default("default") // default, success, failure, timeout, conditional, manual
+  label                String?
+  priority             Int                @default(0)
+  conditionJson        Json?
+  configJson           Json?
+  spawnMode            String             @default("single") // single (default), foreach (create N instances from array in output)
+  foreachPath          String?            // JSON path to array in step output, e.g. "required_filings"
+  itemContextKey       String?            // key name for each item in spawned step context, e.g. "filing"
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([tenantId])
+  @@index([workflowDefinitionId])
+  @@index([workflowDefinitionId, fromStepId])
+  @@index([workflowDefinitionId, toStepId])
+  @@index([workflowDefinitionId, transitionType])
 }
 
-model ActionPlan {
-  id         String            @id @default(cuid())
-  tenantId   String
-  tenant     Tenant            @relation(fields: [tenantId], references: [id])
-  projectId  String            @unique
-  project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  templateId String?
-  template   WorkflowTemplate? @relation(fields: [templateId], references: [id])
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+model WorkflowStepAction {
+  id               String       @id @default(cuid())
+  tenantId         String?
+  stepId           String
+  step             WorkflowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  triggerEvent     String       // on_enter, on_complete, on_timeout, on_fail, on_field_change, on_file_upload
+  actionType       String       // create_task, schedule_timer, send_notification, ..., call_api
+  targetFieldKey   String?      // For frontend events: which form field triggers this listener
+  actionConfigJson Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  tasks ActionTask[]
+  @@index([tenantId])
+  @@index([stepId])
+  @@index([stepId, triggerEvent])
+  @@index([stepId, actionType])
+}
 
+// ─── Workflow Runtime Layer ─────────────────────────────────────────────────
+
+model WorkflowInstance {
+  id                   String             @id @default(cuid())
+  tenantId             String
+  tenant               Tenant             @relation(fields: [tenantId], references: [id])
+  workflowDefinitionId String
+  workflowDefinition   WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id])
+  entityType           String             @default("project")
+  entityId             String
+  project              Project?           @relation(fields: [entityId], references: [id])
+  status               String             @default("running") // running, completed, failed, cancelled
+  currentStepCode      String?
+  contextJson          Json?
+  startedAt            DateTime           @default(now())
+  completedAt          DateTime?
+  parentStepInstanceId     String?        @unique
+  parentStepInstance       WorkflowStepInstance? @relation("SubWorkflowParent", fields: [parentStepInstanceId], references: [id])
+  parentWorkflowInstanceId String?
+  parentWorkflowInstance   WorkflowInstance?     @relation("SubWorkflowParentWf", fields: [parentWorkflowInstanceId], references: [id])
+  childWorkflowInstances   WorkflowInstance[]    @relation("SubWorkflowParentWf")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  stepInstances WorkflowStepInstance[]
+  executionLogs WorkflowExecutionLog[]
+  tasks         Task[]
+  notifications Notification[]
+
+  @@index([tenantId])
+  @@index([tenantId, workflowDefinitionId])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, entityType, entityId, parentWorkflowInstanceId])
+  @@index([tenantId, status])
+  @@index([tenantId, startedAt])
+  @@index([parentWorkflowInstanceId])
+}
+
+model WorkflowStepInstance {
+  id                 String           @id @default(cuid())
+  tenantId           String
+  workflowInstanceId String
+  workflowInstance   WorkflowInstance @relation(fields: [workflowInstanceId], references: [id], onDelete: Cascade)
+  stepDefinitionId   String
+  stepDefinition     WorkflowStep     @relation(fields: [stepDefinitionId], references: [id])
+  status             String           @default("pending") // pending, active, waiting, completed, failed, cancelled, skipped, overdue
+  availableAt        DateTime?
+  dueAt              DateTime?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  assignedUserId     String?
+  assignedUser       User?            @relation("StepAssignedUser", fields: [assignedUserId], references: [id])
+  outputJson         Json?
+  errorJson          Json?
+  retryCount         Int              @default(0)
+  displayName        String?          // resolved name template (e.g. "Depune cerere la ANAF") — null means use stepDefinition.name
+  spawnGroupId       String?          // groups instances created by a foreach transition
+  itemContextJson    Json?            // per-item context data from foreach spawn
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  executionLogs         WorkflowExecutionLog[]
+  tasks                 Task[]
+  childWorkflowInstance WorkflowInstance?     @relation("SubWorkflowParent")
+
+  @@index([tenantId])
+  @@index([tenantId, workflowInstanceId])
+  @@index([tenantId, stepDefinitionId])
+  @@index([tenantId, status])
+  @@index([tenantId, assignedUserId])
+  @@index([tenantId, availableAt])
+  @@index([tenantId, dueAt])
+  @@index([spawnGroupId])
+  @@index([spawnGroupId, stepDefinitionId])
+}
+
+model WorkflowExecutionLog {
+  id                 String                @id @default(cuid())
+  tenantId           String
+  workflowInstanceId String
+  workflowInstance   WorkflowInstance      @relation(fields: [workflowInstanceId], references: [id], onDelete: Cascade)
+  stepInstanceId     String?
+  stepInstance       WorkflowStepInstance? @relation(fields: [stepInstanceId], references: [id])
+  eventType          String
+  payloadJson        Json?
+  createdAt          DateTime              @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, workflowInstanceId])
+  @@index([tenantId, stepInstanceId])
+  @@index([tenantId, eventType])
+  @@index([createdAt])
+}
+
+// ─── Task Domain ────────────────────────────────────────────────────────────
+
+model Task {
+  id                     String                @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant                @relation(fields: [tenantId], references: [id])
+  projectId              String?
+  project                Project?              @relation(fields: [projectId], references: [id])
+  clientId               String?
+  client                 Client?               @relation(fields: [clientId], references: [id])
+  workflowInstanceId     String?
+  workflowInstance       WorkflowInstance?     @relation(fields: [workflowInstanceId], references: [id])
+  workflowStepInstanceId String?
+  workflowStepInstance   WorkflowStepInstance? @relation(fields: [workflowStepInstanceId], references: [id])
+  title                  String
+  description            String?
+  taskType               String                @default("manual") // manual, workflow_generated, followup
+  status                 String                @default("open") // open, in_progress, done, cancelled, overdue
+  priority               String                @default("normal") // low, normal, high, urgent
+  assignedUserId         String?
+  assignedUser           User?                 @relation("TaskAssignedUser", fields: [assignedUserId], references: [id])
+  dueAt                  DateTime?
+  completedAt            DateTime?
+  metadataJson           Json?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  deletedAt              DateTime?
+
+  notifications Notification[]
+
+  @@index([tenantId])
+  @@index([tenantId, projectId])
+  @@index([tenantId, clientId])
+  @@index([tenantId, workflowInstanceId])
+  @@index([tenantId, workflowStepInstanceId])
+  @@index([tenantId, assignedUserId])
+  @@index([tenantId, status])
+  @@index([tenantId, dueAt])
+  @@index([tenantId, deletedAt])
+}
+
+// ─── Notification Domain ────────────────────────────────────────────────────
+
+model NotificationTemplate {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  code            String
+  channel         String   // in_app, email, sms, webhook
+  subjectTemplate String?
+  bodyTemplate    String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([tenantId, code, channel])
+  @@index([tenantId])
+  @@index([tenantId, channel])
+  @@index([tenantId, isActive])
+}
+
+model Notification {
+  id                   String            @id @default(cuid())
+  tenantId             String
+  tenant               Tenant            @relation(fields: [tenantId], references: [id])
+  userId               String?
+  clientId             String?
+  client               Client?           @relation(fields: [clientId], references: [id])
+  projectId            String?
+  project              Project?          @relation(fields: [projectId], references: [id])
+  taskId               String?
+  task                 Task?             @relation(fields: [taskId], references: [id])
+  workflowInstanceId   String?
+  workflowInstance     WorkflowInstance? @relation(fields: [workflowInstanceId], references: [id])
+  vehicleId            String?
+  vehicle              Vehicle?          @relation(fields: [vehicleId], references: [id])
+  category             String?           // projects, fleet, tasks, system
+  channel              String            // in_app, email, sms, webhook
+  subject              String?
+  body                 String
+  status               String            @default("pending") // pending, scheduled, sent, failed, cancelled
+  scheduledAt          DateTime?
+  sentAt               DateTime?
+  providerResponseJson Json?
+  metadataJson         Json?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, userId])
+  @@index([tenantId, clientId])
+  @@index([tenantId, projectId])
+  @@index([tenantId, taskId])
+  @@index([tenantId, vehicleId])
+  @@index([tenantId, category])
+  @@index([tenantId, channel])
+  @@index([tenantId, status])
+  @@index([tenantId, scheduledAt])
+}
+
+// ─── Automation Layer ───────────────────────────────────────────────────────
+
+model ScheduledJob {
+  id                String    @id @default(cuid())
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  jobType           String    // activate_step, mark_step_overdue, send_notification, create_followup_project, generate_document, escalate_issue, recalculate_deadline
+  relatedEntityType String?
+  relatedEntityId   String?
+  runAt             DateTime
+  status            String    @default("pending") // pending, locked, processed, failed, cancelled
+  payloadJson       Json?
+  attempts          Int       @default(0)
+  maxAttempts       Int       @default(10)
+  lockedAt          DateTime?
+  processedAt       DateTime?
+  failedAt          DateTime?
+  errorMessage      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, jobType])
+  @@index([tenantId, status])
+  @@index([tenantId, runAt])
+  @@index([status, runAt])
+  @@index([tenantId, relatedEntityType, relatedEntityId])
+}
+
+model OutboxEvent {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  eventName     String
+  aggregateType String
+  aggregateId   String
+  payloadJson   Json
+  publishedAt   DateTime?
+  failedAt      DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, eventName])
+  @@index([tenantId, aggregateType, aggregateId])
+  @@index([publishedAt])
+  @@index([failedAt])
+}
+
+// ─── Audit Domain ───────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  actorUserId  String?
+  actorUser    User?    @relation(fields: [actorUserId], references: [id])
+  entityType   String
+  entityId     String
+  action       String
+  beforeJson   Json?
+  afterJson    Json?
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, actorUserId])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, action])
+  @@index([createdAt])
+}
+
+model DrawingTemplate {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  name       String
+  canvasJson Json
+  isGlobal   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([isGlobal])
+}
+
+// ─── Appointments ──────────────────────────────────────────────────────
+
+model Appointment {
+  id                  String              @id @default(cuid())
+  tenantId            String
+  tenant              Tenant              @relation(fields: [tenantId], references: [id])
+  projectId           String?
+  project             Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId            String?
+  client              Client?             @relation(fields: [clientId], references: [id])
+  employeeId          String?
+  employee            Employee?           @relation(fields: [employeeId], references: [id])
+  equipmentId         String?
+  equipment           Equipment?          @relation(fields: [equipmentId], references: [id])
+  equipmentRevisionId String?             @unique
+  equipmentRevision   EquipmentRevision?  @relation(fields: [equipmentRevisionId], references: [id])
+  type                String              @default("general") // general, revizie, ridicare_documente
+  title               String
+  notes               String?
+  date                DateTime
+  duration            Int?
+  status              String              @default("scheduled") // scheduled, in_progress, awaiting_report, completed, cancelled, rescheduled
+  completionDataJson  Json?
+  deletedAt           DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([tenantId, date])
+  @@index([clientId, type, status])
+  @@index([deletedAt])
+}
+
+// ─── Email Inboxes (OAuth2 config for email ingestion) ─────────────────────
+
+model EmailInbox {
+  id             String    @id @default(cuid())
+  tenantId       String?
+  tenant         Tenant?   @relation(fields: [tenantId], references: [id])
+  label          String
+  email          String
+  provider       String    @default("gmail")
+  refreshToken   String?
+  accessToken    String?
+  tokenExpiresAt DateTime?
+  purpose        String    @default("revision_import")
+  isActive       Boolean   @default(true)
+  lastPolledAt   DateTime?
+  lastError      String?
+  lastErrorAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([tenantId])
+  @@index([isActive])
+}
+
+// ─── Registry (registratură intrări/ieșiri documente) ─────────────────────
+
+model RegistrySeries {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  code           String
+  name           String
+  direction      String   @default("INTERNAL") // IN, OUT, INTERNAL
+  prefix         String?
+  startingNumber Int      @default(1) // first number assigned for a new year
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  entries   RegistryEntry[]
+
+  @@unique([tenantId, code])
   @@index([tenantId])
 }
 
-model ActionTask {
-  id              String           @id @default(cuid())
-  actionPlanId    String
-  actionPlan      ActionPlan       @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
-  sortOrder       Int
-  name            String
-  description     String?
-  institution     String?
-  status          ActionTaskStatus @default(TODO)
-  estimatedDays   Int?
-  startDate       DateTime?
-  dueDate         DateTime?
-  completedDate   DateTime?
-  notes           String?          @db.Text
-  dependsOnTaskId String?
-  dependsOnTask   ActionTask?      @relation("TaskDependency", fields: [dependsOnTaskId], references: [id])
-  dependentTasks  ActionTask[]     @relation("TaskDependency")
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+model RegistryEntry {
+  id               String         @id @default(cuid())
+  tenantId         String
+  tenant           Tenant         @relation(fields: [tenantId], references: [id])
+  seriesId         String
+  series           RegistrySeries @relation(fields: [seriesId], references: [id])
 
-  @@index([actionPlanId])
-  @@index([dueDate])
-  @@index([status])
+  number           Int
+  year             Int
+  displayNumber    String
+
+  subject          String
+  description      String?
+  counterpartName  String?
+  fileS3Key        String?
+
+  documentId       String?
+  document         Document?      @relation(fields: [documentId], references: [id])
+  projectId        String?
+  project          Project?       @relation(fields: [projectId], references: [id])
+  clientId         String?
+  client           Client?        @relation(fields: [clientId], references: [id])
+
+  status           String         @default("active") // active, voided
+  voidedAt         DateTime?
+  voidedById       String?
+  voidedBy         User?          @relation("RegistryVoider", fields: [voidedById], references: [id])
+  voidReason       String?
+
+  createdAt        DateTime       @default(now())
+  createdById      String
+  createdBy        User           @relation("RegistryCreator", fields: [createdById], references: [id])
+  isManualOverride Boolean        @default(false)
+  overrideReason   String?
+
+  @@unique([tenantId, seriesId, year, number])
+  @@index([tenantId, year])
+  @@index([seriesId])
+  @@index([documentId])
+}
+
+// ─── Email Ingest Logs (reconciliere PDF-uri) ─────────────────────────────
+
+model EmailIngestLog {
+  id                    String    @id @default(cuid())
+  tenantId              String
+  tenant                Tenant    @relation(fields: [tenantId], references: [id])
+  inboxId               String
+  emailMessageId        String
+  emailFrom             String?
+  emailSubject          String?
+  emailDate             DateTime?
+  fileName              String?
+  s3Key                 String?
+
+  status                String    @default("pending") // pending, processing, completed, failed, needs_review
+
+  parsedClientName      String?
+  parsedClientSurname   String?
+  parsedClientPhone     String?
+  parsedClientEmail     String?
+  parsedEquipmentName   String?
+  parsedEquipmentSerial String?
+  parsedData            Json?
+
+  matchedClientId       String?
+  matchedEquipmentId    String?
+  matchedRevisionId     String?
+  matchedAppointmentId  String?
+
+  resolvedClientId      String?
+  resolvedById          String?
+  resolvedAt            DateTime?
+  resolvedNotes         String?
+
+  errorMessage          String?
+  errorStep             String?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([emailMessageId])
 }

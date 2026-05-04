@@ -3,26 +3,30 @@ import type { MultipartFile } from "@fastify/multipart";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
 import { uploadFile, getPresignedUrl, deleteFile } from "../../lib/s3.js";
-import type { DocumentCategory } from "@prisma/client";
 
 const documentQueue = new Queue("document-generation", {
   connection: redisConnection,
 });
+
+const documentInclude = {
+  template: { include: { category: true } },
+};
+
+// === Project documents ===
 
 export async function listByProject(
   fastify: FastifyInstance,
   tenantId: string,
   projectId: string
 ) {
-  // Verify project belongs to tenant
   const project = await fastify.prisma.project.findFirst({
     where: { id: projectId, tenantId },
   });
   if (!project) throw fastify.httpErrors.notFound("Project not found");
 
   return fastify.prisma.document.findMany({
-    where: { projectId, tenantId },
-    include: { template: { select: { id: true, name: true, category: true } } },
+    where: { tenantId, projects: { some: { projectId } } },
+    include: documentInclude,
     orderBy: { createdAt: "desc" },
   });
 }
@@ -35,8 +39,8 @@ export async function getById(
   const doc = await fastify.prisma.document.findFirst({
     where: { id, tenantId },
     include: {
-      template: { select: { id: true, name: true, category: true } },
-      project: { select: { id: true, name: true } },
+      ...documentInclude,
+      projects: { include: { project: { select: { id: true, name: true } } } },
       generatedBy: { select: { id: true, firstName: true, lastName: true } },
     },
   });
@@ -73,17 +77,18 @@ export async function generate(
       fastify.prisma.document.create({
         data: {
           tenantId,
-          projectId,
           templateId: template.id,
           generatedById: userId,
           name: template.name,
           status: "PENDING",
+          projects: {
+            create: { projectId },
+          },
         },
       })
     )
   );
 
-  // Queue jobs
   await Promise.all(
     documents.map((doc) =>
       documentQueue.add("generate", {
@@ -102,12 +107,12 @@ export async function generateBatch(
   fastify: FastifyInstance,
   tenantId: string,
   projectId: string,
-  category: DocumentCategory,
+  category: string,
   userId: string
 ) {
   const templates = await fastify.prisma.documentTemplate.findMany({
     where: {
-      category,
+      categoryCode: category,
       OR: [{ tenantId }, { tenantId: null }],
       isActive: true,
     },
@@ -148,14 +153,95 @@ export async function upload(
   return fastify.prisma.document.create({
     data: {
       tenantId,
-      projectId,
       generatedById: userId,
       name: file.filename,
       s3Key,
       status: "UPLOADED",
+      projects: {
+        create: { projectId },
+      },
     },
   });
 }
+
+// === Client documents ===
+
+export async function listByClient(
+  fastify: FastifyInstance,
+  tenantId: string,
+  clientId: string
+) {
+  const client = await fastify.prisma.client.findFirst({
+    where: { id: clientId, tenantId },
+  });
+  if (!client) throw fastify.httpErrors.notFound("Client not found");
+
+  return fastify.prisma.document.findMany({
+    where: { tenantId, clients: { some: { clientId } } },
+    include: documentInclude,
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function generateForClient(
+  fastify: FastifyInstance,
+  tenantId: string,
+  clientId: string,
+  templateIds: string[],
+  userId: string,
+  context?: Record<string, unknown>
+) {
+  const client = await fastify.prisma.client.findFirst({
+    where: { id: clientId, tenantId },
+  });
+  if (!client) throw fastify.httpErrors.notFound("Client not found");
+
+  const templates = await fastify.prisma.documentTemplate.findMany({
+    where: {
+      id: { in: templateIds },
+      OR: [{ tenantId }, { tenantId: null }],
+      isActive: true,
+    },
+  });
+
+  if (templates.length === 0) {
+    throw fastify.httpErrors.badRequest("No valid templates found");
+  }
+
+  const documents = await Promise.all(
+    templates.map((template) =>
+      fastify.prisma.document.create({
+        data: {
+          tenantId,
+          templateId: template.id,
+          generatedById: userId,
+          name: template.name,
+          status: "PENDING",
+          contextJson: context ?? undefined,
+          clients: {
+            create: { clientId },
+          },
+        },
+      })
+    )
+  );
+
+  await Promise.all(
+    documents.map((doc) =>
+      documentQueue.add("generate", {
+        documentId: doc.id,
+        tenantId,
+        clientId,
+        templateId: doc.templateId,
+        context: context ?? undefined,
+      })
+    )
+  );
+
+  return documents;
+}
+
+// === Common ===
 
 export async function getDownloadUrl(
   fastify: FastifyInstance,

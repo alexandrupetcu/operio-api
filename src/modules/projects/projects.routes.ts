@@ -7,17 +7,18 @@ import {
   createProjectWithClientSchema,
 } from "./projects.schema.js";
 import * as projectsService from "./projects.service.js";
+import { uploadFile } from "../../lib/s3.js";
 
 export default async function projectsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
   fastify.get("/", async (request) => {
     const query = paginationSchema.parse(request.query);
-    const { status, type } = request.query as Record<string, string>;
+    const { status, projectTypeId } = request.query as Record<string, string>;
     return projectsService.list(fastify, request.tenantId, {
       ...query,
       status,
-      type,
+      projectTypeId,
     });
   });
 
@@ -88,6 +89,52 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
         request.tenantId,
         request.params.id
       );
+    }
+  );
+
+  // Save drawing (PNG + Fabric JSON) on project
+  fastify.put<{ Params: { id: string } }>(
+    "/:id/drawing",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    async (request) => {
+      const { png, canvasJson } = request.body as {
+        png: string; // base64 data URL
+        canvasJson: object;
+      };
+      if (!png) throw fastify.httpErrors.badRequest("png is required");
+
+      // Verify project belongs to tenant
+      const project = await fastify.prisma.project.findFirst({
+        where: { id: request.params.id, tenantId: request.tenantId },
+      });
+      if (!project) throw fastify.httpErrors.notFound("Project not found");
+
+      // Convert base64 data URL to buffer
+      const base64Data = png.replace(/^data:image\/png;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+      const s3Key = `${request.tenantId}/projects/${request.params.id}/drawing.png`;
+      await uploadFile(s3Key, buffer, "image/png");
+
+      return fastify.prisma.project.update({
+        where: { id: request.params.id },
+        data: {
+          drawingS3Key: s3Key,
+          drawingJson: canvasJson as any,
+        },
+      });
+    }
+  );
+
+  // Get drawing data for a project
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/drawing",
+    async (request) => {
+      const project = await fastify.prisma.project.findFirst({
+        where: { id: request.params.id, tenantId: request.tenantId },
+        select: { drawingS3Key: true, drawingJson: true },
+      });
+      if (!project) throw fastify.httpErrors.notFound("Project not found");
+      return project;
     }
   );
 }

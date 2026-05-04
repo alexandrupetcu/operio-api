@@ -5,8 +5,8 @@ import { env } from "../config/env.js";
 
 export interface JwtPayload {
   sub: string;
-  tenantId: string;
-  role: "ADMIN" | "MANAGER" | "OPERATOR";
+  tenantId: string | null;
+  role: "MASTER_ADMIN" | "ADMIN" | "MANAGER" | "OPERATOR";
 }
 
 export default fp(async (fastify: FastifyInstance) => {

@@ -3,8 +3,10 @@ import { requireRole } from "../../lib/rbac.js";
 import {
   generateDocumentsSchema,
   generateBatchSchema,
+  generateClientDocumentsSchema,
 } from "./documents.schema.js";
 import * as documentsService from "./documents.service.js";
+import * as documentParseService from "./documents-parse.service.js";
 
 export default async function documentsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
@@ -91,6 +93,51 @@ export default async function documentsRoutes(fastify: FastifyInstance) {
         request.user.sub
       );
       return reply.status(201).send(doc);
+    }
+  );
+
+  // === Client documents ===
+
+  // List documents for a client
+  fastify.get<{ Params: { clientId: string } }>(
+    "/client/:clientId",
+    async (request) => {
+      return documentsService.listByClient(
+        fastify,
+        request.tenantId,
+        request.params.clientId
+      );
+    }
+  );
+
+  // Generate documents for a client (e.g. GDPR)
+  fastify.post<{ Params: { clientId: string } }>(
+    "/client/:clientId/generate",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request, reply) => {
+      const body = generateClientDocumentsSchema.parse(request.body);
+      const docs = await documentsService.generateForClient(
+        fastify,
+        request.tenantId,
+        request.params.clientId,
+        body.templateIds,
+        request.user.sub,
+        body.context as Record<string, unknown> | undefined
+      );
+      return reply.status(202).send(docs);
+    }
+  );
+
+  // Parse permits from an uploaded document using GPT-4.1
+  fastify.post(
+    "/parse-permits",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request, reply) => {
+      const file = await request.file();
+      if (!file) throw fastify.httpErrors.badRequest("Fișierul este obligatoriu.");
+
+      const result = await documentParseService.parsePermits(fastify, file);
+      return reply.status(200).send(result);
     }
   );
 

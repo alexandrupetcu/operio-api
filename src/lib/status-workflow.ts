@@ -1,76 +1,81 @@
-import type { ProjectType, ProjectStatus } from "@prisma/client";
+// Status workflow definitions keyed by project type code (string, not enum)
+// These define the valid status progressions for each project type
 
-const WORKFLOWS: Record<ProjectType, ProjectStatus[]> = {
-  REVIZIE_CENTRALA: ["DRAFT", "SCHEDULED", "IN_PROGRESS", "COMPLETED"],
-  BRANSAMENT: [
-    "DRAFT",
-    "IN_PROGRESS",
-    "DOCUMENTS_PENDING",
-    "SUBMITTED",
-    "APPROVED",
-    "COMPLETED",
-    "REJECTED",
+const WORKFLOWS: Record<string, string[]> = {
+  revizie_centrala: ["draft", "scheduled", "in_progress", "completed"],
+  bransament: [
+    "draft",
+    "in_progress",
+    "documents_pending",
+    "submitted",
+    "approved",
+    "completed",
+    "rejected",
   ],
-  CONDUCTA: [
-    "DRAFT",
-    "IN_PROGRESS",
-    "DOCUMENTS_PENDING",
-    "SUBMITTED",
-    "APPROVED",
-    "COMPLETED",
-    "REJECTED",
+  conducta: [
+    "draft",
+    "in_progress",
+    "documents_pending",
+    "submitted",
+    "approved",
+    "completed",
+    "rejected",
   ],
-  DOSAR_ISCIR: [
-    "DRAFT",
-    "IN_PROGRESS",
-    "DOCUMENTS_PENDING",
-    "SUBMITTED",
-    "APPROVED",
-    "COMPLETED",
-    "REJECTED",
+  dosar_iscir: [
+    "draft",
+    "in_progress",
+    "documents_pending",
+    "submitted",
+    "approved",
+    "completed",
+    "rejected",
   ],
 };
 
-export function getStatusesForType(type: ProjectType): ProjectStatus[] {
-  return WORKFLOWS[type];
+const DEFAULT_WORKFLOW = [
+  "draft",
+  "in_progress",
+  "completed",
+  "cancelled",
+];
+
+export function getStatusesForType(typeCode: string): string[] {
+  return WORKFLOWS[typeCode] ?? DEFAULT_WORKFLOW;
 }
 
 export function getValidNextStatuses(
-  type: ProjectType,
-  current: ProjectStatus
-): ProjectStatus[] {
-  const workflow = WORKFLOWS[type];
+  typeCode: string,
+  current: string
+): string[] {
+  const workflow = WORKFLOWS[typeCode] ?? DEFAULT_WORKFLOW;
   const currentIndex = workflow.indexOf(current);
 
   if (currentIndex === -1) return [];
 
-  // REJECTED can go back to IN_PROGRESS
-  if (current === "REJECTED") {
-    return ["IN_PROGRESS"];
+  if (current === "rejected") {
+    return ["in_progress"];
   }
 
-  // Can move to any later status in the workflow (skip allowed)
-  return workflow.filter((_, i) => i > currentIndex && workflow[i] !== "REJECTED");
+  return workflow.filter((s, i) => i > currentIndex && s !== "rejected");
 }
 
 export function validateStatusTransition(
-  type: ProjectType,
-  current: ProjectStatus,
-  next: ProjectStatus
+  typeCode: string,
+  current: string,
+  next: string
 ): void {
-  const valid = getValidNextStatuses(type, current);
+  const valid = getValidNextStatuses(typeCode, current);
 
-  // Also allow REJECTED from SUBMITTED or APPROVED
   if (
-    next === "REJECTED" &&
-    (current === "SUBMITTED" || current === "APPROVED")
+    next === "rejected" &&
+    (current === "submitted" || current === "approved")
   ) {
     return;
   }
 
   if (!valid.includes(next)) {
     throw new Error(
-      `Invalid status transition for ${type}: ${current} → ${next}`
+      `Invalid status transition for ${typeCode}: ${current} → ${next}`
     );
   }
 }

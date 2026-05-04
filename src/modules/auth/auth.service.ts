@@ -103,7 +103,7 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
 
   const accessToken = fastify.jwt.sign({
     sub: user.id,
-    tenantId: tenant.id,
+    tenantId: tenant?.id ?? null,
     role: user.role,
   });
 
@@ -126,13 +126,15 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
       lastName: user.lastName,
       role: user.role,
     },
-    tenant: {
-      id: tenant.id,
-      name: tenant.name,
-      slug: tenant.slug,
-      countryId: tenant.countryId,
-      country: tenant.country,
-    },
+    tenant: tenant
+      ? {
+          id: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+          countryId: tenant.countryId,
+          country: tenant.country,
+        }
+      : null,
   };
 }
 

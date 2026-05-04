@@ -1,9 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-import { createWriteStream } from "fs";
-import { readFile, unlink } from "fs/promises";
-import { createGunzip } from "zlib";
-import { pipeline } from "stream/promises";
-import { Readable } from "stream";
 
 const prisma = new PrismaClient();
 
@@ -15,26 +10,6 @@ async function downloadJson(filename: string): Promise<unknown> {
   const res = await fetch(`${BASE_URL}/${filename}`);
   if (!res.ok) throw new Error(`Failed to download ${filename}: ${res.status}`);
   return res.json();
-}
-
-async function downloadGzipJson(filename: string): Promise<unknown> {
-  console.log(`Downloading ${filename} (gzipped)...`);
-  const res = await fetch(`${BASE_URL}/${filename}`);
-  if (!res.ok) throw new Error(`Failed to download ${filename}: ${res.status}`);
-
-  const tmpPath = `/tmp/${filename.replace(".gz", "")}`;
-  const gunzip = createGunzip();
-  const fileStream = createWriteStream(tmpPath);
-
-  await pipeline(
-    Readable.fromWeb(res.body as import("stream/web").ReadableStream),
-    gunzip,
-    fileStream
-  );
-
-  const data = JSON.parse(await readFile(tmpPath, "utf-8"));
-  await unlink(tmpPath);
-  return data;
 }
 
 interface RawCountry {
@@ -120,12 +95,32 @@ async function main() {
     console.log("Cleared existing geographic data.\n");
   }
 
-  // Download data
-  const [countriesRaw, statesRaw, citiesRaw] = await Promise.all([
+  // Download data — cities are embedded in the combined file since cities.json was removed
+  interface RawCountryWithStates extends RawCountry {
+    states?: Array<RawState & { cities?: RawCity[] }>;
+  }
+
+  const [countriesRaw, statesRaw, combinedRaw] = await Promise.all([
     downloadJson("countries.json") as Promise<RawCountry[]>,
     downloadJson("states.json") as Promise<RawState[]>,
-    downloadGzipJson("cities.json.gz") as Promise<RawCity[]>,
+    downloadJson("countries%2Bstates%2Bcities.json") as Promise<RawCountryWithStates[]>,
   ]);
+
+  // Extract cities from nested combined structure (inject state_id/country_id which are absent)
+  const citiesRaw: RawCity[] = [];
+  for (const country of combinedRaw) {
+    for (const state of country.states ?? []) {
+      for (const city of state.cities ?? []) {
+        citiesRaw.push({
+          ...city,
+          state_id: state.id,
+          country_id: country.id,
+          country_code: country.iso2,
+          state_code: (state as any).iso2 ?? state.state_code ?? null,
+        });
+      }
+    }
+  }
 
   console.log(
     `\nDownloaded: ${countriesRaw.length} countries, ${statesRaw.length} states, ${citiesRaw.length} cities\n`

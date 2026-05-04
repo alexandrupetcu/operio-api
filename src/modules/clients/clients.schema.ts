@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const clientStatusSchema = z.enum(["ACTIVE", "INACTIVE"]);
+const clientStatusSchema = z.enum(["PROSPECT", "ACTIVE", "INACTIVE"]);
 
 const contactPersonSchema = z.object({
   id: z.string().optional(),
@@ -13,9 +13,37 @@ const contactPersonSchema = z.object({
 const equipmentSchema = z.object({
   id: z.string().optional(),
   type: z.enum(["CENTRALA"]).default("CENTRALA"),
-  name: z.string().min(1),
+  internalName: z.string().min(1),
   fuel: z.string().optional(),
   serial: z.string().optional(),
+  clientAddressId: z.string().optional().nullable(),
+});
+
+export const equipmentInputSchema = z.object({
+  type: z.enum(["CENTRALA"]).default("CENTRALA"),
+  internalName: z.string().min(1),
+  fuel: z.string().optional(),
+  serial: z.string().optional(),
+  clientAddressId: z.string().optional().nullable(),
+});
+
+const clientAddressSchema = z.object({
+  id: z.string().optional(),
+  label: z.string().optional(),
+  address: z.string().min(1),
+  countryId: z.number().int().positive().optional().nullable(),
+  stateId: z.number().int().positive().optional().nullable(),
+  cityId: z.number().int().positive().optional().nullable(),
+  isPrimary: z.boolean().default(false),
+});
+
+export const clientAddressInputSchema = z.object({
+  label: z.string().optional(),
+  address: z.string().min(1),
+  countryId: z.number().int().positive().optional().nullable(),
+  stateId: z.number().int().positive().optional().nullable(),
+  cityId: z.number().int().positive().optional().nullable(),
+  isPrimary: z.boolean().default(false),
 });
 
 export const createClientSchema = z.discriminatedUnion("type", [
@@ -24,27 +52,21 @@ export const createClientSchema = z.discriminatedUnion("type", [
     status: clientStatusSchema.optional(),
     companyName: z.string().min(1).max(200),
     cui: z.string().optional(),
-    address: z.string().min(1),
-    countryId: z.number().int().positive().optional().nullable(),
-    stateId: z.number().int().positive().optional().nullable(),
-    cityId: z.number().int().positive().optional().nullable(),
     phone: z.string().optional(),
     email: z.string().email().optional(),
     contactPersons: z.array(contactPersonSchema).optional(),
     equipment: z.array(equipmentSchema).optional(),
+    addresses: z.array(clientAddressSchema).min(1),
   }),
   z.object({
     type: z.literal("PERSON"),
     status: clientStatusSchema.optional(),
     firstName: z.string().min(1).max(100),
     lastName: z.string().min(1).max(100),
-    address: z.string().min(1),
-    countryId: z.number().int().positive().optional().nullable(),
-    stateId: z.number().int().positive().optional().nullable(),
-    cityId: z.number().int().positive().optional().nullable(),
     phone: z.string().optional(),
     email: z.string().email().optional(),
     equipment: z.array(equipmentSchema).optional(),
+    addresses: z.array(clientAddressSchema).min(1),
   }),
 ]);
 
@@ -54,27 +76,21 @@ export const updateClientSchema = z.discriminatedUnion("type", [
     status: clientStatusSchema.optional(),
     companyName: z.string().min(1).max(200).optional(),
     cui: z.string().optional(),
-    address: z.string().min(1).optional(),
-    countryId: z.number().int().positive().optional().nullable(),
-    stateId: z.number().int().positive().optional().nullable(),
-    cityId: z.number().int().positive().optional().nullable(),
     phone: z.string().optional(),
     email: z.string().email().optional(),
     contactPersons: z.array(contactPersonSchema).optional(),
     equipment: z.array(equipmentSchema).optional(),
+    addresses: z.array(clientAddressSchema).optional(),
   }),
   z.object({
     type: z.literal("PERSON"),
     status: clientStatusSchema.optional(),
     firstName: z.string().min(1).max(100).optional(),
     lastName: z.string().min(1).max(100).optional(),
-    address: z.string().min(1).optional(),
-    countryId: z.number().int().positive().optional().nullable(),
-    stateId: z.number().int().positive().optional().nullable(),
-    cityId: z.number().int().positive().optional().nullable(),
     phone: z.string().optional(),
     email: z.string().email().optional(),
     equipment: z.array(equipmentSchema).optional(),
+    addresses: z.array(clientAddressSchema).optional(),
   }),
 ]);
 

@@ -15,22 +15,38 @@ const clientSelect = {
   companyName: true,
   firstName: true,
   lastName: true,
-  address: true,
-  city: { select: { id: true, name: true } },
-  state: { select: { id: true, name: true } },
+  addresses: {
+    include: {
+      city: { select: { id: true, name: true } },
+      state: { select: { id: true, name: true } },
+    },
+    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] as any,
+  },
   phone: true,
   email: true,
 } as const;
 
 const listInclude = {
   client: { select: clientSelect },
+  projectType: { select: { id: true, code: true, name: true } },
   assignedEmployee: {
     select: { id: true, firstName: true, lastName: true, position: true },
   },
 } as const;
 
 const detailInclude = {
-  client: true,
+  client: {
+    include: {
+      addresses: {
+        include: {
+          city: { select: { id: true, name: true } },
+          state: { select: { id: true, name: true } },
+        },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] as any,
+      },
+    },
+  },
+  projectType: { select: { id: true, code: true, name: true } },
   assignedEmployee: {
     select: { id: true, firstName: true, lastName: true, position: true },
   },
@@ -40,12 +56,12 @@ const detailInclude = {
 export async function list(
   fastify: FastifyInstance,
   tenantId: string,
-  query: PaginationQuery & { status?: string; type?: string }
+  query: PaginationQuery & { status?: string; projectTypeId?: string }
 ) {
   const where = {
     tenantId,
-    ...(query.status && { status: query.status as any }),
-    ...(query.type && { type: query.type as any }),
+    ...(query.status && { status: query.status }),
+    ...(query.projectTypeId && { projectTypeId: query.projectTypeId }),
     ...(query.search && {
       OR: [
         { name: { contains: query.search, mode: "insensitive" as const } },
@@ -104,6 +120,11 @@ export async function create(
   });
   if (!client) throw fastify.httpErrors.notFound("Client not found");
 
+  const projectType = await fastify.prisma.projectType.findFirst({
+    where: { id: input.projectTypeId, tenantId },
+  });
+  if (!projectType) throw fastify.httpErrors.notFound("Project type not found");
+
   if (input.assignedEmployeeId) {
     const emp = await fastify.prisma.employee.findFirst({
       where: { id: input.assignedEmployeeId, tenantId },
@@ -112,19 +133,21 @@ export async function create(
   }
 
   const initialStatus =
-    input.scheduledDate && input.type === "REVIZIE_CENTRALA"
-      ? "SCHEDULED"
-      : "DRAFT";
+    input.scheduledDate && projectType.code === "revizie_centrala"
+      ? "scheduled"
+      : "draft";
 
   return fastify.prisma.project.create({
     data: {
       tenantId,
       clientId: input.clientId,
-      type: input.type,
+      projectTypeId: input.projectTypeId,
       name: input.name,
       address: input.address,
       city: input.city,
       county: input.county,
+      observations: input.observations ?? null,
+      participareISC: input.participareISC ?? false,
       metadata: input.metadata as Prisma.InputJsonValue | undefined,
       scheduledDate: input.scheduledDate ? new Date(input.scheduledDate) : null,
       assignedEmployeeId: input.assignedEmployeeId ?? null,
@@ -140,12 +163,16 @@ export async function update(
   id: string,
   input: UpdateProjectInput
 ) {
-  const project = await getById(fastify, tenantId, id);
+  const project = await fastify.prisma.project.findFirst({
+    where: { id, tenantId },
+    include: { projectType: true },
+  });
+  if (!project) throw fastify.httpErrors.notFound("Project not found");
 
   // Validate status transition if status is being changed
   if (input.status && input.status !== project.status) {
     try {
-      validateStatusTransition(project.type, project.status, input.status);
+      validateStatusTransition(project.projectType.code, project.status, input.status);
     } catch {
       throw fastify.httpErrors.badRequest(
         `Invalid status transition: ${project.status} → ${input.status}`
@@ -182,15 +209,13 @@ export async function createWithClient(
     let clientId: string;
 
     if ("id" in input.client) {
-      // Existing client
       const client = await tx.client.findFirst({
         where: { id: input.client.id, tenantId },
       });
       if (!client) throw fastify.httpErrors.notFound("Client not found");
       clientId = client.id;
     } else {
-      // New client
-      const { contactPersons, equipment, ...clientData } =
+      const { contactPersons, equipment, addresses, ...clientData } =
         input.client.type === "COMPANY"
           ? input.client
           : { ...input.client, contactPersons: undefined };
@@ -199,6 +224,11 @@ export async function createWithClient(
         data: {
           tenantId,
           ...clientData,
+          ...(addresses?.length && {
+            addresses: {
+              create: addresses.map(({ id: _id, ...addr }) => addr),
+            },
+          }),
           ...(contactPersons?.length && {
             contactPersons: {
               create: contactPersons.map(({ id: _id, ...cp }) => cp),
@@ -215,11 +245,15 @@ export async function createWithClient(
             },
           }),
         },
-      });
+      } as any);
       clientId = newClient.id;
     }
 
-    // Validate assigned employee
+    const projectType = await tx.projectType.findFirst({
+      where: { id: input.project.projectTypeId, tenantId },
+    });
+    if (!projectType) throw fastify.httpErrors.notFound("Project type not found");
+
     if (input.scheduling?.assignedEmployeeId) {
       const emp = await tx.employee.findFirst({
         where: { id: input.scheduling.assignedEmployeeId, tenantId },
@@ -228,21 +262,21 @@ export async function createWithClient(
     }
 
     const initialStatus =
-      input.scheduling?.scheduledDate &&
-      input.project.type === "REVIZIE_CENTRALA"
-        ? "SCHEDULED"
-        : "DRAFT";
+      input.scheduling?.scheduledDate && projectType.code === "revizie_centrala"
+        ? "scheduled"
+        : "draft";
 
     const project = await tx.project.create({
       data: {
         tenantId,
         clientId,
-        type: input.project.type,
+        projectTypeId: input.project.projectTypeId,
         name: input.project.name,
         address: input.project.address,
         city: input.project.city,
         county: input.project.county,
         observations: input.project.observations ?? null,
+        participareISC: input.project.participareISC ?? false,
         metadata: input.project.metadata as Prisma.InputJsonValue | undefined,
         scheduledDate: input.scheduling?.scheduledDate
           ? new Date(input.scheduling.scheduledDate)
@@ -252,6 +286,7 @@ export async function createWithClient(
       },
       include: {
         client: true,
+        projectType: { select: { id: true, code: true, name: true } },
         assignedEmployee: {
           select: { id: true, firstName: true, lastName: true, position: true },
         },

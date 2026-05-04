@@ -7,9 +7,20 @@ import * as employeesService from "./employees.service.js";
 const createSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
-  position: z.string().max(100).optional().nullable(),
-  phone: z.string().max(30).optional().nullable(),
-  email: z.string().email().optional().nullable(),
+  employeeType: z.enum(["intern", "colaborator"]).default("intern"),
+  position: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().max(100).optional().nullable(),
+  ),
+  phone: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().max(30).optional().nullable(),
+  ),
+  email: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().email().optional().nullable(),
+  ),
+  credentials: z.record(z.string()).optional(),
 });
 
 const updateSchema = createSchema.partial().extend({
