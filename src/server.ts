@@ -143,9 +143,12 @@ export async function buildServer() {
             .filter((f): f is string => !!f),
         ),
       );
+      // Surface the first issue's text (schemas carry Romanian messages for the
+      // rules users actually hit, e.g. the password policy) so forms can show it.
+      const detail = err.issues[0]?.message;
       return reply.status(400).send({
         error: "Validation failed",
-        message: "Datele introduse sunt invalide",
+        message: detail && !/^(Required|Invalid|Expected|String must)/.test(detail) ? detail : "Datele introduse sunt invalide",
         fields,
       });
     }

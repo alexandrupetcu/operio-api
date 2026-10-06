@@ -2,14 +2,14 @@ import { z } from "zod";
 
 /**
  * Shared password policy used on register, change-password, and reset-password.
- * Minimum 12 chars and at least 3 of 4 character classes (upper / lower /
+ * Minimum 8 chars and at least 3 of 4 character classes (upper / lower /
  * digit / special). We don't enforce all 4 — it nudges users toward predictable
  * patterns like "Password1!" — but 3-of-4 catches the worst (`alllowercase`,
  * `Capitalized`, `12345678`, etc.). For more rigor, consider zxcvbn later.
  */
 export const passwordPolicySchema = z
   .string()
-  .min(12, "Parola trebuie să aibă cel puțin 12 caractere")
+  .min(8, "Parola trebuie să aibă cel puțin 8 caractere")
   .max(200)
   .refine((p) => {
     let classes = 0;
