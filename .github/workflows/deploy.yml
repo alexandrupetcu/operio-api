@@ -1,0 +1,28 @@
+# Manual production deploy: Actions → "Deploy API" → Run workflow.
+# SSHes into the VPS with a key that is restricted (forced command) to running
+# the deploy script for one target — see operio-deploy/README.md "CI/CD".
+name: Deploy API
+
+on:
+  workflow_dispatch:
+  # To deploy automatically on every merge, uncomment:
+  # push:
+  #   branches: [main]
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    steps:
+      - name: Prepare SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          echo "191.215.43.222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFG/MvNJ8F0PnmYTM/wuOtx08TWeDB02Yt4ybDIfL3jo" > ~/.ssh/known_hosts
+      - name: Deploy (api) on the VPS
+        run: ssh -i ~/.ssh/deploy_key -o BatchMode=yes root@191.215.43.222 api
