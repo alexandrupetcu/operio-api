@@ -150,7 +150,7 @@ export async function fetchUnreadPdfEmails(inbox: InboxConfig): Promise<Incoming
 
     // Extract PDF attachments
     const attachments: EmailAttachment[] = [];
-    const parts = flattenParts(fullMsg.data.payload);
+    const parts = flattenParts(fullMsg.data.payload ?? null);
 
     for (const part of parts) {
       if (
@@ -205,10 +205,10 @@ export async function markAsRead(inbox: InboxConfig, messageId: string): Promise
 
 /** Flatten MIME parts recursively */
 function flattenParts(
-  payload: { parts?: any[]; mimeType?: string; body?: any; filename?: string } | undefined | null
-): Array<{ mimeType?: string; body?: any; filename?: string }> {
+  payload: { parts?: any[]; mimeType?: string | null; body?: any; filename?: string | null } | undefined | null
+): Array<{ mimeType?: string | null; body?: any; filename?: string | null }> {
   if (!payload) return [];
-  const result: Array<{ mimeType?: string; body?: any; filename?: string }> = [];
+  const result: Array<{ mimeType?: string | null; body?: any; filename?: string | null }> = [];
 
   if (payload.filename && payload.body?.attachmentId) {
     result.push(payload);

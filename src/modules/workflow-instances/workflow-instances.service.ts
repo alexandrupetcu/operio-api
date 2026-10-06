@@ -1,13 +1,23 @@
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
-import type { StartWorkflowInput, ExecuteEventInput } from "./workflow-instances.schema.js";
+import type { StartWorkflowInput, ExecuteEventInput, AddAdHocStepInput } from "./workflow-instances.schema.js";
 import {
   completeStep as engineCompleteStep,
   failStep as engineFailStep,
   retryStep as engineRetryStep,
+  logEvent,
+  scheduleStepOverdue,
 } from "../../lib/workflow-engine/index.js";
+import { applyStepProjectStatus } from "../../lib/workflow-engine/project-status-sync.js";
 import { env } from "../../config/env.js";
+import { getPresignedUrl } from "../../lib/s3.js";
 import * as documentParseService from "../documents/documents-parse.service.js";
+
+interface StepFileRef {
+  s3Key: string;
+  filename: string;
+  mimetype: string;
+}
 
 interface FileContext {
   fileBuffer?: Buffer;
@@ -22,19 +32,26 @@ interface FileContext {
  */
 async function callInternalFileEndpoint(
   fastify: FastifyInstance,
+  tenantId: string,
   method: string,
   path: string,
   fileCtx: Required<Pick<FileContext, "fileBuffer" | "fileFilename">> & Pick<FileContext, "fileMimetype">
 ): Promise<unknown> {
-  const key = `${method}:${path}`;
+  const fakeFile = {
+    filename: fileCtx.fileFilename,
+    mimetype: fileCtx.fileMimetype ?? "application/octet-stream",
+    toBuffer: async () => fileCtx.fileBuffer,
+  };
 
-  if (key === "POST:/api/documents/parse-permits") {
-    const fakeFile = {
-      filename: fileCtx.fileFilename,
-      mimetype: fileCtx.fileMimetype ?? "application/octet-stream",
-      toBuffer: async () => fileCtx.fileBuffer,
-    };
+  if (method === "POST" && path === "/api/documents/parse-permits") {
     return documentParseService.parsePermits(fastify, fakeFile as any);
+  }
+
+  // POST /api/documents/project/:projectId/parse-authorization — parse a building
+  // authorization on upload and save nr/dată/emitent onto the project.
+  const authMatch = path.match(/^\/api\/documents\/project\/([^/]+)\/parse-authorization$/);
+  if (method === "POST" && authMatch) {
+    return documentParseService.parseAndSaveAuthorization(fastify, tenantId, authMatch[1], fakeFile as any);
   }
 
   throw new Error(`No internal file handler registered for ${method} ${path}`);
@@ -132,7 +149,84 @@ export async function startWorkflow(
     return workflowInstance;
   });
 
+  // Workflow-driven project status: apply the start step's configJson.projectStatus (if any).
+  if (input.entityType === "project") {
+    await applyStepProjectStatus(
+      fastify,
+      tenantId,
+      { entityType: "project", entityId: input.entityId, workflowInstanceId: instance.id },
+      startStep.configJson,
+      null,
+    );
+  }
+
   return instance;
+}
+
+/**
+ * Add an ad-hoc human step to a running workflow instance — e.g. an extra
+ * "aviz" required for a complex project that isn't in the workflow definition.
+ * The step is instance-local (stepDefinitionId = null), always a human_task,
+ * has no outgoing transitions (a dead-end that never re-routes the flow), and
+ * gets the same deadline/overdue reminder wiring as normal steps. It does NOT
+ * gate workflow completion (v1: tracked in parallel).
+ */
+export async function addAdHocStep(
+  fastify: FastifyInstance,
+  tenantId: string,
+  userId: string,
+  instanceId: string,
+  input: AddAdHocStepInput
+) {
+  const instance = await fastify.prisma.workflowInstance.findFirst({
+    where: { id: instanceId, tenantId },
+    select: { id: true, status: true },
+  });
+  if (!instance) {
+    throw fastify.httpErrors.notFound("Workflow instance not found");
+  }
+  if (instance.status !== "active" && instance.status !== "running") {
+    throw fastify.httpErrors.badRequest(
+      `Cannot add a step to a workflow in status "${instance.status}"`
+    );
+  }
+
+  const now = new Date();
+  const dueAt = input.dueAt ? new Date(input.dueAt) : null;
+
+  const stepInstance = await fastify.prisma.workflowStepInstance.create({
+    data: {
+      tenantId,
+      workflowInstanceId: instance.id,
+      stepDefinitionId: null,
+      isAdHoc: true,
+      adHocStepType: "human_task",
+      status: "active",
+      startedAt: now,
+      availableAt: now,
+      dueAt,
+      displayName: input.name,
+      assignedUserId: input.assignedUserId ?? null,
+      outputJson: input.requiresDocument
+        ? ({ requiresDocument: true } as Prisma.InputJsonValue)
+        : undefined,
+    },
+  });
+
+  // Deadline reminder — same semantics as engine-created steps.
+  if (dueAt) {
+    await scheduleStepOverdue(stepInstance.id, tenantId, dueAt, now);
+  }
+
+  await logEvent(fastify, tenantId, instance.id, stepInstance.id, "adhoc_step_added", {
+    name: input.name,
+    assignedUserId: stepInstance.assignedUserId,
+    dueAt: dueAt?.toISOString() ?? null,
+    requiresDocument: input.requiresDocument ?? false,
+    addedByUserId: userId,
+  });
+
+  return stepInstance;
 }
 
 /**
@@ -182,7 +276,7 @@ export async function getByProject(
 
   // 3. Load child workflows separately (only if there are sub_workflow steps)
   const subWorkflowStepIds = stepInstances
-    .filter((si) => si.stepDefinition.stepType === "sub_workflow")
+    .filter((si) => si.stepDefinition?.stepType === "sub_workflow")
     .map((si) => si.id);
 
   const childWorkflows = subWorkflowStepIds.length > 0
@@ -326,6 +420,78 @@ export async function retryStep(
 }
 
 /**
+ * Edit a step instance's submitted output (data correction) WITHOUT advancing
+ * the workflow. Merges the new payload + re-uploaded files into the existing
+ * outputJson — empty file fields keep their existing uploaded reference.
+ */
+export async function updateStepOutput(
+  fastify: FastifyInstance,
+  tenantId: string,
+  stepInstanceId: string,
+  payload: Record<string, unknown>,
+  fileRefs: Record<string, StepFileRef>
+) {
+  const si = await fastify.prisma.workflowStepInstance.findFirst({
+    where: { id: stepInstanceId, tenantId },
+    include: { stepDefinition: { select: { code: true, name: true } } },
+  });
+  if (!si) {
+    throw fastify.httpErrors.notFound("Step instance not found");
+  }
+
+  const existing =
+    si.outputJson && typeof si.outputJson === "object"
+      ? (si.outputJson as Record<string, unknown>)
+      : {};
+
+  const merged: Record<string, unknown> = { ...existing };
+  for (const [key, value] of Object.entries(payload)) {
+    const current = existing[key];
+    const currentIsFile =
+      current && typeof current === "object" && "s3Key" in (current as Record<string, unknown>);
+    // Don't let an empty form file field clobber an already-uploaded file.
+    if ((value === "" || value === null || value === undefined) && currentIsFile) continue;
+    merged[key] = value;
+  }
+  for (const [key, ref] of Object.entries(fileRefs)) {
+    merged[key] = ref;
+  }
+
+  const updated = await fastify.prisma.workflowStepInstance.update({
+    where: { id: stepInstanceId },
+    data: { outputJson: merged as Prisma.InputJsonValue },
+  });
+
+  await fastify.prisma.workflowExecutionLog.create({
+    data: {
+      tenantId,
+      workflowInstanceId: si.workflowInstanceId,
+      stepInstanceId: si.id,
+      eventType: "step_output_edited",
+      payloadJson: { stepCode: si.stepDefinition?.code ?? null } as Prisma.InputJsonValue,
+    },
+  });
+
+  return updated;
+}
+
+/**
+ * Presign a step-uploaded file. The key must live under the tenant's prefix
+ * (`{tenantId}/...`), enforcing tenant isolation.
+ */
+export async function getStepFileUrl(
+  fastify: FastifyInstance,
+  tenantId: string,
+  s3Key: string
+) {
+  if (!s3Key || !s3Key.startsWith(`${tenantId}/`)) {
+    throw fastify.httpErrors.forbidden("File does not belong to this tenant");
+  }
+  const url = await getPresignedUrl(s3Key);
+  return { url };
+}
+
+/**
  * Cancel a workflow instance.
  * Sets status to "cancelled", cancels all active/pending step instances, logs "workflow_cancelled".
  */
@@ -420,7 +586,13 @@ export async function executeEvent(
     );
   }
 
-  // 2. Find the action and verify it belongs to this step's definition
+  // 2. Find the action and verify it belongs to this step's definition.
+  // Ad-hoc steps have no definition (and no actions) — nothing to execute.
+  if (!stepInstance.stepDefinition) {
+    throw fastify.httpErrors.badRequest(
+      "This step has no definition-driven actions"
+    );
+  }
   const action = stepInstance.stepDefinition.actions.find(
     (a) => a.id === input.actionId
   );
@@ -460,6 +632,10 @@ export async function executeEvent(
       : {}),
     trigger: input.triggerPayload,
     form: input.triggerPayload.formValues ?? {},
+    // Convenience: the attached project's id, so internal endpoint URLs can use
+    // e.g. /api/documents/project/{{projectId}}/parse-authorization
+    projectId: stepInstance.workflowInstance.entityId,
+    entityId: stepInstance.workflowInstance.entityId,
   };
 
   // Resolve URL — internal paths get the local base URL prepended
@@ -478,7 +654,7 @@ export async function executeEvent(
     // Direct service call: avoids HTTP-layer issues (content negotiation, multipart parsing)
     // when making loopback requests from within the same Node.js process.
     try {
-      responseBody = await callInternalFileEndpoint(fastify, method, resolvedPath, {
+      responseBody = await callInternalFileEndpoint(fastify, tenantId, method, resolvedPath, {
         fileBuffer: fileCtx.fileBuffer,
         fileFilename: fileCtx.fileFilename,
         fileMimetype: fileCtx.fileMimetype,

@@ -1,6 +1,8 @@
 import { Worker, type Job } from "bullmq";
 import { PrismaClient } from "@prisma/client";
 import { redisConnection } from "../config/redis.js";
+import { isTenantEventEnabled } from "../modules/notifications/tenant-settings.js";
+import { dispatchWorkflowEvent } from "../modules/notifications/dispatch.js";
 
 interface ActivateStepJobData {
   type: "activate_step";
@@ -23,7 +25,8 @@ interface SendNotificationJobData {
 interface SendReminderJobData {
   type: "send_reminder";
   tenantId: string;
-  scheduledJobId: string;
+  /** Legacy field from ScheduledJob-based scheduling — not required for BullMQ direct flow */
+  scheduledJobId?: string;
   workflowInstanceId: string;
   projectId: string | null;
   channel: string;
@@ -31,11 +34,25 @@ interface SendReminderJobData {
   body: string;
 }
 
+interface SendTaskReminderJobData {
+  type: "send_task_reminder";
+  tenantId: string;
+  taskId: string;
+}
+
+interface MarkTaskOverdueJobData {
+  type: "mark_task_overdue";
+  tenantId: string;
+  taskId: string;
+}
+
 type WorkflowJobData =
   | ActivateStepJobData
   | MarkStepOverdueJobData
   | SendNotificationJobData
-  | SendReminderJobData;
+  | SendReminderJobData
+  | SendTaskReminderJobData
+  | MarkTaskOverdueJobData;
 
 const prisma = new PrismaClient();
 
@@ -78,6 +95,10 @@ async function handleMarkStepOverdue(data: MarkStepOverdueJobData) {
       id: data.workflowStepInstanceId,
       workflowInstance: { tenantId: data.tenantId },
     },
+    include: {
+      stepDefinition: { select: { name: true } },
+      workflowInstance: { select: { entityId: true, entityType: true } },
+    },
   });
 
   if (!step) {
@@ -105,6 +126,27 @@ async function handleMarkStepOverdue(data: MarkStepOverdueJobData) {
     where: { id: data.workflowStepInstanceId },
     data: { status: "overdue" },
   });
+
+  // Notify the assignee (if any). Mirrors mark_task_overdue behavior.
+  if (step.assignedUserId && (await isTenantEventEnabled(prisma, data.tenantId, "workflow_events"))) {
+    const stepName = step.displayName || step.stepDefinition?.name || "Step workflow";
+    const projectId =
+      step.workflowInstance?.entityType === "project"
+        ? step.workflowInstance.entityId
+        : null;
+    await dispatchWorkflowEvent(prisma, data.tenantId, {
+      userId: step.assignedUserId,
+      category: "projects",
+      subject: `Step întârziat: ${stepName}`,
+      body: `Pasul "${stepName}" a depășit termenul${
+        step.dueAt ? ` (scadență: ${step.dueAt.toLocaleDateString("ro-RO")})` : ""
+      }.`,
+      url: projectId ? `/projects/${projectId}` : "/dashboard",
+      dedupeKey: `wf:step_overdue:${data.workflowStepInstanceId}`,
+      projectId,
+      workflowInstanceId: step.workflowInstanceId,
+    });
+  }
 
   return { markedOverdue: true, stepInstanceId: data.workflowStepInstanceId };
 }
@@ -162,21 +204,88 @@ async function handleSendReminder(data: SendReminderJobData) {
     return { skipped: true, reason: "workflow_not_running" };
   }
 
-  // Create the reminder notification
-  await prisma.notification.create({
-    data: {
-      tenantId: data.tenantId,
-      projectId: data.projectId,
-      workflowInstanceId: data.workflowInstanceId,
-      channel: data.channel ?? "in_app",
-      subject: data.subject ?? null,
-      body: data.body ?? "Reminder notification",
-      status: "pending",
-      metadataJson: { type: "reminder" },
-    },
+  // Tenant-level switch: workflow reminders can be muted firm-wide.
+  if (!(await isTenantEventEnabled(prisma, data.tenantId, "workflow_events"))) {
+    return { skipped: true, reason: "tenant_disabled" };
+  }
+
+  // Fan out through dispatch — office staff, per-user channel preferences.
+  const result = await dispatchWorkflowEvent(prisma, data.tenantId, {
+    category: "projects",
+    subject: data.subject ?? "Reminder workflow",
+    body: data.body ?? "Reminder notification",
+    url: data.projectId ? `/projects/${data.projectId}` : "/dashboard",
+    projectId: data.projectId,
+    workflowInstanceId: data.workflowInstanceId,
   });
 
-  return { sent: true, workflowInstanceId: data.workflowInstanceId };
+  return { sent: result.sent, workflowInstanceId: data.workflowInstanceId };
+}
+
+async function handleSendTaskReminder(data: SendTaskReminderJobData) {
+  const task = await prisma.task.findFirst({
+    where: { id: data.taskId, tenantId: data.tenantId, deletedAt: null },
+  });
+  if (!task) return { skipped: true, reason: "task_not_found" };
+  if (task.status === "done" || task.status === "cancelled") {
+    return { skipped: true, reason: `task_${task.status}` };
+  }
+  if (!task.assignedUserId) {
+    return { skipped: true, reason: "no_assignee" };
+  }
+  if (!(await isTenantEventEnabled(prisma, data.tenantId, "task_overdue"))) {
+    return { skipped: true, reason: "tenant_disabled" };
+  }
+
+  await dispatchWorkflowEvent(prisma, data.tenantId, {
+    userId: task.assignedUserId,
+    category: "tasks",
+    subject: `Reminder task: ${task.title}`,
+    body: `Task-ul "${task.title}" expiră în mai puțin de 24h${task.dueAt ? ` (scadență: ${task.dueAt.toLocaleDateString("ro-RO")})` : ""}.`,
+    url: task.projectId ? `/projects/${task.projectId}` : "/dashboard",
+    dedupeKey: `wf:task_reminder:${task.id}`,
+    projectId: task.projectId,
+    taskId: task.id,
+  });
+
+  return { reminded: true, taskId: task.id };
+}
+
+async function handleMarkTaskOverdue(data: MarkTaskOverdueJobData) {
+  const task = await prisma.task.findFirst({
+    where: { id: data.taskId, tenantId: data.tenantId, deletedAt: null },
+  });
+  if (!task) return { skipped: true, reason: "task_not_found" };
+  if (task.status === "done" || task.status === "cancelled") {
+    return { skipped: true, reason: `task_${task.status}` };
+  }
+  if (task.status === "overdue") {
+    return { skipped: true, reason: "already_overdue" };
+  }
+  // Sanity: only mark overdue if dueAt actually passed
+  if (task.dueAt && task.dueAt > new Date()) {
+    return { skipped: true, reason: "not_yet_due" };
+  }
+
+  await prisma.task.update({
+    where: { id: task.id },
+    data: { status: "overdue" },
+  });
+
+  if (task.assignedUserId && (await isTenantEventEnabled(prisma, data.tenantId, "task_overdue"))) {
+    await dispatchWorkflowEvent(prisma, data.tenantId, {
+      userId: task.assignedUserId,
+      category: "tasks",
+      subject: `Task întârziat: ${task.title}`,
+      body: `Task-ul "${task.title}" a depășit termenul${task.dueAt ? ` (scadență: ${task.dueAt.toLocaleDateString("ro-RO")})` : ""}.`,
+      url: task.projectId ? `/projects/${task.projectId}` : "/dashboard",
+      dedupeKey: `wf:task_overdue:${task.id}`,
+      projectId: task.projectId,
+      taskId: task.id,
+    });
+  }
+
+  return { overdue: true, taskId: task.id };
 }
 
 async function processJob(job: Job<WorkflowJobData>) {
@@ -191,6 +300,10 @@ async function processJob(job: Job<WorkflowJobData>) {
       return handleSendNotification(data);
     case "send_reminder":
       return handleSendReminder(data);
+    case "send_task_reminder":
+      return handleSendTaskReminder(data);
+    case "mark_task_overdue":
+      return handleMarkTaskOverdue(data);
     default:
       throw new Error(`Unknown job type: ${(data as any).type}`);
   }

@@ -141,6 +141,38 @@ export default async function documentsRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // Parse a building authorization (autorizație de construire) and save the
+  // extracted nr/data/emitent onto the project's metadata.
+  fastify.post<{ Params: { projectId: string } }>(
+    "/project/:projectId/parse-authorization",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request, reply) => {
+      const file = await request.file();
+      if (!file) throw fastify.httpErrors.badRequest("Fișierul este obligatoriu.");
+      const result = await documentParseService.parseAndSaveAuthorization(
+        fastify,
+        request.tenantId,
+        request.params.projectId,
+        file
+      );
+      return reply.status(200).send(result);
+    }
+  );
+
+  // Parse a gas bill (factură gaze) and return extracted identity fields — does
+  // NOT save anything; the caller (revizie/verificare report wizard) uses the
+  // returned JSON to prefill the GasInstallation form.
+  fastify.post(
+    "/parse-gas-bill",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request, reply) => {
+      const file = await request.file();
+      if (!file) throw fastify.httpErrors.badRequest("Fișierul este obligatoriu.");
+      const result = await documentParseService.parseGasBill(fastify, file);
+      return reply.status(200).send(result);
+    }
+  );
+
   // Delete document
   fastify.delete<{ Params: { id: string } }>(
     "/:id",

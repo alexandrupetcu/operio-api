@@ -59,9 +59,61 @@ export async function list(
     include: {
       _count: { select: { steps: true } },
       projectType: { select: { id: true, code: true, name: true } },
+      distributor: { select: { id: true, code: true, name: true } },
     },
     orderBy: [{ code: "asc" }, { version: "desc" }],
   });
+}
+
+/**
+ * Find the primary workflow definition for a given (projectType, distributor) tuple.
+ *
+ * Resolution order:
+ *   1. Exact match on (tenantId, projectTypeId, distributorId, role=primary, status=published)
+ *   2. Fallback to (tenantId, projectTypeId, distributorId=null) — workflow valid for any distributor
+ *   3. Returns null if no match is found.
+ */
+export async function findPrimaryWorkflowFor(
+  fastify: FastifyInstance,
+  tenantId: string,
+  projectTypeId: string,
+  distributorId: string | null
+) {
+  // Within a scope (the tenant, then the system/master scope tenantId=null),
+  // try the exact distributor match first, then the projectType-only fallback
+  // (distributorId NULL = applies to any distributor).
+  const lookup = (scopeTenantId: string | null) =>
+    (async () => {
+      if (distributorId) {
+        const exact = await fastify.prisma.workflowDefinition.findFirst({
+          where: {
+            tenantId: scopeTenantId,
+            projectTypeId,
+            distributorId,
+            role: "primary",
+            status: "published",
+            isActive: true,
+          },
+          orderBy: { version: "desc" },
+        });
+        if (exact) return exact;
+      }
+      return fastify.prisma.workflowDefinition.findFirst({
+        where: {
+          tenantId: scopeTenantId,
+          projectTypeId,
+          distributorId: null,
+          role: "primary",
+          status: "published",
+          isActive: true,
+        },
+        orderBy: { version: "desc" },
+      });
+    })();
+
+  // A tenant-specific workflow wins; otherwise fall back to a system/master one
+  // (tenantId=null) — this is what makes a "general" workflow auto-attach.
+  return (await lookup(tenantId)) ?? (await lookup(null));
 }
 
 export async function getById(
@@ -131,12 +183,26 @@ export async function create(
     );
   }
 
-  if (input.projectTypeId) {
+  // Secondary workflows are context-agnostic — they cannot carry projectTypeId or distributorId
+  const role = input.role ?? "primary";
+  const projectTypeId = role === "secondary" ? null : input.projectTypeId ?? null;
+  const distributorId = role === "secondary" ? null : input.distributorId ?? null;
+
+  if (projectTypeId) {
     const projectType = await fastify.prisma.projectType.findFirst({
-      where: { id: input.projectTypeId, tenantId },
+      where: { id: projectTypeId, tenantId },
     });
     if (!projectType) {
       throw fastify.httpErrors.notFound("Project type not found");
+    }
+  }
+
+  if (distributorId) {
+    const distributor = await fastify.prisma.distributor.findFirst({
+      where: { id: distributorId, tenantId },
+    });
+    if (!distributor) {
+      throw fastify.httpErrors.notFound("Distributor not found");
     }
   }
 
@@ -146,7 +212,9 @@ export async function create(
       code,
       name: input.name,
       entityType: input.entityType ?? "project",
-      projectTypeId: input.projectTypeId ?? null,
+      role,
+      projectTypeId,
+      distributorId,
       description: input.description ?? null,
       category: input.category ?? null,
       configJson: input.configJson as Prisma.InputJsonValue | undefined,
@@ -157,6 +225,7 @@ export async function create(
     include: {
       _count: { select: { steps: true } },
       projectType: { select: { id: true, code: true, name: true } },
+      distributor: { select: { id: true, code: true, name: true } },
     },
   });
 }
@@ -185,6 +254,13 @@ export async function update(
       ...(input.name !== undefined && { name: input.name }),
       ...(input.description !== undefined && { description: input.description }),
       ...(input.category !== undefined && { category: input.category }),
+      ...(input.role !== undefined && { role: input.role }),
+      ...(input.projectTypeId !== undefined && {
+        projectTypeId: input.projectTypeId,
+      }),
+      ...(input.distributorId !== undefined && {
+        distributorId: input.distributorId,
+      }),
       ...(input.configJson !== undefined && {
         configJson: input.configJson as Prisma.InputJsonValue,
       }),
@@ -192,6 +268,7 @@ export async function update(
     include: {
       _count: { select: { steps: true } },
       projectType: { select: { id: true, code: true, name: true } },
+      distributor: { select: { id: true, code: true, name: true } },
     },
   });
 }

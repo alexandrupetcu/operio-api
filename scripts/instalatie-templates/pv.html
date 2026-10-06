@@ -1,0 +1,105 @@
+<style>
+  .pv{ --fill:#e00; color:#000; font-family:"Times New Roman","Liberation Serif",serif; }
+  .pv table{ border-collapse:collapse!important; width:100%!important; table-layout:fixed!important; margin:0!important }
+  .pv td,.pv th{ border:0.75px solid #000!important; padding:1.5px 3px!important; font-size:10.5px!important; line-height:1.2!important; vertical-align:top; background:transparent!important; word-wrap:break-word; overflow-wrap:anywhere }
+  .pv .f{ color:var(--fill)!important; font-weight:700 }
+  .pv .c{ text-align:center } .pv .b{ font-weight:700 } .pv .mid{ vertical-align:middle }
+  .pv .hdr td,.pv .hdr th{ text-align:center; font-weight:700 }
+  .pv .nb,.pv .nb td{ border:none!important }
+  .pv p{ margin:3px 6px; font-size:10.5px }
+  .pv .title{ text-align:center; font-weight:700 }
+  .pv .u{ border-bottom:0.75px solid #000; display:inline-block; min-width:120px }
+  .pv table td:first-child, .pv table th:first-child{ border-left:none!important }
+  .pv table td:last-child, .pv table th:last-child{ border-right:none!important }
+  /* Outer frame repeated on every printed page (position:fixed repeats in print). */
+  .pv .pageframe{ position:fixed; top:0; left:0; right:0; bottom:0; border:1px solid #000; pointer-events:none }
+  body{ padding:2mm 1px!important }
+</style>
+
+<div class="pv">
+<div class="pageframe"></div>
+
+<!-- ===== Header box ===== -->
+<table style="margin-top:-2mm!important">
+  <colgroup><col style="width:50%"><col style="width:50%"></colgroup>
+  <tr>
+    <td class="mid" style="padding-top:20px!important;padding-bottom:20px!important">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="line-height:0;flex-shrink:0">{{tenant_logo}}</div>
+        <div>
+          <div>Tel. <span class="f">{{tenant_phone}}</span></div>
+          <div><span class="f">{{tenant_email}}</span></div>
+          <div class="b" style="margin-top:3px">Autorizație ANRE</div>
+          <div><span class="f">{{tenant_anre_tip}}</span> / Nr. <span class="f">{{tenant_anre_nr}}</span></div>
+          <div>Data <span class="f">{{tenant_anre_data}}</span></div>
+          <div>Exp. <span class="f">{{tenant_anre_exp}}</span></div>
+        </div>
+      </div>
+    </td>
+    <td class="c mid" style="padding-top:20px!important;padding-bottom:20px!important">
+      <div class="b" style="font-size:12.5px">PROCES VERBAL DE RECEPȚIE TEHNICĂ</div>
+      <div class="b">INSTALAȚIE DE UTILIZARE</div>
+      <div class="b" style="margin-top:6px">Nr. <span class="f">{{nr_inregistrare}}</span> RT / Data: <span class="f">{{date}}</span></div>
+    </td>
+  </tr>
+</table>
+
+<p style="margin-top:5px">Astăzi <span class="f">{{date}}</span>, comisia de recepție tehnică a instalației de utilizare gaze naturale, executată la imobilul din str. <span class="f">{{client_address}}</span>, Loc. <span class="f">{{client_city}}</span> Sec./Jud. <span class="f">{{client_county}}</span> a constatat:</p>
+
+<p>1. Acordul de acces pentru debitul de gaze naturale a fost dat de <span class="u"></span>, și a fost comunicat beneficiarului cu scrisoarea nr. <span class="f">{{pv_acord_acces}}</span> /
+2. Proiectul a fost întocmit cu societatea <span class="f">{{pv_proiect_nr}}</span>.
+3. Executantul lucrărilor este societatea <span class="f">{{tenant_name}}</span>
+4. Documentația tehnică de executare a lucrărilor înregistrată sub nr. <span class="f">{{pv_documentatie_nr}}</span> a fost avizată de <span class="u"></span>, sub coordonarea responsabilului tehnic cu execuția <span class="f">{{instalator_nume}}</span> Legitimație ANRE nr. <span class="f">{{instalator_legitimatie}}</span> grad <span class="f">{{instalator_tip}}</span>.
+5. Lucrarea este realizată conform proiectului avizat de operatorul licențiat de distribuție, cu următoarele materiale:</p>
+
+<table>
+  <colgroup><col style="width:22%"><col style="width:20%"><col style="width:20%"><col style="width:19%"><col style="width:19%"></colgroup>
+  <tr class="hdr"><td></td><td>Diametru<br>Mm, m, ml</td><td>Cantitate<br>buc</td><td>Furnizor</td><td>Certificat calitate nr./data</td></tr>
+  {{pv_materiale_table}}
+</table>
+
+<p>6. Instalația este realizată conform proiectului avizat, pentru următoarele puncte de consum:</p>
+<table>
+  <colgroup><col style="width:26px"><col style="width:22%"><col style="width:22%"><col style="width:13%"><col style="width:7%"><col style="width:11%"><col></colgroup>
+  <tr class="hdr"><td>Nr. crt.</td><td>Denumirea</td><td>Caracteristici tehnice</td><td>Debit instalat unitar m³/h</td><td colspan="2">Debit instalat total buc...m³/h..</td><td>Certificat calitate</td></tr>
+  {{pv_puncte_consum_table}}
+</table>
+
+<p style="margin-top:4px">7. &nbsp; Conducta supraterană din <span class="f b" style="text-decoration:underline">&nbsp;&nbsp;{{pv_sup_material}}&nbsp;&nbsp;</span> a fost încercată la presiune, cu aer, în prezența comisiei, după cum urmează:<br>
+8. &nbsp;&nbsp; Proba de rezistență la <span class="f b" style="text-decoration:underline">&nbsp;{{pv_sup_rez_presiune}}&nbsp;</span> X 10⁵ Pa, timp de <span class="f b" style="text-decoration:underline">&nbsp;{{pv_sup_rez_timp}}&nbsp;</span> ore<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Proba de etanșeitate la <span class="f b" style="text-decoration:underline">&nbsp;{{pv_sup_et_presiune}}&nbsp;</span> X 10⁵ Pa, timp de <span class="f b" style="text-decoration:underline">&nbsp;{{pv_sup_et_timp}}&nbsp;</span> oră<br>
+Rezultatul probelor de presiune la care a fost supusă conducta este <span class="f b" style="text-decoration:underline">&nbsp;&nbsp;{{pv_sup_rezultat}}&nbsp;&nbsp;</span>.<br>
+9. Conducta subterană din <span class="f b" style="text-decoration:underline">&nbsp;&nbsp;{{pv_sub_material}}&nbsp;&nbsp;</span> a fost încercată la presiune, cu aer, în prezența comisiei, după cum urmează:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; proba de rezistență la <span class="f b" style="text-decoration:underline">&nbsp;{{pv_sub_rez_presiune}}&nbsp;</span> X 10⁵ Pa, timp de <span class="f b" style="text-decoration:underline">&nbsp;{{pv_sub_rez_timp}}&nbsp;</span> ore<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; proba de etanșeitate la <span class="f b" style="text-decoration:underline">&nbsp;{{pv_sub_et_presiune}}&nbsp;</span> X 10⁵ Pa, timp de <span class="f b" style="text-decoration:underline">&nbsp;{{pv_sub_et_timp}}&nbsp;</span> ore<br>
+Rezultatul probelor de presiune la care a fost supusă conducta este <span class="f b" style="text-decoration:underline">&nbsp;&nbsp;{{pv_sub_rezultat}}&nbsp;&nbsp;</span>.</p>
+<p>10. Pentru conducta din OL s-a folosit o izolație anticorosivă cu GRUND în 2 straturi, armate cu straturi de VOPSEA și protecție mecanică din VOPSEA, conform certificatului de calitate nr. <span class="u"></span> / <span class="u"></span>.<br>
+11. Pentru conducta din PE îmbinările s-au făcut prin procedeul <span class="u"></span>.<br>
+12. Executantul lucrărilor a prezentat procesul verbal de lucrări ascunse nr. <span class="u"></span> / <span class="u"></span>.<br>
+13. În vederea recepției comisia a efectuat sondajele, constatând următoarele: <span class="u" style="min-width:220px"></span>.</p>
+
+<div style="border-top:0.75px solid #000;border-bottom:0.75px solid #000;margin-top:3px;padding:1px 0">
+<p><span class="b">Concluzia:</span> Pe baza documentelor prevăzute și a verificărilor proprii, comisia constată că la executarea lucrărilor s-au respectat prevederile Normativului pentru proiectarea și executarea sistemelor de alimentare cu gaze naturale și declară <span class="b f">ADMISĂ</span> recepția instalației de utilizare supusă recepției. Orice modificare adusă ulterior instalației de utilizare recepționate executată neautorizat cade în răspunderea beneficiarului.</p>
+</div>
+<p style="font-size:9.5px"><em>Prezentul proces verbal a fost încheiat în 3 exemplare, din care fiecare semnatar a reținut câte un exemplar.</em></p>
+
+<!-- ===== Signatures table ===== -->
+<table>
+  <colgroup><col style="width:22%"><col style="width:28%"><col style="width:14%"><col style="width:9%"><col style="width:13%"><col style="width:14%"></colgroup>
+  <tr class="hdr"><td>Specialist</td><td>Nume și prenume</td><td>Legitim. ANRE nr.</td><td>Tip</td><td>Valabilă până la data</td><td>SEMNĂTURI</td></tr>
+  <tr class="hdr"><td colspan="6" style="text-align:left">1. Constructor</td></tr>
+  <tr style="height:26px"><td>Instalator autorizat</td><td class="f">{{instalator_nume}}</td><td class="c f">{{instalator_legitimatie}}</td><td class="c f">{{instalator_tip}}</td><td class="c f">{{instalator_valabilitate}}</td><td class="c">{{tenant_signature}}</td></tr>
+  <tr style="height:26px"><td>Responsabil A.Q. aut.</td><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr style="height:26px"><td>Sudor PE</td><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr style="height:26px"><td>Sudor OL</td><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr class="hdr"><td colspan="6" style="text-align:left">2. Comisia de recepție</td></tr>
+  <tr style="height:26px"><td>Operator SD</td><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr style="height:26px"><td>Beneficiar</td><td class="f">{{client_name}}</td><td></td><td></td><td></td><td class="c">{{client_signature}}</td></tr>
+  <tr style="height:26px"><td>Specialiști în domeniu (după caz)</td><td></td><td></td><td></td><td></td><td></td></tr>
+</table>
+<p style="font-size:9px">Beneficiarul/clientul a luat la cunoștință de obligația înlocuirii racordului flexibil și a detectorului de gaze naturale, după caz montate în instalația de utilizare înaintea expirării duratei normale de utilizare conform prescripției tehnice a producătorului; Orice modificare adusă ulterior instalației de utilizare recepționate executată neautorizat cade în răspunderea beneficiarului.</p>
+
+<!-- Client signature box — bottom of page 1, like the client's form -->
+<table style="margin-top:2px!important"><tr><td style="height:34px"><span class="b">Semnătura client:</span> &nbsp; {{client_signature}}</td></tr></table>
+
+</div>

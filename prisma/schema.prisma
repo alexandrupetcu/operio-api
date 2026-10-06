@@ -24,6 +24,7 @@ model Tenant {
   iscirDate        String?  // ex: "12.07.2023"
   stampS3Key       String?
   signatureS3Key String?
+  logoS3Key        String?
   timezone     String   @default("Europe/Bucharest")
   locale       String   @default("ro")
   settingsJson Json?
@@ -41,6 +42,8 @@ model Tenant {
   clients               Client[]
   projects              Project[]
   projectTypes          ProjectType[]
+  distributors          Distributor[]
+  fieldPresets          FieldPreset[]
   documents             Document[]
   documentTemplates     DocumentTemplate[]
   services              Service[]
@@ -52,6 +55,9 @@ model Tenant {
   scheduledJobs         ScheduledJob[]
   notifications         Notification[]
   notificationTemplates NotificationTemplate[]
+  notificationPreferences NotificationPreference[]
+  webPushSubscriptions  WebPushSubscription[]
+  pushDevices           PushDevice[]
   auditLogs             AuditLog[]
   outboxEvents          OutboxEvent[]
   drawingTemplates      DrawingTemplate[]
@@ -62,6 +68,8 @@ model Tenant {
   registrySeries        RegistrySeries[]
   registryEntries       RegistryEntry[]
   emailIngestLogs       EmailIngestLog[]
+  actionFeedStates      ActionFeedState[]
+  actionFeedSnoozeNotes ActionFeedSnoozeNote[]
 
   @@index([countryId])
   @@index([stateId])
@@ -82,6 +90,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   refreshTokens         RefreshToken[]
+  passwordResetTokens   PasswordResetToken[]
   documents             Document[]
   createdWorkflows      WorkflowDefinition[]  @relation("WorkflowCreatedBy")
   assignedStepInstances WorkflowStepInstance[] @relation("StepAssignedUser")
@@ -90,6 +99,10 @@ model User {
   signingSessions       SigningSession[]
   createdRegistryEntries RegistryEntry[]      @relation("RegistryCreator")
   voidedRegistryEntries  RegistryEntry[]      @relation("RegistryVoider")
+  notificationPreferences NotificationPreference[]
+  webPushSubscriptions   WebPushSubscription[]
+  pushDevices            PushDevice[]
+  employee               Employee?
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -112,6 +125,22 @@ model RefreshToken {
 
   @@index([userId])
   @@index([token])
+}
+
+// Single-use password-reset token. The `tokenHash` is SHA-256 of the random
+// value emailed to the user — DB compromise doesn't leak working tokens.
+// Lookups happen by hash. `usedAt` marks single-use consumption so a leaked
+// reset link can't be replayed.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // ─── Business Domain ────────────────────────────────────────────────────────
@@ -151,6 +180,7 @@ model Client {
   notifications   Notification[]
   appointments    Appointment[]
   registryEntries RegistryEntry[]
+  gasInstallations GasInstallation[]
 
   @@index([tenantId])
 }
@@ -172,6 +202,8 @@ model ClientAddress {
   updatedAt DateTime @updatedAt
 
   equipment Equipment[]
+  gasInstallations GasInstallation[]
+  appointments     Appointment[]
 
   @@index([clientId])
   @@index([countryId])
@@ -256,6 +288,38 @@ model EquipmentRevision {
   @@index([equipmentId, revisionDate])
 }
 
+// Gas installation (instalație de utilizare gaze naturale) — reusable identity
+// for revizie/verificare appointments: distributor (OS), cod tehnic/POD, cod
+// client, service contract, gas meter (contor) + sealing, consumer appliances.
+// Scoped via the client (like Equipment). Filled once, reused across visits.
+model GasInstallation {
+  id              String         @id @default(cuid())
+  clientId        String
+  client          Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientAddressId String?
+  clientAddress   ClientAddress? @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
+  label           String?
+  distributorName String?        // Operator de sistem (OS), ex. "DISTRIGAZ SUD RETELE"
+  codTehnicPOD    String?        // Cod tehnic / POD, ex. "DGSBUSC20000641408"
+  codClient       String?        // Cod client, ex. "191093362488"
+  contractNumber  String?        // Contract prestări servicii, ex. "234 V-R"
+  contractDate    String?        // ex. "18.05.2026"
+  documentatieNr  String?        // Documentația tehnică nr.
+  documentatieData String?       // Documentația tehnică data (or "nu detine")
+  contorTip       String?        // ex. "BK-G4 MT"
+  contorSeria     String?        // ex. "DGSR"
+  contorNr        String?        // ex. "04110636"
+  contorAn        String?        // ex. "2023"
+  contorIndex     String?        // ex. "00717,60 mc"
+  appliancesJson  Json?          // [{ kind: "CT"|"MA", name, debit, count }]
+  appointments    Appointment[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([clientId])
+  @@index([clientAddressId])
+}
+
 // ─── Project Types (configurable per tenant) ────────────────────────────────
 
 model ProjectType {
@@ -277,6 +341,54 @@ model ProjectType {
   @@index([tenantId, isActive])
 }
 
+// ─── Field presets ─────────────────────────────────────────────────────────
+
+/**
+ * Vocabularul repetitiv din formularele de teren (material, furnizor, diametru,
+ * tip contor…), îmbogățit cu ce scriu operatorii, ca valoarea introdusă de unul
+ * să apară la toți ceilalți din firmă.
+ *
+ * `normalized` (trim + spații colapsate + lowercase) ține unicitatea, ca „Valrom
+ * SRL", „valrom srl" și „ Valrom  SRL " să fie o singură intrare; `useCount`
+ * ordonează lista, ca valorile folosite des să urce, iar cele scrise o dată din
+ * greșeală să cadă la coadă.
+ */
+model FieldPreset {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  scope      String   // cheia vocabularului: material, furnizor, diamTeava, diamArm, contorTip, certificat, aparat
+  value      String   // forma afișată, așa cum a scris-o operatorul
+  normalized String   // forma de comparație (lowercase)
+  useCount   Int      @default(1)
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, scope, normalized])
+  @@index([tenantId, scope])
+}
+
+// ─── Distributors ──────────────────────────────────────────────────────────
+
+model Distributor {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  code         String
+  name         String
+  contactJson  Json?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projects            Project[]
+  workflowDefinitions WorkflowDefinition[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+}
+
 // ─── Projects ───────────────────────────────────────────────────────────────
 
 model Project {
@@ -287,6 +399,8 @@ model Project {
   client                    Client    @relation(fields: [clientId], references: [id])
   projectTypeId             String
   projectType               ProjectType @relation(fields: [projectTypeId], references: [id])
+  distributorId             String?
+  distributor               Distributor? @relation(fields: [distributorId], references: [id])
   name                      String
   address                   String
   city                      String
@@ -295,6 +409,16 @@ model Project {
   participareISC            Boolean   @default(false)
   status                    String    @default("draft")
   priority                  String    @default("normal")
+  // "project" = normal full-workflow project (default — every pre-existing row)
+  // "quick_dossier" = lightweight client-level generation flow (no workflow, no
+  // scheduling); hidden from the regular projects list, surfaced only on the
+  // client detail page via the ClientDossiersCard.
+  kind                      String    @default("project")
+  // For kind = "quick_dossier" — points at the DocumentTemplate group the user
+  // picked. Lets the client UI know which template set to render + lets the
+  // generate endpoint look up the right category.
+  templateGroupId           String?
+  templateGroup             DocumentTemplate? @relation("QuickDossierGroup", fields: [templateGroupId], references: [id])
   metadata                  Json?
   scheduledDate             DateTime?
   assignedEmployeeId        String?
@@ -318,6 +442,7 @@ model Project {
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, projectTypeId])
+  @@index([tenantId, distributorId])
   @@index([clientId])
   @@index([tenantId, assignedEmployeeId])
 }
@@ -350,6 +475,10 @@ model TemplateCategory {
   color       String?  // tailwind color (e.g. "blue", "amber")
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
+  // Registry series (RegistrySeries.code) used when auto-numbering documents of
+  // this category. Null → falls back to "iesiri". Lets each operation type get
+  // its own series (Registratură dinamică).
+  registrySeriesCode String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -366,14 +495,25 @@ model DocumentTemplate {
   description  String?
   content      String?           @db.Text
   s3Key        String?
+  fileName     String?           // editable display/download filename (DOCX members); falls back to the s3Key segment
+  type         String            @default("single") // "single" (HTML or DOCX) | "group" (bundle of DOCX members)
   sortOrder    Int               @default(0)
   isActive     Boolean           @default(true)
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
+  // DOCX Group: a "group" parent owns ordered "single" DOCX members.
+  parentGroupId String?
+  parentGroup   DocumentTemplate?  @relation("GroupMembers", fields: [parentGroupId], references: [id], onDelete: Cascade)
+  groupMembers  DocumentTemplate[] @relation("GroupMembers")
+  // Quick-dossier projects seeded from this group template (kind="quick_dossier").
+  quickDossierProjects Project[]   @relation("QuickDossierGroup")
+  memberOrder   Int                @default(0)
+
   documents Document[]
 
   @@index([tenantId, categoryCode])
+  @@index([parentGroupId, memberOrder])
 }
 
 enum DocumentStatus {
@@ -401,20 +541,22 @@ enum SignatoryStatus {
 }
 
 model Document {
-  id            String          @id @default(cuid())
-  tenantId      String
-  tenant        Tenant          @relation(fields: [tenantId], references: [id])
-  templateId    String?
-  template      DocumentTemplate? @relation(fields: [templateId], references: [id])
-  generatedById String?
-  generatedBy   User?           @relation(fields: [generatedById], references: [id])
-  name          String
-  s3Key         String?
-  status        DocumentStatus  @default(PENDING)
-  errorMessage  String?
-  contextJson   Json?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                     String          @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant          @relation(fields: [tenantId], references: [id])
+  templateId             String?
+  template               DocumentTemplate? @relation(fields: [templateId], references: [id])
+  generatedById          String?
+  generatedBy            User?           @relation(fields: [generatedById], references: [id])
+  workflowStepInstanceId String?
+  workflowStepInstance   WorkflowStepInstance? @relation(fields: [workflowStepInstanceId], references: [id])
+  name                   String
+  s3Key                  String?
+  status                 DocumentStatus  @default(PENDING)
+  errorMessage           String?
+  contextJson            Json?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
 
   projects        ProjectDocument[]
   clients         ClientDocument[]
@@ -423,6 +565,7 @@ model Document {
 
   @@index([tenantId])
   @@index([tenantId, status])
+  @@index([tenantId, workflowStepInstanceId])
 }
 
 model ProjectDocument {
@@ -550,6 +693,7 @@ model Vehicle {
 
   revisions     VehicleRevision[]
   notifications Notification[]
+  appointments  Appointment[]
 
   @@index([tenantId])
 }
@@ -577,7 +721,14 @@ model Employee {
   phone        String?
   email        String?
   credentials  Json?
+  signatureS3Key String?
   isActive     Boolean  @default(true)
+  // Contul de aplicație al acestei persoane, când există. Legătura stă aici, nu pe
+  // User, pentru că Employee are tenantId obligatoriu (User.tenantId e nullable
+  // pentru MASTER_ADMIN), iar colaboratorii fără cont rămân natural userId = null.
+  // @unique pe coloană nullable permite oricâte NULL-uri, deci impune 1:1 fără backfill.
+  userId       String?  @unique
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -684,6 +835,9 @@ model WorkflowDefinition {
   derivedDefinitions WorkflowDefinition[] @relation("WorkflowInheritance")
   projectTypeId    String?
   projectType      ProjectType? @relation(fields: [projectTypeId], references: [id])
+  distributorId    String?
+  distributor      Distributor? @relation(fields: [distributorId], references: [id])
+  role             String    @default("primary") // "primary" (attached to projects) | "secondary" (callable as sub-workflow only)
   code             String
   name             String
   entityType       String    @default("project")
@@ -708,6 +862,9 @@ model WorkflowDefinition {
   @@index([tenantId, code])
   @@index([tenantId, status])
   @@index([tenantId, projectTypeId])
+  @@index([tenantId, distributorId])
+  @@index([tenantId, role])
+  @@index([tenantId, role, projectTypeId, distributorId])
   @@index([tenantId, isActive])
   @@index([tenantId, category])
   @@index([baseDefinitionId])
@@ -835,8 +992,8 @@ model WorkflowStepInstance {
   tenantId           String
   workflowInstanceId String
   workflowInstance   WorkflowInstance @relation(fields: [workflowInstanceId], references: [id], onDelete: Cascade)
-  stepDefinitionId   String
-  stepDefinition     WorkflowStep     @relation(fields: [stepDefinitionId], references: [id])
+  stepDefinitionId   String?          // null == ad-hoc step, instance-local (not in the definition graph)
+  stepDefinition     WorkflowStep?    @relation(fields: [stepDefinitionId], references: [id])
   status             String           @default("pending") // pending, active, waiting, completed, failed, cancelled, skipped, overdue
   availableAt        DateTime?
   dueAt              DateTime?
@@ -847,14 +1004,18 @@ model WorkflowStepInstance {
   outputJson         Json?
   errorJson          Json?
   retryCount         Int              @default(0)
-  displayName        String?          // resolved name template (e.g. "Depune cerere la ANAF") — null means use stepDefinition.name
+  displayName        String?          // resolved name template (e.g. "Depune cerere la ANAF") — null means use stepDefinition.name; for ad-hoc steps this IS the name
   spawnGroupId       String?          // groups instances created by a foreach transition
   itemContextJson    Json?            // per-item context data from foreach spawn
+  isAdHoc            Boolean          @default(false) // true == manually-added instance-local step (stepDefinitionId is null)
+  adHocStepType      String?          // for ad-hoc steps; always "human_task" in v1
+  formSchemaJson     Json?            // optional inline form for ad-hoc steps (mirrors WorkflowStep.formSchemaJson)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
   executionLogs         WorkflowExecutionLog[]
   tasks                 Task[]
+  documents             Document[]
   childWorkflowInstance WorkflowInstance?     @relation("SubWorkflowParent")
 
   @@index([tenantId])
@@ -963,7 +1124,7 @@ model Notification {
   vehicleId            String?
   vehicle              Vehicle?          @relation(fields: [vehicleId], references: [id])
   category             String?           // projects, fleet, tasks, system
-  channel              String            // in_app, email, sms, webhook
+  channel              String            // in_app, email, web_push, expo_push
   subject              String?
   body                 String
   status               String            @default("pending") // pending, scheduled, sent, failed, cancelled
@@ -971,6 +1132,9 @@ model Notification {
   sentAt               DateTime?
   providerResponseJson Json?
   metadataJson         Json?
+  // Idempotency key for the scheduled scanner: "due:<kind>:<id>:<yyyy-mm-dd>".
+  // Prevents re-notifying the same user about the same item across re-runs.
+  dedupeKey            String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
@@ -984,6 +1148,107 @@ model Notification {
   @@index([tenantId, channel])
   @@index([tenantId, status])
   @@index([tenantId, scheduledAt])
+  @@index([tenantId, userId, dedupeKey])
+}
+
+// Per-user × category × channel opt-out. Absence of a row = enabled
+// (default-on), so users only ever store their opt-outs.
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  category  String   // projects, fleet, tasks, system
+  channel   String   // in_app, email, web_push, expo_push
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId, category, channel])
+  @@index([tenantId, userId])
+}
+
+// Browser Web Push subscription (VAPID). One row per browser/device endpoint.
+model WebPushSubscription {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([tenantId, userId])
+}
+
+// Mobile push token (Expo → APNs/FCM). One row per device. Governed by the same
+// "push" preference as WebPushSubscription (channel web_push).
+model PushDevice {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  expoToken  String   @unique
+  platform   String?  // ios | android
+  deviceName String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([tenantId, userId])
+}
+
+// ─── Dashboard action-feed snooze/dismiss overlay ───────────────────────────
+// Per-user "remind me later / resolved" state for the derived dashboard action
+// feed. Self-invalidating: a row only suppresses an item while `conditionRef`
+// (a snapshot of the underlying condition) still matches the live value.
+// Tenant-wide overlay for the dashboard action-feed: a snooze/dismiss applied
+// by any operator hides the item from the whole firm's active list. The
+// `snoozedBy*` fields are a snapshot of the operator who placed it, so the UI
+// can render "Amânat de X" without joining User on every read and surviving
+// user deletions.
+model ActionFeedState {
+  id             String    @id @default(cuid())
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  actionKey      String // == feed item.id (e.g. "fleet-<vehicleId>", "task-<id>")
+  kind           String // revision | fleet | task | project
+  conditionRef   String // snapshot of the underlying condition at action time
+  snoozedUntil   DateTime?
+  dismissedAt    DateTime?
+  reason         String?
+  snoozedById    String?
+  snoozedByName  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([tenantId, actionKey])
+  @@index([tenantId])
+}
+
+// Per-tenant audit log of every snooze, un-snooze, and dismiss event on an
+// action-feed item. Visible to every operator viewing that item — so the next
+// person who picks up the task can see the full call history ("am sunat la
+// Raja, revin în 3 zile") plus who reactivated it and why.
+model ActionFeedSnoozeNote {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  actionKey  String
+  kind       String
+  eventType  String   @default("snooze") // "snooze" | "unsnooze" | "dismiss"
+  until      DateTime?
+  note       String?
+  authorId   String
+  authorName String
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, actionKey])
 }
 
 // ─── Automation Layer ───────────────────────────────────────────────────────
@@ -1081,13 +1346,19 @@ model Appointment {
   project             Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   clientId            String?
   client              Client?             @relation(fields: [clientId], references: [id])
+  clientAddressId     String?
+  clientAddress       ClientAddress?      @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
   employeeId          String?
   employee            Employee?           @relation(fields: [employeeId], references: [id])
   equipmentId         String?
   equipment           Equipment?          @relation(fields: [equipmentId], references: [id])
   equipmentRevisionId String?             @unique
   equipmentRevision   EquipmentRevision?  @relation(fields: [equipmentRevisionId], references: [id])
-  type                String              @default("general") // general, revizie, ridicare_documente
+  installationId      String?
+  installation        GasInstallation?    @relation(fields: [installationId], references: [id])
+  vehicleId           String?
+  vehicle             Vehicle?            @relation(fields: [vehicleId], references: [id])
+  type                String              @default("general") // general, revizie, ridicare_documente, revizie_instalatie, verificare_instalatie, itp, rca
   title               String
   notes               String?
   date                DateTime
@@ -1101,7 +1372,12 @@ model Appointment {
   @@index([tenantId])
   @@index([projectId])
   @@index([tenantId, date])
+  // Calendarul per tehnician: acoperă ambele ramuri ale filtrului de vizibilitate
+  // („atribuite mie" și „nerepartizate"), plus fereastra de căutare a suprapunerilor.
+  @@index([tenantId, employeeId, date])
   @@index([clientId, type, status])
+  @@index([installationId])
+  @@index([vehicleId])
   @@index([deletedAt])
 }
 

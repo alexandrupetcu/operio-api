@@ -1,0 +1,35 @@
+<style>
+  .t { width:100%; border-collapse:collapse; margin:6px 0; font-size:12px }
+  .t td { border:1px solid #888; padding:5px 7px; vertical-align:top }
+  .chk { font-weight:bold }
+  .sig td { border:none; padding:18px 8px 4px; vertical-align:top; width:50%; text-align:center }
+  p { font-size:12px }
+</style>
+
+<p style="text-align:right;font-size:11px">{{tenant_name}} &nbsp;|&nbsp; {{tenant_address}}, {{tenant_city}}<br>CUI: {{tenant_cui}} &nbsp; Tel: {{tenant_phone}} &nbsp; {{tenant_email}}</p>
+
+<h1 style="text-align:center;font-size:16px;margin:6px 0 2px">BULETIN DE SIGILARE / DESIGILARE / DESFIINȚARE</h1>
+<p style="text-align:center;margin:0 0 10px"><strong>NR. {{nr_inregistrare}} RT / DATA {{date}}</strong></p>
+
+<p><strong>Cod Client</strong> {{inst_cod_client}} &nbsp;/&nbsp; <strong>Cod Tehnic</strong> {{inst_cod_pod}}</p>
+<p><strong>Nr. Contract</strong> {{inst_contract_nr}} &nbsp;/&nbsp; <strong>Data</strong> {{inst_contract_data}}</p>
+<p><strong>Client</strong> {{client_name}}</p>
+<p><strong>Adresă:</strong> Loc. {{client_city}}, Str. {{client_address}}, Jud./Sec. {{client_county}}</p>
+
+<p style="margin-top:12px"><strong>I.</strong> &nbsp; S-a sigilat [ <span class="chk">{{seal_sigilat}}</span> ] &nbsp;/&nbsp; Desigilat [ <span class="chk">{{seal_desigilat}}</span> ] &nbsp;/&nbsp; Desființat [ <span class="chk">{{seal_desfiintat}}</span> ]</p>
+
+<p><strong>Nr. Sigiliu:</strong> {{seal_nr_sigiliu}}</p>
+<p><strong>Contor:</strong> {{seal_contor_tip}} / Seria: {{seal_contor_seria}} / Nr. {{seal_contor_nr}} / An {{seal_contor_an}} / Index: {{seal_contor_index}}</p>
+
+<p style="margin-top:8px"><strong>II.</strong> &nbsp; PE BOZ CONTOR S-A GĂSIT SIGILIUL NR. <strong>{{seal_boz}}</strong></p>
+<p><strong>Au rămas în funcțiune:</strong> {{seal_ramas_ct}} &nbsp;&nbsp; {{seal_ramas_ma}}</p>
+
+<p style="margin-top:8px"><strong>Ruperea sigiliilor montate de echipele de specialitate ale {{tenant_name}} reprezintă infracțiune și se pedepsește conform prevederilor legale.</strong></p>
+<p>Scos contor din instalație, efectuat probe de presiune. După declararea ADMIS a probelor de rezistență și etanșeitate, s-a resigilat pe boz contor cu sigiliul nr. <strong>{{seal_resigilat_nr}}</strong>.</p>
+
+<table class="t sig" style="margin-top:24px">
+  <tr>
+    <td><strong>REPREZENTANT</strong><br>{{tenant_name}}<br><br>Nume/Prenume: {{tenant_admin_name}}<br>{{tenant_signature}}</td>
+    <td><strong>CLIENT</strong><br><br><br>Nume/Prenume: {{client_name}}<br>{{client_signature}}</td>
+  </tr>
+</table>

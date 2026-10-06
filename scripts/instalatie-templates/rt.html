@@ -1,0 +1,318 @@
+<style>
+  .rt{ --fill:#e00; color:#000; font-family:"Times New Roman","Liberation Serif",serif; }
+  .rt table{ border-collapse:collapse!important; width:100%!important; table-layout:fixed!important; margin:0!important }
+  .rt td,.rt th{ border:0.75px solid #000!important; padding:1.5px 3px!important; font-size:10.5px!important; line-height:1.18!important; vertical-align:top; background:transparent!important; word-wrap:break-word; overflow-wrap:anywhere }
+  .rt .f{ color:var(--fill)!important; font-weight:700 }
+  .rt .c{ text-align:center } .rt .b{ font-weight:700 } .rt .mid{ vertical-align:middle }
+  .rt .num{ width:22px; text-align:center; font-weight:700 }
+  .rt .chk{ text-align:center; font-weight:700; width:34px }
+  .rt .hdr td,.rt .hdr th{ text-align:center; font-weight:700 }
+  .rt .nb,.rt .nb td{ border:none!important }
+  /* Rows 1-3 of the info grid: plain text block, no separator lines (client form). */
+  .rt tr.nl td{ border-top:none!important; border-bottom:none!important; border-left:none!important; border-right:none!important }
+  .rt tr.nl.first td{ border-top:0.75px solid #000!important }
+  .rt .title{ text-align:center; font-weight:700 }
+  .rt h1{ font-size:15px; text-align:center; margin:5px 0 1px }
+  .rt p{ margin:3px 6px; font-size:10.5px }
+  .rt tr.pb td{ break-before:page; page-break-before:always }
+  .rt tr{ break-inside:avoid }
+  .rt ol,.rt ul{ margin:2px 6px; padding-left:22px; font-size:10px }
+  .rt li{ margin-bottom:1px }
+  .rt table td:first-child, .rt table th:first-child{ border-left:none!important }
+  .rt table td:last-child, .rt table th:last-child{ border-right:none!important }
+  /* Outer frame repeated on every printed page (position:fixed repeats in print). */
+  .rt .pageframe{ position:fixed; top:0; left:0; right:0; bottom:0; border:1px solid #000; pointer-events:none }
+  .rt .instr, .rt .instr p, .rt .instr li{ font-style:italic }
+  body{ padding:2mm 1px!important }
+</style>
+
+<div class="rt">
+<div class="pageframe"></div>
+
+<!-- ===== Header box ===== -->
+<table style="margin-top:-2mm!important">
+  <colgroup><col style="width:50%"><col style="width:50%"></colgroup>
+  <tr>
+    <td class="mid" style="padding-top:20px!important;padding-bottom:20px!important">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="line-height:0;flex-shrink:0">{{tenant_logo}}</div>
+        <div>
+          <div class="b">{{tenant_name}}</div>
+          <div>Sediu: {{tenant_address}}</div>
+          <div>CUI: {{tenant_cui}} &nbsp; {{tenant_reg_com}}</div>
+          <div>Tel: {{tenant_phone}} &nbsp; E-mail: {{tenant_email}}</div>
+        </div>
+      </div>
+    </td>
+    <td class="c mid" style="padding-top:20px!important;padding-bottom:20px!important">
+      <div class="b">OPERATOR DE SISTEM:</div>
+      <div class="b">{{operator_sistem}}</div>
+      <div style="margin-top:6px">Înregistrare la OS:</div>
+      <div style="margin-top:4px">Nr. ______________</div>
+      <div>Data: ______________</div>
+    </td>
+  </tr>
+</table>
+
+<h1 style="margin-top:20px">FIȘĂ DE EVIDENȚĂ</h1>
+<p class="title">a lucrărilor periodice de <span class="b" style="text-decoration:underline">REVIZIE TEHNICĂ</span> a instalației de utilizare a gazelor naturale</p>
+<p class="title b">Nr. <span class="f">{{nr_inregistrare}}</span> RT / Data: <span class="f">{{date}}</span></p>
+
+<!-- ===== Numbered info grid 1-8 ===== -->
+<table style="margin-top:4px!important">
+  <colgroup><col style="width:22px"><col style="width:64%"><col style="width:auto"></colgroup>
+  <tr class="nl first"><td class="num">1</td><td colspan="2"><span class="b">Client/i final/i:</span> <span class="f">{{client_name}}</span>, Loc. <span class="f">{{client_city}}</span></td></tr>
+  <tr class="nl"><td class="num">2</td><td colspan="2"><span class="b">Adresă</span> <span class="f">{{client_address}}</span>, Nr. ___, Bl. ___, Sc. ___, Et. ___, Ap. ___, Cod Poștal ___, Sector/Județ <span class="f">{{client_county}}</span></td></tr>
+  <tr class="nl"><td class="num"></td><td colspan="2">Tel. <span class="f">{{client_phone}}</span> &nbsp; Email: <span class="f">{{client_email}}</span></td></tr>
+  <tr class="nl"><td class="num">3</td><td colspan="2"><span class="b">Cod Client</span> <span class="f">{{inst_cod_client}}</span> , <span class="b">COD TEHNIC</span> <span class="f">{{inst_cod_pod}}</span></td></tr>
+  <tr><td class="num">4</td><td>Contractul de prestări servicii: nr. / data</td><td class="f">{{inst_contract_nr}} / {{inst_contract_data}}</td></tr>
+  <tr><td class="num">5</td><td>Documentația tehnică în baza căreia se efectuează revizia tehnică: nr./data/nu deține</td><td class="f">{{inst_documentatie_nr}} {{inst_documentatie_data}}</td></tr>
+  <tr><td class="num">6</td><td>Data ultimei revizii tehnice efectuate la locul de consum, menționată în notificare: zi/lună/an</td><td class="f">{{notif_ultima_revizie}}</td></tr>
+  <tr><td class="num">7</td><td>Data scadentă a reviziei tehnice periodice a instalației de utilizare a gazelor naturale, menționată în notificare: zi/lună/an</td><td class="f">{{notif_scadenta}}</td></tr>
+  <tr><td class="num">8</td><td style="padding-bottom:20px!important">Instalatorul autorizat în cadrul operatorului economic autorizat ANRE care efectuează revizia tehnică:<br>
+    Nume și prenume <span class="f">{{instalator_nume}}</span><br>
+    Legitimație tip <span class="f">{{instalator_tip}}</span> nr. <span class="f">{{instalator_legitimatie}}</span>, anul <span class="f">{{instalator_an}}</span><br>
+    Valabilă până la data de: <span class="f">{{instalator_valabilitate}}</span></td><td></td></tr>
+</table>
+
+<!-- ===== 9. Aparate — dual (Notificate / Identificate) ===== -->
+<table style="margin-top:-0.75px!important">
+  <colgroup>
+    <col style="width:22px"><col style="width:19%">
+    <col style="width:9.7%"><col style="width:10.4%"><col style="width:9.7%"><col style="width:10.4%">
+    <col style="width:9.7%"><col style="width:10.4%"><col style="width:9.7%"><col style="width:10.4%">
+  </colgroup>
+  <tr>
+    <td rowspan="{{aparate_dual_rowspan}}" class="c mid num" style="width:22px">9</td>
+    <td rowspan="{{aparate_dual_rowspan}}" class="b mid">Aparate consumatoare de combustibili gazoși</td>
+    <td colspan="4" class="c"><em class="b">Notificate de furnizorul de gaze naturale</em></td>
+    <td colspan="4" class="c"><em class="b">Identificate la locul de consum</em></td>
+  </tr>
+  <tr class="c">
+    <td>Tip</td><td>Debit nominal (mc/h)</td><td>Tip</td><td>Debit nominal (mc/h)</td>
+    <td>Tip</td><td>Debit nominal (mc/h)</td><td>Tip</td><td>Debit nominal (mc/h)</td>
+  </tr>
+  {{aparate_dual_table}}
+</table>
+
+<!-- ===== Tabelul nr.1 ===== -->
+<p class="title" style="margin-top:6px;font-size:11.5px"><em>(1) Revizia tehnică a instalației de utilizare a gazelor naturale se realizează în următoarele situații:</em> &nbsp; Tabelul nr.1</p>
+<table>
+  <colgroup><col style="width:22px"><col><col style="width:80px"></colgroup>
+  <tr class="hdr"><td>Nr.</td><td>Tip lucrare</td><td>De completat</td></tr>
+  <tr><td class="c">1.</td><td>La intervale de maximum 10 ani</td><td class="chk f">{{situatie_interval_10_ani}}</td></tr>
+  <tr><td class="c">2.</td><td>După orice întrerupere a utilizării instalației de utilizare a gazelor naturale pentru o perioadă de timp mai mare de 6 luni</td><td class="chk f">{{situatie_intrerupere_6_luni}}</td></tr>
+  <tr><td class="c">3.</td><td>După orice eveniment care poate afecta instalația de utilizare</td><td class="chk f">{{situatie_eveniment}}</td></tr>
+  <tr><td class="c">4.</td><td>La cererea clientului final</td><td class="chk f">{{situatie_cerere_client}}</td></tr>
+</table>
+
+<!-- ===== Page 2 ===== -->
+<table><tr class="pb"><td class="nb" style="border:none!important"></td></tr></table>
+<p class="title" style="text-align:right">Tabelul nr.2</p>
+<table>
+  <colgroup><col style="width:22px"><col><col style="width:70px"><col style="width:26%"></colgroup>
+  <tr class="hdr"><td>Nr. crt.</td><td>Tip lucrare</td><td>De completat</td><td>Observații</td></tr>
+  <tr><td class="c">1.</td><td>Revizia tehnică a instalației individuale de utilizare a gazelor naturale</td><td class="chk f">{{tip_individuala}}</td><td></td></tr>
+  <tr><td class="c">2.</td><td>Revizia tehnică a instalației comune de utilizare a gazelor naturale</td><td class="chk f">{{tip_comuna}}</td><td></td></tr>
+</table>
+
+<p class="title" style="margin-top:5px"><em>(2) Operațiunile care s-au realizat în cazul reviziei tehnice a instalației de</em><br><em>(3) utilizare a gazelor naturale sunt prezentate în tabelul nr. 3</em></p>
+<p class="title" style="text-align:right">Tabelul nr.3</p>
+<table>
+  <colgroup><col style="width:22px"><col><col style="width:34px"><col style="width:34px"><col style="width:44px"></colgroup>
+  <tr class="hdr"><td rowspan="2">Nr. crt.</td><td rowspan="2">Operațiuni</td><td colspan="3">De completat</td></tr>
+  <tr class="hdr"><td>Da</td><td>Nu</td><td>Nu este cazul</td></tr>
+  <tr><td class="c">1.</td><td>Verificarea arzătoarelor și a stării îmbinărilor și garniturilor de etanșare aferente</td><td class="chk f">{{op_arzatoare_da}}</td><td class="chk f">{{op_arzatoare_nu}}</td><td class="chk f">{{op_arzatoare_na}}</td></tr>
+  <tr><td class="c">2.</td><td>Verificarea stabilității conductelor montate aparent pe suporturi</td><td class="chk f">{{op_stabilitate_conducte_da}}</td><td class="chk f">{{op_stabilitate_conducte_nu}}</td><td class="chk f">{{op_stabilitate_conducte_na}}</td></tr>
+  <tr><td class="c">3.</td><td>Verificarea etanșeității îmbinării conductelor și armăturilor la presiunea de lucru a gazului din instalație, cu spumă de apă cu săpun sau alte tehnologii de verificare a etanșeității</td><td class="chk f">{{op_etanseitate_imbinari_da}}</td><td class="chk f">{{op_etanseitate_imbinari_nu}}</td><td class="chk f">{{op_etanseitate_imbinari_na}}</td></tr>
+  <tr><td class="c">4.</td><td>Verificarea funcționării aparatelor de măsurare, control, reglare și de siguranță</td><td class="chk f">{{op_aparate_masurare_da}}</td><td class="chk f">{{op_aparate_masurare_nu}}</td><td class="chk f">{{op_aparate_masurare_na}}</td></tr>
+  <tr><td class="c">5.</td><td style="padding:0!important">
+    <table style="height:100%"><colgroup><col style="width:52%"><col style="width:26%"><col></colgroup>
+      <tr>
+        <td rowspan="2" class="mid" style="border:none!important">Demontarea/Debranșarea aparatelor consumatoare de combustibili gazoși fără aprobarea legală și a instalațiilor de utilizare naturale aferente</td>
+        <td style="border-top:none!important">Tipul aparatului</td>
+        <td style="border-top:none!important;border-right:none!important">Debitul nominal (m³/h)</td>
+      </tr>
+      <tr><td style="height:12px;border-bottom:none!important;border-left:0.75px solid #000!important"></td><td style="border-bottom:none!important;border-right:none!important"></td></tr>
+    </table>
+  </td><td class="chk f">{{op_demontare_neaprobata_da}}</td><td class="chk f">{{op_demontare_neaprobata_nu}}</td><td class="chk f">{{op_demontare_neaprobata_na}}</td></tr>
+  <tr><td class="c">6.</td><td>Verificarea funcționării echipamentului de reglare din instalațiile de utilizare</td><td class="chk f">{{op_echipament_reglare_da}}</td><td class="chk f">{{op_echipament_reglare_nu}}</td><td class="chk f">{{op_echipament_reglare_na}}</td></tr>
+  <tr><td class="c">7.</td><td>Verificarea stării răsuflătorilor și a căminelor existente</td><td class="chk f">{{op_rasuflatori_camine_da}}</td><td class="chk f">{{op_rasuflatori_camine_nu}}</td><td class="chk f">{{op_rasuflatori_camine_na}}</td></tr>
+  <tr><td class="c">8.</td><td>Verificarea documentelor prezentate de client, din care să reiasă că a fost efectuată curățarea coșurilor și a canalelor de evacuare a gazelor de ardere de către operatorii economici autorizați, emise cu maximum 6 luni înainte de data verificării tehnice a instalației de utilizare a gazelor naturale</td><td class="chk f">{{op_documente_curatare_cosuri_da}}</td><td class="chk f">{{op_documente_curatare_cosuri_nu}}</td><td class="chk f">{{op_documente_curatare_cosuri_na}}</td></tr>
+  <tr><td class="c">9.</td><td>Verificarea stării construcțiilor care adăpostesc stațiile și posturi de reglare sau reglare măsurare</td><td class="chk f">{{op_constructii_statii_da}}</td><td class="chk f">{{op_constructii_statii_nu}}</td><td class="chk f">{{op_constructii_statii_na}}</td></tr>
+  <tr><td class="c">10</td><td>Verificarea documentelor, prezentate de client, care să ateste efectuarea în termen a verificării tehnice periodice a aparatelor consumatoare de combustibili gazoși de către operatorii economici autorizați de ISCIR</td><td class="chk f">{{op_documente_iscir_aparate_da}}</td><td class="chk f">{{op_documente_iscir_aparate_nu}}</td><td class="chk f">{{op_documente_iscir_aparate_na}}</td></tr>
+  <tr><td class="c">11</td><td>Efectuarea probei de rezistență la presiune, conform prevederilor normelor tehnice din domeniul gazelor naturale, numai pentru partea de instalație la care s-au făcut înlocuiri și/sau modificări</td><td class="chk f">{{op_proba_rezistenta_da}}</td><td class="chk f">{{op_proba_rezistenta_nu}}</td><td class="chk f">{{op_proba_rezistenta_na}}</td></tr>
+  <tr><td class="c">12</td><td>Efectuarea probei de etanșeitate la presiune, conform prevederilor normelor tehnice din domeniul gazelor naturale, a întregii instalații de utilizare a gazelor naturale</td><td class="chk f">{{op_proba_etanseitate_da}}</td><td class="chk f">{{op_proba_etanseitate_nu}}</td><td class="chk f">{{op_proba_etanseitate_na}}</td></tr>
+  <tr><td class="c">13</td><td>Verificarea faptului că racordul flexibil montat în instalația de utilizare este în termen de valabilitate, având în vedere durata normală de utilizare specificată în prescripțiile tehnice ale producătorului</td><td class="chk f">{{op_racord_flexibil_da}}</td><td class="chk f">{{op_racord_flexibil_nu}}</td><td class="chk f">{{op_racord_flexibil_na}}</td></tr>
+  <tr><td class="c">14</td><td>Verificarea faptului că detectorul/detectoarele automat/e de gaze naturale montat/e la locul de consum este/sunt în termen de valabilitate, având în vedere durata normată de utilizare specificată în prescripțiile tehnice ale producătorului</td><td class="chk f">{{op_detector_gaze_da}}</td><td class="chk f">{{op_detector_gaze_nu}}</td><td class="chk f">{{op_detector_gaze_na}}</td></tr>
+  <tr><td class="c">15</td><td>Revizia tehnică a instalației comune de utilizare a gazelor naturale care deservește mai mulți clienți finali, cuprinsă între stația sau postul de reglare și sistemele/mijloacele de măsurare a gazelor naturale</td><td class="chk f">{{op_instalatie_comuna_da}}</td><td class="chk f">{{op_instalatie_comuna_nu}}</td><td class="chk f">{{op_instalatie_comuna_na}}</td></tr>
+  <tr><td class="c">16</td><td>Verificarea existenței instrucțiunilor de utilizare a gazelor naturale, întocmite conform prevederilor Procedurii privind proiectarea, verificarea, execuția, recepția și punerea în funcțiune a instalației de utilizare a gazelor naturale, aprobată de Ordinul ANRE nr. 32/2012</td><td class="chk f">{{op_instructiuni_utilizare_da}}</td><td class="chk f">{{op_instructiuni_utilizare_nu}}</td><td class="chk f">{{op_instructiuni_utilizare_na}}</td></tr>
+  <tr><td colspan="5" class="b">!!! Întreținerea, exploatarea și repararea instalațiilor de utilizare a gazelor naturale revin clientului final, care răspunde pentru buna lor funcționare</td></tr>
+</table>
+<table style="margin-top:-0.75px!important">
+  <colgroup><col style="width:62%"><col></colgroup>
+  <tr>
+    <td rowspan="2" class="mid">[ <span class="f">X</span> ] Confirm că au fost efectuate toate operațiile enumerate în tabelul nr.3<br><br>[ <span class="f">X</span> ] Confirm că am primit un exemplar al instrucțiunilor de utilizare a gazelor naturale</td>
+    <td class="b">Semnătura client final/clienți finali</td>
+  </tr>
+  <tr><td style="height:34px" class="c">{{client_signature}}</td></tr>
+</table>
+
+<!-- ===== Page 3 — proba grid ===== -->
+<table><tr class="pb"><td class="nb" style="border:none!important"></td></tr></table>
+<p class="title"><em>(4) Proba de etanșeitate la presiune prevăzută la pct.12 și proba de rezistență la presiune prevăzută la pct.11 din tabelul nr.3 se efectuează cu aer comprimat, iar rezultatul acestora se vor înscrie în tabelul nr.4</em> &nbsp; Tabelul nr.4</p>
+<table>
+  <colgroup><col style="width:24px"><col style="width:56px"><col style="width:70px"><col style="width:110px"><col><col><col><col></colgroup>
+  <tr class="hdr"><td rowspan="2">Nr crt</td><td colspan="3" rowspan="2"></td><td colspan="4">Instalația de utilizare a gazelor naturale</td></tr>
+  <tr class="hdr"><td colspan="2"><em>OL</em></td><td><em>PE100</em></td><td><em>PE80</em></td></tr>
+  <tr class="hdr"><td></td><td colspan="2"></td><td>Amplasare instalație de utilizare</td><td>subteran</td><td>suprateran</td><td>subteran</td><td>subteran</td></tr>
+  <tr><td rowspan="6" class="c mid">1.</td><td rowspan="6" class="c mid">Proba de rezistență</td><td rowspan="3" class="c mid">Regim de presiune</td><td>medie presiune (bar)</td><td class="c f">{{proba_rez_ol_sub_medie}}</td><td class="c f">{{proba_rez_ol_supra_medie}}</td><td class="c f">{{proba_rez_pe100_sub_medie}}</td><td class="c f">{{proba_rez_pe80_sub_medie}}</td></tr>
+  <tr><td>redusă presiune (bar)</td><td class="c f">{{proba_rez_ol_sub_redusa}}</td><td class="c f">{{proba_rez_ol_supra_redusa}}</td><td class="c f">{{proba_rez_pe100_sub_redusa}}</td><td class="c f">{{proba_rez_pe80_sub_redusa}}</td></tr>
+  <tr><td>joasă presiune (bar)</td><td class="c f">{{proba_rez_ol_sub_joasa}}</td><td class="c f">{{proba_rez_ol_supra_joasa}}</td><td class="c f">{{proba_rez_pe100_sub_joasa}}</td><td class="c f">{{proba_rez_pe80_sub_joasa}}</td></tr>
+  <tr><td class="c mid">Timpul probei (h)</td><td colspan="5" class="c f">{{proba_rez_timp}}</td></tr>
+  <tr><td rowspan="2" class="c mid">Rezultatul probei</td><td>admis</td><td class="chk f">{{proba_rez_ol_sub_admis}}</td><td class="chk f">{{proba_rez_ol_supra_admis}}</td><td class="chk f">{{proba_rez_pe100_sub_admis}}</td><td class="chk f">{{proba_rez_pe80_sub_admis}}</td></tr>
+  <tr><td>respins</td><td class="chk f">{{proba_rez_ol_sub_respins}}</td><td class="chk f">{{proba_rez_ol_supra_respins}}</td><td class="chk f">{{proba_rez_pe100_sub_respins}}</td><td class="chk f">{{proba_rez_pe80_sub_respins}}</td></tr>
+
+  <tr class="hdr"><td rowspan="2">Nr crt</td><td colspan="3" rowspan="2"></td><td colspan="4">Instalația de utilizare a gazelor naturale</td></tr>
+  <tr class="hdr"><td colspan="2"><em>OL</em></td><td><em>PE100</em></td><td><em>PE80</em></td></tr>
+  <tr class="hdr"><td></td><td colspan="2"></td><td>Amplasare instalație de utilizare</td><td>subteran</td><td>suprateran</td><td>subteran</td><td>subteran</td></tr>
+  <tr><td rowspan="6" class="c mid">2.</td><td rowspan="6" class="c mid">Proba de etanșeitate</td><td rowspan="3" class="c mid">Regim de presiune</td><td>medie presiune (bar)</td><td class="c f">{{proba_et_ol_sub_medie}}</td><td class="c f">{{proba_et_ol_supra_medie}}</td><td class="c f">{{proba_et_pe100_sub_medie}}</td><td class="c f">{{proba_et_pe80_sub_medie}}</td></tr>
+  <tr><td>redusă presiune (bar)</td><td class="c f">{{proba_et_ol_sub_redusa}}</td><td class="c f">{{proba_et_ol_supra_redusa}}</td><td class="c f">{{proba_et_pe100_sub_redusa}}</td><td class="c f">{{proba_et_pe80_sub_redusa}}</td></tr>
+  <tr><td>joasă presiune (bar)</td><td class="c f">{{proba_et_ol_sub_joasa}}</td><td class="c f">{{proba_et_ol_supra_joasa}}</td><td class="c f">{{proba_et_pe100_sub_joasa}}</td><td class="c f">{{proba_et_pe80_sub_joasa}}</td></tr>
+  <tr><td class="c mid">Timpul probei (h)</td><td colspan="5" class="c f">{{proba_et_timp}}</td></tr>
+  <tr><td rowspan="2" class="c mid">Rezultatul probei</td><td>admis</td><td class="chk f">{{proba_et_ol_sub_admis}}</td><td class="chk f">{{proba_et_ol_supra_admis}}</td><td class="chk f">{{proba_et_pe100_sub_admis}}</td><td class="chk f">{{proba_et_pe80_sub_admis}}</td></tr>
+  <tr><td>respins</td><td class="chk f">{{proba_et_ol_sub_respins}}</td><td class="chk f">{{proba_et_ol_supra_respins}}</td><td class="chk f">{{proba_et_pe100_sub_respins}}</td><td class="chk f">{{proba_et_pe80_sub_respins}}</td></tr>
+</table>
+<table style="margin-top:2px!important">
+  <colgroup><col style="width:58%"><col></colgroup>
+  <tr><td rowspan="2" class="b mid">[ <span class="f">X</span> ] Confirm că au fost efectuate probele enumerate mai sus</td><td class="b">Semnătura client final/clienți finali</td></tr>
+  <tr><td style="height:26px" class="c">{{client_signature}}</td></tr>
+</table>
+
+<p class="title" style="margin-top:4px"><em>(5) Defectele constatate</em> &nbsp; Tabelul nr.5</p>
+<table>
+  <colgroup><col style="width:22px"><col style="width:34%"><col style="width:34%"><col><col></colgroup>
+  <tr class="hdr"><td rowspan="2">Nr. crt.</td><td rowspan="2">Defecte constatate</td><td rowspan="2">Modul de remediere a defectelor</td><td colspan="2">De completat dacă s-au remediat defectele</td></tr>
+  <tr class="hdr"><td>Da</td><td>Nu</td></tr>
+  {{defecte_table}}
+</table>
+
+<p class="title" style="margin-top:4px"><em>(6) Condiții tehnice de funcționare</em> &nbsp; Tabelul nr.6</p>
+<table>
+  <colgroup><col style="width:56%"><col style="width:34px"><col style="width:34px"><col></colgroup>
+  <tr class="hdr"><td rowspan="2">Instalația de utilizare a gazelor naturale îndeplinește condițiile tehnice de funcționare în siguranță prevăzute în prevederile normelor tehnice din domeniul gazelor naturale</td><td colspan="2">De completat</td><td rowspan="2">Observații</td></tr>
+  <tr class="hdr"><td>Da</td><td>Nu</td></tr>
+  <tr><td style="border-top:none!important"></td><td class="chk f">{{conditii_da}}</td><td class="chk f">{{conditii_nu}}</td><td class="f">{{conditii_observatii}}</td></tr>
+</table>
+
+<!-- ===== Tabel 7/8 — continue on page 3 ===== -->
+<p class="title" style="text-align:right;margin-top:6px">Tabelul nr. 7</p>
+<table>
+  <colgroup><col style="width:22px"><col style="width:16%"><col style="width:18%"><col><col><col><col></colgroup>
+  <tr class="hdr"><td rowspan="2">Nr. Crt.</td><td colspan="2">Aparatele consumatoare de combustibili gazoși</td><td colspan="2">Documentul care atestă curățarea coșurilor și a canalelor de evacuare a gazelor de ardere</td><td colspan="2">Documentul care atestă verificarea aparatelor consumatoare de combustibili gazoși</td></tr>
+  <tr class="hdr"><td>Tip aparat</td><td>Debit nominal (m³/h)</td><td>Nr.</td><td>Data</td><td>Nr.</td><td>Data</td></tr>
+  {{documente_aparate_table}}
+</table>
+
+<p class="title" style="text-align:right;margin-top:4px">Tabelul nr.8</p>
+<table>
+  <colgroup><col style="width:56%"><col style="width:34px"><col style="width:34px"><col></colgroup>
+  <tr class="hdr"><td rowspan="2">Pe baza documentelor prezentate și a operațiunilor realizate în cadrul reviziei tehnice se constată că instalația de utilizare a gazelor naturale respectă prevederile normelor tehnice și poate funcționa în condiții de siguranță</td><td colspan="2">De completat</td><td rowspan="2">Observații</td></tr>
+  <tr class="hdr"><td>Da</td><td>Nu</td></tr>
+  <tr><td style="border-top:none!important"></td><td class="chk f">{{tabel8_da}}</td><td class="chk f">{{tabel8_nu}}</td><td class="f">{{observatii}}</td></tr>
+</table>
+
+<!-- ===== Page 4 — Formular de apreciere + semnături ===== -->
+<table><tr class="pb"><td class="nb" style="border:none!important"></td></tr></table>
+<div style="border:1px solid #000;padding:4px 8px;margin:6px 4px 0">
+<p class="title b" style="text-decoration:underline"><em>FORMULAR DE APRECIERE</em></p>
+<p class="title"><em class="b">privind calitatea lucrărilor realizate/serviciilor prestate de operatorul autorizat ANRE</em></p>
+<p style="font-size:10px" class="b">Titularul autorizației {{tenant_name}}, cu sediul în <span class="f">{{tenant_address}}</span>, având codul unic de înregistrare: <span class="f">{{tenant_cui}}</span>, înregistrat la Oficiul Registrului Comerțului sub nr. <em class="f">{{tenant_reg_com}}</em>.</p>
+<p style="font-size:10px" class="b">Contractul - prevăzut la pct. 4 pentru lucrări/servicii realizate/prestate - conform competențelor prevăzute de Autorizația nr. <span class="f">{{tenant_anre_nr}}</span> / <span class="f">{{tenant_anre_data}}</span>, tip <span class="f">{{tenant_anre_tip}}</span>.</p>
+<p style="font-size:10px" class="b">Beneficiar contract - prevăzut la pct. 1 la prezenta FIȘĂ DE REVIZIE A INSTALAȚIEI DE UTILIZARE GAZE NATURALE.</p>
+<table>
+  <colgroup>
+    <col style="width:22px"><col style="width:48%">
+    <col><col><col><col><col><col><col><col><col><col>
+  </colgroup>
+  <tr class="hdr"><td>Nr. crt</td><td>Indicator</td><td colspan="10"><span class="b">Apreciere grad satisfacție aferent indicatorului ............(puncte)</span><br><span class="b" style="font-weight:700">Se încercuiește punctajul care indică măsura satisfacției beneficiarului (1=cel mai puțin mulțumit; 10=foarte mulțumit)</span></td></tr>
+  <tr><td class="c b">1</td><td>Sunteți mulțumit de durata lucrărilor/serviciilor în raport cu prevederile contractuale?</td>{{apreciere_scale_i1}}</tr>
+  <tr><td class="c b">2</td><td>Sunteți mulțumit de numărul și pregătirea personalului alocat lucrărilor/serviciilor contractate?</td>{{apreciere_scale_i2}}</tr>
+  <tr><td class="c b">3</td><td>Sunteți mulțumit de disponibilitatea și calitatea dotărilor materiale, materialelor și componentelor utilizate, respectiv a documentelor elaborate?</td>{{apreciere_scale_i3}}</tr>
+  <tr><td class="c b">4</td><td>Sunteți mulțumit de tipul și modul de rezolvare a solicitărilor punctuale adresate titularului de autorizație sau a personalului acestuia?</td>{{apreciere_scale_i4}}</tr>
+  <tr><td class="c b">5</td><td>Sunteți mulțumit de calitatea globală a lucrărilor realizate sau a serviciilor prestate?</td>{{apreciere_scale_i5}}</tr>
+  <tr><td colspan="2" class="b">Grad de satisfacție (aferent contractului):<br>(media aritmetică a aprecierilor acordate indicatorilor)</td><td colspan="10" class="c b">...........<span class="f">{{apreciere_grad}}</span>........... (puncte)</td></tr>
+</table>
+</div>
+
+<p style="font-size:10px;margin-top:4px"><em class="b">Prezenta fișă a fost întocmită în 4 exemplare:</em></p>
+<ol style="font-style:italic;list-style-type:lower-alpha">
+  <li>Clientul final / clienți finali;</li>
+  <li>Operatorul economic autorizat ANRE pentru execuția instalației de utilizare a gazelor naturale</li>
+  <li>Operatorul de sistem</li>
+</ol>
+<div style="border-top:0.75px solid #000;border-bottom:0.75px solid #000;margin-top:4px;padding:3px 0">
+<p style="font-size:9.5px">Prezenta fișă se predă clientului final / clienților finali după ce este înregistrată la operatorul de sistem. Orice modificare adusă instalației de utilizare ulterior verificării tehnice cade în răspunderea clientului final / clienților finali.</p>
+</div>
+
+<table class="nb" style="margin-top:16px">
+  <colgroup><col style="width:50%"><col style="width:50%"></colgroup>
+  <tr>
+    <td class="c" style="border:none!important"><span class="b">Reprezentantul legal</span><br><em>al operatorului economic autorizat ANRE</em><br>{{tenant_name}}<br><span class="f">{{tenant_admin_name}}</span><br>{{tenant_stamp}}<br>.........................................</td>
+    <td class="c" style="border:none!important"><span class="b">Instalatorul autorizat</span><br><em>care a efectuat revizia tehnică</em><br><br><span class="f">{{instalator_nume}}</span><br>{{tenant_signature}}<br>............................................</td>
+  </tr>
+</table>
+<table class="nb"><tr><td class="c" style="border:none!important;padding-top:10px">
+  <span class="b">Clientul final/clienții finali</span><br>Nume și prenume/denumire <span class="f">{{client_name}}</span><br>Semnătura {{client_signature}}
+</td></tr></table>
+
+<!-- ===== Page 6 — Instrucțiuni ===== -->
+<table><tr class="pb"><td class="nb" style="border:none!important"></td></tr></table>
+<div class="instr">
+<p class="title b" style="font-size:14px;text-decoration:underline">INSTRUCTIUNI PENTRU UTILIZAREA GAZELOR NATURALE</p>
+<p style="font-size:10px">Pentru preîntâmpinarea accidentelor cu pierderi de vieți umane și distrugeri de bunuri materiale, ce s-ar putea produce din cauza folosirii incorecte a instalațiilor de gaze naturale, <span class="b" style="text-decoration:underline">se vor respecta cu strictețe următoarele instrucțiuni:</span></p>
+<p class="b" style="font-size:10px;background:#e8e8e8;display:inline-block;padding:0 3px">Înainte de aprinderea focului se fac următoarele operațiuni:</p>
+<ol>
+  <li>Ventilarea permanentă a încăperilor în care funcționează aparate consumatoare de combustibili gazoși; în centralele termice și în încăperile cu aparate cu flacără liberă se asigură o ventilare permanentă;</li>
+  <li>Controlul tirajului aparatelor racordate la coș; în cazul în care se constată lipsa tirajului, nu se aprinde focul decât după efectuarea lucrărilor care să asigure tirajul (curățarea coșului de fum, curățarea sobei, repararea aparatelor de evacuare mecanică, deschiderea clapetelor de reglare);</li>
+  <li>Controlul robinetului de manevră al aparatului consumator de combustibili gazoși; dacă robinetul este deschis, acesta se închide și se ventilează încăperea respectivă precum și cele învecinate prin deschiderea ușilor și ferestrelor, aprinderea focului se face numai după aerisirea completă;</li>
+  <li>Asigurarea accesului aerului de ardere în focarul aparatului consumator de combustibili gazoși (prin deschiderea ușițelor cenușarului la sobe, deschiderea fantelor pentru accesul aerului în focar, pornirea ventilatorului etc.);</li>
+  <li>Verificarea funcționării aparaturii de automatizare, după caz;</li>
+  <li>Ventilarea focarelor de la aparatele consumatoare de combustibili gazoși.</li>
+</ol>
+<p class="b" style="font-size:10px;background:#e8e8e8;display:inline-block;padding:0 3px">La aprinderea focului în aparatele consumatoare de combustibili gazoși neautomatizate și arzătoare, se fac următoarele operațiuni:</p>
+<ol>
+  <li>Aerisirea focarului, min. 5 minute înainte de aprinderea focului;</li>
+  <li>Apropierea aprinzătorului de arzător;</li>
+  <li>Deschiderea lentă a robinetului de manevră și aprinderea focului, concomitent cu supravegherea stabilității flăcării.</li>
+</ol>
+<p class="b" style="font-size:10px">!!! Aprinderea se face numai cu un aprinzător special construit în acest scop, fiind interzisă aprinderea directă cu chibrituri, hârtie etc.</p>
+<p style="font-size:10px">Aprinderea focului la aparatele consumatoare de combustibili gazoși automatizate se face conform instrucțiunilor elaborate de fabrica producătoare.</p>
+<p class="b" style="font-size:10px">Stingerea focului:</p>
+<ol>
+  <li>Stingerea focului la aparatele consumatoare de combustibili gazoși racordate cu furtun, se face prin închiderea robinetului de siguranță, existent înaintea furtunului; după stingerea flăcării se închide și robinetul de manevră.</li>
+  <li>În societăți și instituții, focul se aprinde și se stinge numai de personalul instruit și însărcinat cu această operațiune prin grija conducerii beneficiare, în cazul operatorilor economici și al centralelor termice de bloc, prin personal calificat.</li>
+</ol>
+<p class="b" style="font-size:10px;background:#e8e8e8;display:inline-block;padding:0 3px">Indicații speciale</p>
+<p class="b" style="font-size:10px;text-decoration:underline">La utilizarea gazelor naturale este interzis:</p>
+<ul>
+  <li>aprinderea focului dacă aparatul consumator de combustibili gazoși nu este etanș sau nu are tiraj;</li>
+  <li>lăsarea focului nesupravegheat, la aparatele neautomatizate;</li>
+  <li>obturarea coșului de fum al aparatelor consumatoare de combustibili gazoși;</li>
+  <li>modificarea instalațiilor de gaze fără aprobări legale și prin persoane neautorizate;</li>
+  <li>dormitul în încăperi cu focul aprins;</li>
+  <li>dormitul în încăperi cu aparate consumatoare de combustibili gazoși nelegate la coș (reșou, aragaz etc);</li>
+</ul>
+<p class="b" style="font-size:10px;text-decoration:underline">Dacă se simte mirosul caracteristic al gazelor naturale se iau imediat următoarele măsuri:</p>
+<p style="font-size:10px;margin:1px 6px"><span class="b" style="text-decoration:underline">-se sting toate focurile;</span><br>
+<span class="b">-se deschid toate ușile și ferestrele;</span><br>
+<span class="b">-nu se aprinde nicio sursă de foc;</span><br>
+<span class="b">-nu se manevrează aparate electrice;</span><br>
+<span class="b">-nu se doarme în astfel de încăperi;</span><br>
+<span class="b">-se anunță imediat operatorul licențiat de distribuție la telefoanele: <span style="font-size:11.5px">0219281, prefix local 928</span></span></p>
+<p class="b" style="font-size:10px;background:#e8e8e8;display:inline-block;padding:0 3px;margin-top:4px">NU UITAȚI!</p>
+<p style="font-size:10px;margin:1px 6px">Verificarea cu flacără a instalațiilor de gaze naturale prezintă pericol de explozie și incendiu.<br>
+Dormitul în încăperi cu focul aprins sau în încăperi cu aparate consumatoare de combustibili gazoși nelegate la coșul de fum, prezintă pericol de moarte.</p>
+</div>
+
+</div>

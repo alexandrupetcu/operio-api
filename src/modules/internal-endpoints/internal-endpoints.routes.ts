@@ -5,6 +5,9 @@ export interface InternalEndpoint {
   path: string;
   description: string;
   category: string;
+  /** Representative response shape, surfaced in the event-listener editor so
+   *  authors can build response mappings against the real fields. */
+  responseSample?: unknown;
 }
 
 const INTERNAL_ENDPOINTS: InternalEndpoint[] = [
@@ -52,7 +55,46 @@ const INTERNAL_ENDPOINTS: InternalEndpoint[] = [
 
   // Documents
   { method: "GET", path: "/api/documents", description: "Listează documentele", category: "Documente" },
-  { method: "POST", path: "/api/documents/parse-permits", description: "Parsează avize și documente necesare din document (GPT-4.1)", category: "Documente" },
+  {
+    method: "POST",
+    path: "/api/documents/parse-permits",
+    description: "Parsează avize și documente necesare din document (GPT-4.1)",
+    category: "Documente",
+    responseSample: {
+      avize: [
+        {
+          nume: "Aviz alimentare cu apă și canalizare",
+          emitent: "Compania de Apă",
+          categorie: "avize_utilitati",
+          observatii: "",
+          alternativa: "",
+          incert: false,
+        },
+        {
+          nume: "Aviz gaze naturale",
+          emitent: "Distrigaz Sud Rețele",
+          categorie: "avize_utilitati",
+          incert: false,
+        },
+      ],
+      documente: [
+        { nume: "Certificat de urbanism", categorie: "documente_de_baza", descriere: "", incert: false },
+      ],
+      checklist: [{ titlu: "Avize utilități", items: ["Apă-canal", "Gaze naturale", "Electrica"] }],
+      rezumat: "Rezumat scurt al avizelor și documentelor necesare.",
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/documents/project/:projectId/parse-authorization",
+    description: "Parsează autorizația de construire (nr/dată/emitent) și o salvează pe proiect (GPT-4.1)",
+    category: "Documente",
+    responseSample: {
+      autorizatie_construire_nr: "329",
+      autorizatie_construire_data: "15.09.2025",
+      autorizatie_construire_emitent: "Primăria Măgurele",
+    },
+  },
   { method: "POST", path: "/api/documents/generate", description: "Generează document din template", category: "Documente" },
   { method: "GET", path: "/api/documents/:id", description: "Obține document după ID", category: "Documente" },
   { method: "DELETE", path: "/api/documents/:id", description: "Șterge document", category: "Documente" },
@@ -95,7 +137,13 @@ const INTERNAL_ENDPOINTS: InternalEndpoint[] = [
   { method: "GET", path: "/api/audit-logs", description: "Listează logurile de audit", category: "Audit" },
 
   // Geography
-  { method: "GET", path: "/api/geography/countries", description: "Listează țările", category: "Geografie" },
+  {
+    method: "GET",
+    path: "/api/geography/countries",
+    description: "Listează țările",
+    category: "Geografie",
+    responseSample: [{ id: 181, name: "Romania", iso2: "RO", emoji: "🇷🇴" }],
+  },
   { method: "GET", path: "/api/geography/states", description: "Listează județele", category: "Geografie" },
   { method: "GET", path: "/api/geography/cities", description: "Listează orașele", category: "Geografie" },
 

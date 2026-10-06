@@ -7,7 +7,7 @@ import {
   createProjectWithClientSchema,
 } from "./projects.schema.js";
 import * as projectsService from "./projects.service.js";
-import { uploadFile } from "../../lib/s3.js";
+import { uploadFile, getPresignedUrl } from "../../lib/s3.js";
 
 export default async function projectsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
@@ -30,6 +30,10 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
     return projectsService.calendar(fastify, request.tenantId, from, to);
   });
 
+  fastify.get("/stats", async (request) => {
+    return projectsService.stats(fastify, request.tenantId);
+  });
+
   fastify.get<{ Params: { id: string } }>("/:id", async (request) => {
     return projectsService.getById(
       fastify,
@@ -46,6 +50,7 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
       const project = await projectsService.create(
         fastify,
         request.tenantId,
+        request.user.sub,
         body
       );
       return reply.status(201).send(project);
@@ -60,6 +65,7 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
       const project = await projectsService.createWithClient(
         fastify,
         request.tenantId,
+        request.user.sub,
         body
       );
       return reply.status(201).send(project);
@@ -125,7 +131,9 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Get drawing data for a project
+  // Get drawing data for a project (includes a short-lived presigned URL
+  // for the saved PNG so the frontend can show a read-only preview without
+  // mounting the Fabric.js canvas).
   fastify.get<{ Params: { id: string } }>(
     "/:id/drawing",
     async (request) => {
@@ -134,7 +142,24 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
         select: { drawingS3Key: true, drawingJson: true },
       });
       if (!project) throw fastify.httpErrors.notFound("Project not found");
-      return project;
+      const drawingUrl = project.drawingS3Key
+        ? await getPresignedUrl(project.drawingS3Key)
+        : null;
+      return { ...project, drawingUrl };
+    }
+  );
+
+  // Snooze / dismiss audit-trail for everything that belongs to this project
+  // (project itself, tasks, workflow step instances). Drives the Activitate
+  // tab and the per-step section in StepCompleteDrawer.
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/snooze-history",
+    async (request) => {
+      return projectsService.getProjectSnoozeHistory(
+        fastify,
+        request.tenantId,
+        request.params.id,
+      );
     }
   );
 }

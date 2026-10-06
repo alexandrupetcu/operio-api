@@ -1,8 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
+import { Queue } from "bullmq";
+import { redisConnection } from "../../config/redis.js";
+import { isTenantEventEnabled } from "../../modules/notifications/tenant-settings.js";
+import { dispatchWorkflowEvent } from "../../modules/notifications/dispatch.js";
 
 /** Frontend-only triggers that should not be auto-executed by the engine */
 const FRONTEND_TRIGGERS = new Set(["on_field_change", "on_file_upload"]);
+
+/** Shared BullMQ queue for engine-level delayed jobs */
+const workflowQueue = new Queue("workflow-engine", { connection: redisConnection });
 
 interface ActionConfig {
   // create_task
@@ -73,6 +80,11 @@ export async function executeActions(
       { stepInstanceId, tenantId },
       "Step instance not found for action execution"
     );
+    return;
+  }
+
+  // Ad-hoc steps have no definition and therefore no actions to execute.
+  if (!stepInstance.stepDefinition) {
     return;
   }
 
@@ -174,22 +186,18 @@ async function scheduleTimer(
   // Default to 1 hour if no delay specified
   if (delayMs === 0) delayMs = 60 * 60 * 1000;
 
-  const runAt = new Date(Date.now() + delayMs);
+  const jobType = config.jobType ?? "activate_step";
 
-  await fastify.prisma.scheduledJob.create({
-    data: {
+  await workflowQueue.add(
+    jobType,
+    {
+      type: jobType,
       tenantId,
-      jobType: config.jobType ?? "activate_step",
-      relatedEntityType: "workflow_step_instance",
-      relatedEntityId: stepInstance.id,
-      runAt,
-      status: "pending",
-      payloadJson: {
-        workflowInstanceId: stepInstance.workflowInstanceId,
-        stepInstanceId: stepInstance.id,
-      } as Prisma.InputJsonValue,
+      workflowStepInstanceId: stepInstance.id,
+      workflowInstanceId: stepInstance.workflowInstanceId,
     },
-  });
+    { delay: delayMs, removeOnComplete: 100, removeOnFail: 100 }
+  );
 }
 
 async function sendNotification(
@@ -202,18 +210,20 @@ async function sendNotification(
   },
   config: ActionConfig
 ): Promise<void> {
-  await fastify.prisma.notification.create({
-    data: {
-      tenantId,
-      userId: config.userId ?? null,
-      clientId: config.clientId ?? null,
-      projectId: stepInstance.workflowInstance.entityId,
-      workflowInstanceId: stepInstance.workflowInstanceId,
-      channel: config.channel ?? "in_app",
-      subject: config.subject ?? null,
-      body: config.body ?? "Workflow notification",
-      status: "pending",
-    },
+  // Tenant-level switch: firm-wide mute for workflow notifications.
+  if (!(await isTenantEventEnabled(fastify.prisma, tenantId, "workflow_events"))) return;
+
+  await dispatchWorkflowEvent(fastify.prisma, tenantId, {
+    userId: config.userId ?? null,
+    category: "projects",
+    subject: config.subject ?? "Notificare workflow",
+    body: config.body ?? "Workflow notification",
+    url: stepInstance.workflowInstance.entityId
+      ? `/projects/${stepInstance.workflowInstance.entityId}`
+      : "/dashboard",
+    clientId: config.clientId ?? null,
+    projectId: stepInstance.workflowInstance.entityId,
+    workflowInstanceId: stepInstance.workflowInstanceId,
   });
 }
 

@@ -22,13 +22,14 @@ interface ValidateInput {
 export function validateWorkflow(input: ValidateInput): {
   valid: boolean;
   errors: string[];
+  warnings: string[];
 } {
   const errors: string[] = [];
   const { steps, transitions } = input;
 
   if (steps.length === 0) {
     errors.push("Workflow must have at least one step");
-    return { valid: false, errors };
+    return { valid: false, errors, warnings: [] };
   }
 
   const stepIds = new Set(steps.map((s) => s.id));

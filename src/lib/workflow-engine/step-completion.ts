@@ -93,7 +93,7 @@ export async function completeStep(
           eventType: "join_waiting",
           payloadJson: {
             spawnGroupId: stepInstance.spawnGroupId,
-            stepCode: stepInstance.stepDefinition.code,
+            stepCode: stepInstance.stepDefinition?.code ?? null,
           } as Prisma.InputJsonValue,
         });
         await flushLogs(txFastify);
@@ -134,8 +134,10 @@ export async function completeStep(
         })
       : [];
 
+    // Next-step instances are always definition-backed (created from a toStep),
+    // so stepDefinition is non-null here; optional-chain to satisfy the nullable type.
     const terminalStep = nextStepInstances.find(
-      (si) => si.stepDefinition.isTerminal && si.status !== "failed"
+      (si) => si.stepDefinition?.isTerminal && si.status !== "failed"
     );
 
     if (terminalStep) {
@@ -156,7 +158,7 @@ export async function completeStep(
         data: {
           status: "completed",
           completedAt: now,
-          currentStepCode: terminalStep.stepDefinition.code,
+          currentStepCode: terminalStep.stepDefinition?.code,
         },
       });
 
@@ -166,9 +168,44 @@ export async function completeStep(
         stepInstanceId: terminalStep.id,
         eventType: "workflow_completed",
         payloadJson: {
-          terminalStepCode: terminalStep.stepDefinition.code,
+          terminalStepCode: terminalStep.stepDefinition?.code ?? null,
         } as Prisma.InputJsonValue,
       });
+
+      // Workflow-driven project status: when the workflow finishes, move the
+      // attached project to the terminal step's configJson.projectStatus
+      // (defaulting to "completed"). Only when the workflow is on a project.
+      if (
+        stepInstance.workflowInstance.entityType === "project" &&
+        stepInstance.workflowInstance.entityId
+      ) {
+        const terminalCfg =
+          terminalStep.stepDefinition?.configJson &&
+          typeof terminalStep.stepDefinition.configJson === "object"
+            ? (terminalStep.stepDefinition.configJson as Record<string, unknown>)
+            : {};
+        const finalStatus =
+          typeof terminalCfg.projectStatus === "string" && terminalCfg.projectStatus.trim()
+            ? terminalCfg.projectStatus.trim()
+            : "completed";
+        const project = await tx.project.findFirst({
+          where: { id: stepInstance.workflowInstance.entityId, tenantId },
+          select: { status: true },
+        });
+        if (project && project.status !== finalStatus) {
+          await tx.project.update({
+            where: { id: stepInstance.workflowInstance.entityId },
+            data: { status: finalStatus },
+          });
+          logAccumulator.push({
+            tenantId,
+            workflowInstanceId: stepInstance.workflowInstanceId,
+            stepInstanceId: terminalStep.id,
+            eventType: "project_status_changed",
+            payloadJson: { from: project.status, to: finalStatus } as Prisma.InputJsonValue,
+          });
+        }
+      }
     }
 
     // 7. Update workflow's currentStepCode if not completed (reuse nextStepInstances)
@@ -177,7 +214,7 @@ export async function completeStep(
       await tx.workflowInstance.update({
         where: { id: stepInstance.workflowInstanceId },
         data: {
-          currentStepCode: firstNextStep.stepDefinition.code,
+          currentStepCode: firstNextStep.stepDefinition?.code,
         },
       });
     }
@@ -189,8 +226,8 @@ export async function completeStep(
       stepInstanceId: stepInstance.id,
       eventType: "step_completed",
       payloadJson: {
-        stepCode: stepInstance.stepDefinition.code,
-        stepName: stepInstance.stepDefinition.name,
+        stepCode: stepInstance.stepDefinition?.code ?? null,
+        stepName: stepInstance.displayName ?? stepInstance.stepDefinition?.name ?? null,
         userId,
         nextStepIds,
         workflowCompleted,
@@ -285,8 +322,8 @@ export async function failStep(
         stepInstanceId: stepInstance.id,
         eventType: "step_failed",
         payloadJson: {
-          stepCode: stepInstance.stepDefinition.code,
-          stepName: stepInstance.stepDefinition.name,
+          stepCode: stepInstance.stepDefinition?.code ?? null,
+          stepName: stepInstance.displayName ?? stepInstance.stepDefinition?.name ?? null,
           userId,
           error: error ?? null,
         } as Prisma.InputJsonValue,
@@ -295,13 +332,18 @@ export async function failStep(
   });
 }
 
-/** Step types that auto-complete without user interaction */
-const AUTO_STEP_TYPES = new Set(["notification", "timer_wait", "system_action", "document_generation"]);
+/**
+ * Step types that auto-complete synchronously after retry.
+ * NOTE: "document_generation" handled separately — re-queues async jobs and waits.
+ */
+const AUTO_STEP_TYPES = new Set(["notification", "timer_wait", "system_action"]);
 
 /**
  * Retry a failed step instance: reset status to "active", clear error, increment retry count.
- * For auto step types (document_generation, notification, etc.), re-executes the step automatically
+ * For auto step types (notification, etc.), re-executes the step automatically
  * and completes it + resolves outgoing transitions.
+ * For document_generation: re-queues async jobs and sets status to "waiting"; the worker
+ * will complete or fail the step when documents finish.
  */
 export async function retryStep(
   fastify: FastifyInstance,
@@ -348,8 +390,8 @@ export async function retryStep(
         stepInstanceId: stepInstance.id,
         eventType: "step_retried",
         payloadJson: {
-          stepCode: stepInstance.stepDefinition.code,
-          stepName: stepInstance.stepDefinition.name,
+          stepCode: stepInstance.stepDefinition?.code ?? null,
+          stepName: stepInstance.displayName ?? stepInstance.stepDefinition?.name ?? null,
           userId,
           retryCount: stepInstance.retryCount + 1,
         } as Prisma.InputJsonValue,
@@ -357,36 +399,41 @@ export async function retryStep(
     });
 
     return {
-      stepType: stepInstance.stepDefinition.stepType,
-      stepConfig: (stepInstance.stepDefinition.configJson ?? {}) as Record<string, unknown>,
+      stepType: stepInstance.stepDefinition?.stepType ?? "human_task",
+      stepConfig: (stepInstance.stepDefinition?.configJson ?? {}) as Record<string, unknown>,
       workflowInstanceId: stepInstance.workflowInstanceId,
       entityId: stepInstance.workflowInstance.entityId,
       entityType: stepInstance.workflowInstance.entityType,
     };
   });
 
-  // For auto step types, re-execute step-type-specific logic then complete
-  if (AUTO_STEP_TYPES.has(result.stepType)) {
-    // Re-run step-type logic (e.g. document generation)
-    if (result.stepType === "document_generation") {
-      const success = await triggerDocumentGeneration(
-        fastify,
-        tenantId,
-        stepInstanceId,
-        {
-          id: result.workflowInstanceId,
-          entityId: result.entityId,
-          entityType: result.entityType,
-        },
-        result.stepConfig
-      );
-      if (!success) {
-        // triggerDocumentGeneration already marked the step as failed again
-        return { autoCompleted: false };
-      }
+  // For document_generation: re-queue jobs and set step to "waiting"
+  // (worker will complete or fail it when documents finish)
+  if (result.stepType === "document_generation") {
+    const success = await triggerDocumentGeneration(
+      fastify,
+      tenantId,
+      stepInstanceId,
+      {
+        id: result.workflowInstanceId,
+        entityId: result.entityId,
+        entityType: result.entityType,
+      },
+      result.stepConfig
+    );
+    if (!success) {
+      // triggerDocumentGeneration already marked the step as failed again
+      return { autoCompleted: false };
     }
+    await fastify.prisma.workflowStepInstance.update({
+      where: { id: stepInstanceId },
+      data: { status: "waiting" },
+    });
+    return { autoCompleted: false };
+  }
 
-    // Complete the step and resolve outgoing transitions
+  // For synchronous auto step types, re-execute logic then complete
+  if (AUTO_STEP_TYPES.has(result.stepType)) {
     await completeStep(fastify, tenantId, stepInstanceId, userId);
     return { autoCompleted: true };
   }
@@ -407,7 +454,7 @@ async function checkJoinMode(
   tx: any,
   spawnGroupId: string,
   currentStepInstanceId: string,
-  stepDefinitionId: string,
+  stepDefinitionId: string | null,
   workflowDefinitionId: string
 ): Promise<boolean> {
   // Find outgoing transitions from this step definition

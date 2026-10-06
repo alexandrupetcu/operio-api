@@ -30,7 +30,16 @@ export default async function vehiclesRoutes(fastify: FastifyInstance) {
 
   fastify.get("/", async (request) => {
     const query = paginationSchema.parse(request.query);
-    return vehiclesService.list(fastify, request.tenantId, query);
+    const { isActive, expiry } = request.query as Record<string, string>;
+    return vehiclesService.list(fastify, request.tenantId, {
+      ...query,
+      isActive: isActive === undefined ? undefined : isActive === "true",
+      expiry: expiry === "expired" || expiry === "soon" ? expiry : undefined,
+    });
+  });
+
+  fastify.get("/stats", async (request) => {
+    return vehiclesService.stats(fastify, request.tenantId);
   });
 
   fastify.get<{ Params: { id: string } }>("/:id", async (request) => {
@@ -136,7 +145,10 @@ export default async function vehiclesRoutes(fastify: FastifyInstance) {
       if (!file) throw fastify.httpErrors.badRequest("File is required");
 
       const buffer = await file.toBuffer();
-      const ext = file.filename.split(".").pop() ?? "pdf";
+      // Constrain extension to a safe alphanumeric tail — user-supplied
+      // filenames can carry path separators, null bytes, or weird unicode.
+      const rawExt = (file.filename.split(".").pop() ?? "pdf").toLowerCase();
+      const ext = rawExt.replace(/[^a-z0-9]/g, "").slice(0, 8) || "pdf";
       const s3Key = `${request.tenantId}/vehicles/${id}/${docType}.${ext}`;
 
       // Delete old file if exists

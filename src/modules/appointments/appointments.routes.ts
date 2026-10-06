@@ -1,7 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
-import { createAppointmentSchema, updateAppointmentSchema, finalizeAppointmentSchema } from "./appointments.schema.js";
+import {
+  createAppointmentSchema,
+  updateAppointmentSchema,
+  finalizeAppointmentSchema,
+  calendarQuerySchema,
+  overlapQuerySchema,
+} from "./appointments.schema.js";
 import * as appointmentsService from "./appointments.service.js";
+import { resolveApptScope, canSeeEmployee } from "./scope.js";
+import { NO_OVERLAP } from "./overlap.js";
+import { getSchedulingSettings } from "../tenant/scheduling-settings.js";
 
 export default async function appointmentsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
@@ -11,27 +20,29 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     "/",
     async (request) => {
       const { projectId } = request.query as { projectId?: string };
+      const scope = await resolveApptScope(fastify, request);
       return appointmentsService.listByProject(
         fastify,
         request.tenantId,
-        projectId
+        projectId,
+        scope
       );
     }
   );
 
   // Calendar view
-  fastify.get<{ Querystring: { from: string; to: string } }>(
+  fastify.get<{ Querystring: { from: string; to: string; employeeId?: string } }>(
     "/calendar",
     async (request) => {
-      const { from, to } = request.query as { from: string; to: string };
-      if (!from || !to) {
-        throw fastify.httpErrors.badRequest("from and to are required");
-      }
+      const { from, to, employeeId } = calendarQuerySchema.parse(request.query);
+      const scope = await resolveApptScope(fastify, request);
       return appointmentsService.calendar(
         fastify,
         request.tenantId,
         new Date(from),
-        new Date(to)
+        new Date(to),
+        scope,
+        employeeId
       );
     }
   );
@@ -57,11 +68,13 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request) => {
       const body = updateAppointmentSchema.parse(request.body);
+      const scope = await resolveApptScope(fastify, request);
       return appointmentsService.update(
         fastify,
         request.tenantId,
         request.params.id,
-        body
+        body,
+        scope
       );
     }
   );
@@ -72,12 +85,66 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request) => {
       const body = finalizeAppointmentSchema.parse(request.body);
+      const scope = await resolveApptScope(fastify, request);
       return appointmentsService.finalize(
         fastify,
         request.tenantId,
         request.params.id,
-        body
+        body,
+        scope
       );
+    }
+  );
+
+  // Verificare de suprapunere înainte de salvare. Doar informativ — nimic din
+  // ce întoarce nu blochează crearea.
+  fastify.get<{ Querystring: Record<string, string> }>(
+    "/overlaps",
+    async (request) => {
+      const q = overlapQuerySchema.parse(request.query);
+      const scope = await resolveApptScope(fastify, request);
+      // Un tehnician poate întreba doar despre propriul program: ocuparea unui
+      // coleg e informație despre ziua lui.
+      if (!canSeeEmployee(scope, q.employeeId)) {
+        throw fastify.httpErrors.forbidden("Nu poți verifica programul altui tehnician");
+      }
+      const settings = await getSchedulingSettings(fastify.prisma, request.tenantId);
+      if (!settings.warnOnOverlap) return NO_OVERLAP;
+      return appointmentsService.checkOverlaps(fastify, request.tenantId, {
+        employeeId: q.employeeId,
+        start: new Date(q.date),
+        duration: q.duration ?? null,
+        excludeId: q.excludeId,
+      });
+    }
+  );
+
+  // Field shortcut — what the technician can carry over from the installation
+  // and from the last report at this address (see instalatiePrefill).
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/instalatie-prefill",
+    async (request) => {
+      const scope = await resolveApptScope(fastify, request);
+      return appointmentsService.instalatiePrefill(
+        fastify,
+        request.tenantId,
+        request.params.id,
+        scope
+      );
+    }
+  );
+
+  // Regenerate the instalație document set for an already-finalized appointment
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/regenerate-documents",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    async (request, reply) => {
+      const result = await appointmentsService.regenerateInstalatieDocuments(
+        fastify,
+        request.tenantId,
+        request.params.id
+      );
+      return reply.status(202).send(result);
     }
   );
 
@@ -86,10 +153,12 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     "/:id",
     { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request) => {
+      const scope = await resolveApptScope(fastify, request);
       return appointmentsService.remove(
         fastify,
         request.tenantId,
-        request.params.id
+        request.params.id,
+        scope
       );
     }
   );

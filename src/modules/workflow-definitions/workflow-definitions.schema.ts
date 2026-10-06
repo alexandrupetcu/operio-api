@@ -11,7 +11,9 @@ export const createWorkflowDefinitionSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional().nullable(),
   category: z.string().max(50).optional().nullable(),
+  role: z.enum(["primary", "secondary"]).optional(),
   projectTypeId: z.string().min(1).optional().nullable(),
+  distributorId: z.string().min(1).optional().nullable(),
   entityType: z.string().default("project"),
   configJson: z.any().optional(),
 });
@@ -21,6 +23,9 @@ export const updateWorkflowDefinitionSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   description: z.string().optional().nullable(),
   category: z.string().max(50).optional().nullable(),
+  role: z.enum(["primary", "secondary"]).optional(),
+  projectTypeId: z.string().min(1).optional().nullable(),
+  distributorId: z.string().min(1).optional().nullable(),
   configJson: z.any().optional(),
 });
 

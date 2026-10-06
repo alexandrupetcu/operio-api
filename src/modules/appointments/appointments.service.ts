@@ -1,9 +1,18 @@
 import type { FastifyInstance } from "fastify";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
 import { uploadFile } from "../../lib/s3.js";
-import type { CreateAppointmentInput, UpdateAppointmentInput, FinalizeAppointmentInput } from "./appointments.schema.js";
+import type { CreateAppointmentInput, UpdateAppointmentInput, FinalizeAppointmentInput, InstalatieReportData } from "./appointments.schema.js";
+import { addInstallation, updateInstallation } from "../clients/clients.service.js";
+import { allocateEntryForDocument } from "../registry/registry.service.js";
+import {
+  type ApptScope,
+  apptVisibilityWhere,
+  requestedEmployeeWhere,
+} from "./scope.js";
+import { type OverlapResult, findOverlaps } from "./overlap.js";
+import { getSchedulingSettings } from "../tenant/scheduling-settings.js";
 
 const documentQueue = new Queue("document-generation", { connection: redisConnection });
 
@@ -124,6 +133,406 @@ async function regenerateIscirDocument(
   });
 }
 
+// ── Revizie / Verificare instalație — finalize + document generation ─────────
+
+/** Friendly Document name per generated template category. */
+const INSTALATIE_DOC_NAMES: Record<string, string> = {
+  REVIZIE_INSTALATIE_RT: "Fișă revizie tehnică (RT)",
+  REVIZIE_INSTALATIE_PV: "PV recepție tehnică instalație",
+  REVIZIE_INSTALATIE_BULETIN: "Buletin de sigilare/desigilare",
+  CONTRACT_REVIZIE_INSTALATIE: "Contract revizie",
+  VERIFICARE_INSTALATIE_FISA: "Fișă verificare tehnică",
+  CONTRACT_VERIFICARE_INSTALATIE: "Contract verificare",
+};
+
+/** Generate the document set for an instalatie appointment (HTML templates → PDF). */
+async function generateInstalatieDocuments(
+  fastify: FastifyInstance,
+  tenantId: string,
+  appointmentId: string,
+  type: string,
+  clientId: string,
+  installationId: string | null,
+  report: InstalatieReportData,
+  sendToEmail?: string
+) {
+  const sealPresent = type === "revizie_instalatie" && !!report.seal?.present;
+  const categories =
+    type === "revizie_instalatie"
+      ? [
+          "REVIZIE_INSTALATIE_RT",
+          "REVIZIE_INSTALATIE_PV",
+          ...(sealPresent ? ["REVIZIE_INSTALATIE_BULETIN"] : []),
+          "CONTRACT_REVIZIE_INSTALATIE",
+        ]
+      : ["VERIFICARE_INSTALATIE_FISA", "CONTRACT_VERIFICARE_INSTALATIE"];
+
+  for (const categoryCode of categories) {
+    const template = await fastify.prisma.documentTemplate.findFirst({
+      where: { categoryCode, OR: [{ tenantId }, { tenantId: null }], isActive: true },
+    });
+    if (!template) continue;
+
+    const ctxJson = {
+      appointmentId,
+      installationId,
+      instalatorEmployeeId: report.instalatorEmployeeId ?? null,
+      sealPresent,
+      ...(sendToEmail ? { sendToEmail } : {}),
+    } as Prisma.InputJsonValue;
+
+    // Re-finalize: reuse the Document already generated for this appointment+template.
+    const existing = await fastify.prisma.document.findFirst({
+      where: {
+        tenantId,
+        templateId: template.id,
+        contextJson: { path: ["appointmentId"], equals: appointmentId },
+      },
+    });
+
+    let documentId: string;
+    if (existing) {
+      await fastify.prisma.document.update({
+        where: { id: existing.id },
+        data: { status: "PENDING", s3Key: null, errorMessage: null, contextJson: ctxJson },
+      });
+      documentId = existing.id;
+    } else {
+      const doc = await fastify.prisma.document.create({
+        data: {
+          tenantId,
+          templateId: template.id,
+          name: INSTALATIE_DOC_NAMES[categoryCode] ?? template.name,
+          status: "PENDING",
+          clients: { create: { clientId } },
+          contextJson: ctxJson,
+        },
+      });
+      documentId = doc.id;
+    }
+
+    await documentQueue.add("generate", { documentId, tenantId, clientId, templateId: template.id });
+  }
+}
+
+/**
+ * Re-generate the document set (RT/PV/[Buletin]/Contract or FISA/Contract) for an
+ * already-finalized instalație appointment, WITHOUT re-running the whole finalize.
+ * Reuses the stored report (`completionDataJson`) and the reuse-aware
+ * `generateInstalatieDocuments` (existing Documents are reset to PENDING + re-enqueued).
+ */
+export async function regenerateInstalatieDocuments(
+  fastify: FastifyInstance,
+  tenantId: string,
+  appointmentId: string
+) {
+  const appointment = await fastify.prisma.appointment.findFirst({
+    where: { id: appointmentId, tenantId },
+    select: {
+      id: true, clientId: true, type: true, installationId: true,
+      status: true, completionDataJson: true,
+    },
+  });
+  if (!appointment) throw fastify.httpErrors.notFound("Programarea nu a fost găsită");
+  if (appointment.type !== "revizie_instalatie" && appointment.type !== "verificare_instalatie") {
+    throw fastify.httpErrors.badRequest("Programarea nu este de tip revizie/verificare instalație");
+  }
+  if (!appointment.clientId) {
+    throw fastify.httpErrors.badRequest("Programarea nu are un client asociat");
+  }
+  if (!appointment.completionDataJson) {
+    throw fastify.httpErrors.badRequest("Programarea nu a fost finalizată — nu există date de raport");
+  }
+
+  const report = appointment.completionDataJson as unknown as InstalatieReportData;
+  await generateInstalatieDocuments(
+    fastify,
+    tenantId,
+    appointment.id,
+    appointment.type,
+    appointment.clientId,
+    appointment.installationId,
+    report,
+    (report.clientSignature as { clientEmail?: string } | undefined)?.clientEmail ?? undefined,
+  );
+  return { status: "queued" as const };
+}
+
+/**
+ * Allocate a service-contract number for an instalație from the outgoing registry
+ * the first time we finalize for this installation. Subsequent re-finalizes find
+ * `contractNumber` already populated and skip — so RT/PV/FISA/Buletin/Contract all
+ * keep the same number. A user-typed value (e.g. from invoice OCR) also short-circuits.
+ */
+async function ensureInstalatieContractNumber(
+  fastify: FastifyInstance,
+  tenantId: string,
+  installationId: string,
+  clientId: string,
+  appointmentType: string,
+): Promise<void> {
+  const installation = await fastify.prisma.gasInstallation.findUnique({
+    where: { id: installationId },
+    select: { contractNumber: true },
+  });
+  if (!installation || installation.contractNumber) return;
+
+  const client = await fastify.prisma.client.findUnique({
+    where: { id: clientId },
+    select: { firstName: true, lastName: true, companyName: true, type: true },
+  });
+  const clientName = client?.type === "COMPANY"
+    ? client.companyName ?? ""
+    : `${client?.firstName ?? ""} ${client?.lastName ?? ""}`.trim();
+  const isRevizie = appointmentType === "revizie_instalatie";
+  const subject = `Contract prestări servicii — ${isRevizie ? "revizie" : "verificare"} instalație${
+    clientName ? ` — ${clientName}` : ""
+  }`;
+
+  const entry = await allocateEntryForDocument(
+    fastify.prisma,
+    tenantId,
+    null,
+    "iesiri",
+    subject,
+    undefined,
+    null,
+    clientId,
+  );
+  if (!entry) return;
+
+  const d = entry.createdAt;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const contractDate = `${dd}.${mm}.${d.getFullYear()}`;
+
+  await fastify.prisma.gasInstallation.update({
+    where: { id: installationId },
+    data: { contractNumber: entry.displayNumber, contractDate },
+  });
+}
+
+async function finalizeInstalatie(
+  fastify: FastifyInstance,
+  tenantId: string,
+  appointmentId: string,
+  appointment: { id: string; clientId: string | null; type: string; installationId: string | null },
+  input: Extract<FinalizeAppointmentInput, { outcome: "raport_complet" }>
+) {
+  const report = input.reportData as InstalatieReportData;
+  const clientId = appointment.clientId;
+
+  // 1. Upsert the gas installation (reusable identity), link it to the appointment.
+  let installationId = input.installationId ?? appointment.installationId ?? null;
+  if (clientId && input.installationData) {
+    if (installationId) {
+      await updateInstallation(fastify, tenantId, clientId, installationId, input.installationData);
+    } else {
+      const created = await addInstallation(fastify, tenantId, clientId, input.installationData);
+      installationId = created.id;
+    }
+  }
+
+  // 2. Client signature → S3 + save email.
+  const sigData = report.clientSignature;
+  let clientSignatureS3Key: string | null = null;
+  if (sigData?.signatureDataUrl) {
+    try {
+      clientSignatureS3Key = await uploadClientSignature(tenantId, appointmentId, sigData.signatureDataUrl);
+    } catch (err) {
+      console.error("[finalizeInstalatie] signature upload failed:", err);
+    }
+  }
+  if (sigData?.clientEmail && clientId) {
+    try {
+      await fastify.prisma.client.update({ where: { id: clientId }, data: { email: sigData.clientEmail } });
+    } catch (err) {
+      console.error("[finalizeInstalatie] client email update failed:", err);
+    }
+  }
+
+  // 3. Persist report (dataURL → S3 key).
+  const reportToStore = {
+    ...report,
+    clientSignature: sigData
+      ? {
+          signatureS3Key: clientSignatureS3Key,
+          gdprConsent: sigData.gdprConsent,
+          gdprConsentAt: sigData.gdprConsentAt,
+          clientEmail: sigData.clientEmail,
+        }
+      : undefined,
+  };
+  const updated = await fastify.prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      status: "completed",
+      completionDataJson: reportToStore as unknown as Prisma.InputJsonValue,
+      installationId,
+    },
+    include: listInclude,
+  });
+
+  // 4. Prospect → active.
+  if (clientId) {
+    await fastify.prisma.client.updateMany({
+      where: { id: clientId, status: "PROSPECT" },
+      data: { status: "ACTIVE" },
+    });
+  }
+
+  // 4b. Allocate the service-contract number from the outgoing registry the first
+  // time we finalize for this installation (idempotent — see helper docstring).
+  if (clientId && installationId) {
+    await ensureInstalatieContractNumber(fastify, tenantId, installationId, clientId, appointment.type);
+  }
+
+  // 5. Generate the document set (RT/PV/[Buletin]/Contract or FISA/Contract).
+  if (clientId) {
+    await generateInstalatieDocuments(
+      fastify, tenantId, appointmentId, appointment.type, clientId, installationId, report,
+      sigData?.clientEmail ?? undefined
+    );
+  }
+
+  // 6. Auto-GDPR (same as the centrala flow).
+  if (sigData?.gdprConsent && clientId) {
+    const existingGdpr = await fastify.prisma.document.findFirst({
+      where: {
+        tenantId,
+        status: { in: ["COMPLETED", "SIGNED"] },
+        template: { categoryCode: "GDPR" },
+        clients: { some: { clientId } },
+      },
+    });
+    if (!existingGdpr) {
+      try {
+        await generateAndSendGdpr(fastify, tenantId, clientId, clientSignatureS3Key);
+      } catch (err) {
+        console.error("[finalizeInstalatie] GDPR generation failed:", err);
+      }
+    }
+  }
+
+  return updated;
+}
+
+/**
+ * Everything the field wizard can carry over so the technician doesn't retype it:
+ * the reusable installation identity (GasInstallation) plus the last report
+ * finalized at the same installation/address (materials, documentation numbers,
+ * access/project numbers). Cyclic revisions at the same address repeat almost all
+ * of this. Returns `available: false` when there is nothing to offer.
+ */
+export async function instalatiePrefill(
+  fastify: FastifyInstance,
+  tenantId: string,
+  appointmentId: string,
+  scope: ApptScope = { kind: "all" }
+) {
+  const appointment = await fastify.prisma.appointment.findFirst({
+    // Endpointul întoarce date de client, instalație și raport anterior — trece
+    // prin aceeași vizibilitate ca restul.
+    where: { id: appointmentId, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
+    select: { id: true, clientId: true, clientAddressId: true, installationId: true, type: true },
+  });
+  if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
+
+  // 1. Installation identity — by explicit link, else the client's installation
+  //    at the same address, else the client's only installation.
+  let installation = appointment.installationId
+    ? await fastify.prisma.gasInstallation.findFirst({ where: { id: appointment.installationId } })
+    : null;
+  if (!installation && appointment.clientId) {
+    installation = await fastify.prisma.gasInstallation.findFirst({
+      where: {
+        clientId: appointment.clientId,
+        ...(appointment.clientAddressId && { clientAddressId: appointment.clientAddressId }),
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+  }
+
+  // 2. Last completed instalație report — same installation when we have one,
+  //    otherwise the same client + address.
+  const previous = await fastify.prisma.appointment.findFirst({
+    where: {
+      tenantId,
+      deletedAt: null,
+      id: { not: appointmentId },
+      status: "completed",
+      type: { in: ["revizie_instalatie", "verificare_instalatie"] },
+      completionDataJson: { not: Prisma.DbNull },
+      ...(installation
+        ? { installationId: installation.id }
+        : {
+            clientId: appointment.clientId ?? undefined,
+            ...(appointment.clientAddressId && { clientAddressId: appointment.clientAddressId }),
+          }),
+    },
+    orderBy: { date: "desc" },
+    select: { id: true, date: true, type: true, completionDataJson: true },
+  });
+
+  const prevReport = (previous?.completionDataJson ?? null) as Record<string, any> | null;
+  const prevPv = (prevReport?.pv ?? {}) as Record<string, any>;
+  // Normalise the pre-line-item shape so the client always receives positions.
+  const materiale: Record<string, any>[] = Array.isArray(prevPv.materiale)
+    ? prevPv.materiale
+    : [
+        prevPv.teava && { kind: "teava", ...prevPv.teava },
+        prevPv.armaturi && { kind: "armatura", ...prevPv.armaturi },
+        prevPv.detector && { kind: "detector", ...prevPv.detector },
+      ].filter(Boolean);
+
+  const inst = installation
+    ? {
+        id: installation.id,
+        distributorName: installation.distributorName ?? "",
+        codTehnicPOD: installation.codTehnicPOD ?? "",
+        codClient: installation.codClient ?? "",
+        documentatieNr: installation.documentatieNr ?? "",
+        documentatieData: installation.documentatieData ?? "",
+        contorTip: installation.contorTip ?? "",
+        contorSeria: installation.contorSeria ?? "",
+        contorNr: installation.contorNr ?? "",
+        contorAn: installation.contorAn ?? "",
+        contorIndex: installation.contorIndex ?? "",
+        clientAddressId: installation.clientAddressId ?? "",
+      }
+    : null;
+
+  const appliances = Array.isArray(installation?.appliancesJson)
+    ? (installation!.appliancesJson as Record<string, any>[])
+    : [];
+
+  const pv = previous
+    ? {
+        acordAccesNr: prevPv.acordAccesNr ?? "",
+        proiectNr: prevPv.proiectNr ?? "",
+        documentatieNr: prevPv.documentatieNr ?? "",
+        materiale,
+      }
+    : null;
+
+  // What the banner promises: how many fields a tap actually fills.
+  const fieldCount =
+    (inst ? Object.values(inst).filter((v) => v && v !== inst.id).length : 0) +
+    appliances.length +
+    (pv ? [pv.acordAccesNr, pv.proiectNr, pv.documentatieNr].filter(Boolean).length + materiale.length : 0);
+
+  return {
+    available: fieldCount > 0,
+    fieldCount,
+    installation: inst,
+    appliances,
+    pv,
+    source: previous
+      ? { appointmentId: previous.id, date: previous.date, type: previous.type }
+      : null,
+  };
+}
+
 const listInclude = {
   project: { select: { id: true, name: true, status: true } },
   client: { select: { id: true, companyName: true, firstName: true, lastName: true, phone: true, email: true, addresses: { select: { address: true, isPrimary: true, city: { select: { name: true } }, state: { select: { name: true } } }, orderBy: { isPrimary: "desc" as const } } } },
@@ -133,10 +542,16 @@ const listInclude = {
 export async function listByProject(
   fastify: FastifyInstance,
   tenantId: string,
-  projectId?: string
+  projectId: string | undefined,
+  scope: ApptScope = { kind: "all" }
 ) {
   return fastify.prisma.appointment.findMany({
-    where: { tenantId, deletedAt: null, ...(projectId && { projectId }) },
+    where: {
+      tenantId,
+      deletedAt: null,
+      ...(projectId && { projectId }),
+      ...apptVisibilityWhere(scope),
+    },
     include: listInclude,
     orderBy: { date: "asc" },
   });
@@ -146,7 +561,9 @@ export async function calendar(
   fastify: FastifyInstance,
   tenantId: string,
   from: Date,
-  to: Date
+  to: Date,
+  scope: ApptScope = { kind: "all" },
+  employeeIdFilter?: string
 ) {
   return fastify.prisma.appointment.findMany({
     where: {
@@ -154,6 +571,9 @@ export async function calendar(
       deletedAt: null,
       date: { gte: from, lte: to },
       status: { not: "cancelled" },
+      // Vizibilitatea și filtrul cerut se combină prin AND: filtrul restrânge,
+      // nu lărgește.
+      AND: [apptVisibilityWhere(scope), requestedEmployeeWhere(employeeIdFilter, scope)],
     },
     include: {
       project: {
@@ -185,12 +605,16 @@ export async function create(
     if (!project) throw fastify.httpErrors.notFound("Project not found");
   }
 
-  return fastify.prisma.appointment.create({
+  const created = await fastify.prisma.appointment.create({
     data: {
       tenantId,
       projectId: input.projectId ?? null,
       clientId: input.clientId ?? null,
+      clientAddressId: input.clientAddressId ?? null,
       employeeId: input.employeeId,
+      equipmentId: input.equipmentId ?? null,
+      installationId: input.installationId ?? null,
+      vehicleId: input.vehicleId ?? null,
       type: input.type,
       title: input.title,
       notes: input.notes,
@@ -199,20 +623,80 @@ export async function create(
     },
     include: listInclude,
   });
+
+  return { ...created, _warnings: await warningsFor(fastify, tenantId, created) };
+}
+
+/**
+ * Avertismentele atașate răspunsului, ca o cheie în plus (`_warnings`) — aditivă,
+ * deci parserele existente din web și mobil rămân valabile.
+ *
+ * Rulează DUPĂ scriere și nu poate arunca: dacă verificarea eșuează, programarea
+ * rămâne salvată și pur și simplu nu se avertizează nimic.
+ */
+/** Verificare de suprapunere pentru formular, înainte de salvare. */
+export async function checkOverlaps(
+  fastify: FastifyInstance,
+  tenantId: string,
+  args: { employeeId: string; start: Date; duration: number | null; excludeId?: string }
+): Promise<OverlapResult> {
+  const settings = await getSchedulingSettings(fastify.prisma, tenantId);
+  return findOverlaps(fastify, tenantId, {
+    ...args,
+    defaultMinutes: settings.defaultDurationMinutes,
+  });
+}
+
+async function warningsFor(
+  fastify: FastifyInstance,
+  tenantId: string,
+  appointment: { id: string; employeeId: string | null; date: Date; duration: number | null },
+): Promise<{ overlap: OverlapResult } | undefined> {
+  if (!appointment.employeeId) return undefined;
+  try {
+    const settings = await getSchedulingSettings(fastify.prisma, tenantId);
+    if (!settings.warnOnOverlap) return undefined;
+    const overlap = await findOverlaps(fastify, tenantId, {
+      employeeId: appointment.employeeId,
+      start: appointment.date,
+      duration: appointment.duration,
+      defaultMinutes: settings.defaultDurationMinutes,
+      excludeId: appointment.id,
+    });
+    return overlap.hasOverlap ? { overlap } : undefined;
+  } catch (err) {
+    console.error("[appointments] overlap check failed:", err);
+    return undefined;
+  }
 }
 
 export async function update(
   fastify: FastifyInstance,
   tenantId: string,
   id: string,
-  input: UpdateAppointmentInput
+  input: UpdateAppointmentInput,
+  scope: ApptScope = { kind: "all" }
 ) {
   const appointment = await fastify.prisma.appointment.findFirst({
-    where: { id, tenantId, deletedAt: null },
+    // 404, nu 403: nu divulgăm existența unei programări pe care cererea nu o vede.
+    where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
   });
   if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
 
-  return fastify.prisma.appointment.update({
+  // Un tehnician poate prelua o programare nerepartizată sau renunța la a lui,
+  // dar nu poate pasa lucrarea unui coleg — repartizarea rămâne la coordonatori.
+  if (
+    scope.kind === "own" &&
+    input.employeeId !== undefined &&
+    input.employeeId !== null &&
+    input.employeeId !== scope.employeeId
+  ) {
+    throw fastify.httpErrors.forbidden(
+      "Doar coordonatorii pot repartiza programări altui tehnician"
+    );
+  }
+
+  const updated = await fastify.prisma.appointment.update({
     where: { id },
     data: {
       ...(input.title !== undefined && { title: input.title }),
@@ -224,20 +708,28 @@ export async function update(
     },
     include: listInclude,
   });
+
+  return { ...updated, _warnings: await warningsFor(fastify, tenantId, updated) };
 }
 
 export async function finalize(
   fastify: FastifyInstance,
   tenantId: string,
   id: string,
-  input: FinalizeAppointmentInput
+  input: FinalizeAppointmentInput,
+  scope: ApptScope = { kind: "all" }
 ) {
   const appointment = await fastify.prisma.appointment.findFirst({
-    where: { id, tenantId, deletedAt: null },
+    where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
   });
   if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
 
   if (input.outcome === "raport_complet") {
+    // Gas-installation reports (revizie/verificare instalație) use the FISA flow.
+    if (appointment.type === "revizie_instalatie" || appointment.type === "verificare_instalatie") {
+      return finalizeInstalatie(fastify, tenantId, id, appointment, input);
+    }
+
     // Upload client signature to S3 if provided
     let clientSignatureS3Key: string | null = null;
     const sigData = input.reportData.clientSignature;
@@ -310,11 +802,15 @@ export async function finalize(
     let revisionHasPdfData = false;
 
     if (!revisionId && equipmentId) {
-      // Look for a recent PENDING revision on this equipment (may have been created by email-ingestion)
+      // Look for a recent revision on this equipment that is NOT yet linked to
+      // an appointment (e.g. one created by email-ingestion). Excluding already-
+      // linked revisions avoids a P2002 on Appointment.equipmentRevisionId (@unique)
+      // when a prior appointment for the same equipment already claimed one.
       const existingRevision = await fastify.prisma.equipmentRevision.findFirst({
         where: {
           equipmentId,
           createdAt: { gte: new Date(Date.now() - 7 * 24 * 3600_000) },
+          appointment: { is: null },
         },
         orderBy: { createdAt: "desc" },
         select: { id: true, sourceEmailId: true, analysisData: true },
@@ -489,10 +985,11 @@ export async function finalize(
 export async function remove(
   fastify: FastifyInstance,
   tenantId: string,
-  id: string
+  id: string,
+  scope: ApptScope = { kind: "all" }
 ) {
   const appointment = await fastify.prisma.appointment.findFirst({
-    where: { id, tenantId, deletedAt: null },
+    where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
   });
   if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
 

@@ -1,0 +1,127 @@
+<style>
+  .t { width:100%; border-collapse:collapse; margin:6px 0; font-size:11px }
+  .t td, .t th { border:1px solid #888; padding:4px 6px; vertical-align:top }
+  .t th { text-align:center }
+  .chk { text-align:center; font-weight:bold; width:42px }
+  .ctr { text-align:center }
+  h2 { font-size:12.5px; margin:13px 0 3px }
+  .muted { color:#555; font-size:10px; margin:2px 0 }
+  .sig td { border:none; padding:16px 8px 4px; vertical-align:top; width:33%; text-align:center }
+</style>
+
+<table class="t" style="margin-bottom:0">
+  <tr>
+    <td style="width:56%">
+      <strong>{{tenant_name}}</strong><br>
+      Sediu: {{tenant_address}}, {{tenant_city}} – {{tenant_county}}<br>
+      CUI: {{tenant_cui}} &nbsp; {{tenant_reg_com}}<br>
+      Tel: {{tenant_phone}} &nbsp; E-mail: {{tenant_email}}
+    </td>
+    <td class="ctr">
+      <strong>OPERATOR DE SISTEM</strong><br>
+      {{inst_distributor}}<br><br>
+      Înregistrare la OS:<br>
+      Nr. {{nr_inregistrare}} &nbsp;&nbsp; Data: {{nr_inregistrare_data}}
+    </td>
+  </tr>
+</table>
+
+<h1 style="text-align:center;font-size:15px;margin:8px 0 2px">FIȘĂ DE EVIDENȚĂ</h1>
+<p class="ctr" style="margin:0">a lucrărilor periodice de <strong>VERIFICARE TEHNICĂ</strong> a instalației de utilizare a gazelor naturale</p>
+<p class="ctr" style="margin:2px 0 8px"><strong>Nr. {{nr_inregistrare}} VTIUGN / Data: {{date}}</strong></p>
+
+<table class="t">
+  <tr><td style="width:32%"><strong>1. Client final</strong></td><td>{{client_name}}, Loc. {{client_city}}</td></tr>
+  <tr><td><strong>2. Adresă</strong></td><td>{{client_address}}, județ/sector {{client_county}}</td></tr>
+  <tr><td>Telefon / Email</td><td>{{client_phone}} &nbsp; {{client_email}}</td></tr>
+  <tr><td><strong>3. Cod Client / Cod Tehnic</strong></td><td>{{inst_cod_client}} &nbsp;/&nbsp; {{inst_cod_pod}}</td></tr>
+  <tr><td>4. Contract prestări servicii (nr. / dată)</td><td>{{inst_contract_nr}} / {{inst_contract_data}}</td></tr>
+  <tr><td>5. Documentația tehnică (nr. / dată)</td><td>{{inst_documentatie_nr}} {{inst_documentatie_data}}</td></tr>
+  <tr><td>8. Instalator autorizat</td><td>{{instalator_nume}} — Legitimație tip {{instalator_tip}} nr. {{instalator_legitimatie}}, anul {{instalator_an}}, valabilă până la {{instalator_valabilitate}}</td></tr>
+</table>
+
+<h2>9. Aparate consumatoare de combustibili gazoși</h2>
+<table class="t">
+  <tr><th style="width:42px">Nr.</th><th>Aparat (tip)</th><th style="width:160px">Debit nominal (mc/h)</th></tr>
+  {{inst_aparate_table}}
+</table>
+
+<h2>Tabel nr. 1 — Verificarea tehnică se realizează în următoarele situații</h2>
+<table class="t">
+  <tr><th>Tip lucrare</th><th style="width:90px">De completat</th></tr>
+  <tr><td>La intervale de maximum 2 ani</td><td class="chk">{{situatie_interval_2_ani}}</td></tr>
+  <tr><td>La cererea clientului</td><td class="chk">{{situatie_cerere_client}}</td></tr>
+</table>
+
+<h2>Tabel nr. 2 — Tip lucrare</h2>
+<table class="t">
+  <tr><td>Verificarea tehnică a instalației individuale de utilizare a gazelor naturale</td><td class="chk">{{tip_individuala}}</td></tr>
+  <tr><td>Verificarea tehnică a instalației comune de utilizare a gazelor naturale</td><td class="chk">{{tip_comuna}}</td></tr>
+</table>
+
+<h2>Tabel nr. 3 — Operațiuni realizate</h2>
+<table class="t">
+  <tr><th style="width:34px">Nr.</th><th>Operațiuni</th><th>Da</th><th>Nu</th><th>Nu e cazul</th></tr>
+  <tr><td class="ctr">1</td><td>Verificarea arzătoarelor și a stării îmbinărilor și garniturilor de etanșare aferente</td><td class="chk">{{op_arzatoare_da}}</td><td class="chk">{{op_arzatoare_nu}}</td><td class="chk">{{op_arzatoare_na}}</td></tr>
+  <tr><td class="ctr">2</td><td>Verificarea stabilității conductelor montate aparent pe suporturi</td><td class="chk">{{op_stabilitate_conducte_da}}</td><td class="chk">{{op_stabilitate_conducte_nu}}</td><td class="chk">{{op_stabilitate_conducte_na}}</td></tr>
+  <tr><td class="ctr">3</td><td>Verificarea etanșeității îmbinării conductelor și armăturilor la presiunea de lucru a gazului din instalație, cu spumă de apă cu săpun sau alte tehnologii de verificare a etanșeității</td><td class="chk">{{op_etanseitate_imbinari_da}}</td><td class="chk">{{op_etanseitate_imbinari_nu}}</td><td class="chk">{{op_etanseitate_imbinari_na}}</td></tr>
+  <tr><td class="ctr">4</td><td>Verificarea funcționării aparatelor de măsurare, control, reglare și de siguranță</td><td class="chk">{{op_aparate_masurare_da}}</td><td class="chk">{{op_aparate_masurare_nu}}</td><td class="chk">{{op_aparate_masurare_na}}</td></tr>
+  <tr><td class="ctr">5</td><td>Demontarea/Debranșarea aparatelor consumatoare de combustibili gazoși fără aprobarea legală și a instalațiilor de utilizare aferente</td><td class="chk">{{op_demontare_neaprobata_da}}</td><td class="chk">{{op_demontare_neaprobata_nu}}</td><td class="chk">{{op_demontare_neaprobata_na}}</td></tr>
+  <tr><td class="ctr">6</td><td>Verificarea funcționării echipamentului de reglare din instalațiile de utilizare</td><td class="chk">{{op_echipament_reglare_da}}</td><td class="chk">{{op_echipament_reglare_nu}}</td><td class="chk">{{op_echipament_reglare_na}}</td></tr>
+  <tr><td class="ctr">7</td><td>Verificarea stării răsuflătorilor și a căminelor existente</td><td class="chk">{{op_rasuflatori_camine_da}}</td><td class="chk">{{op_rasuflatori_camine_nu}}</td><td class="chk">{{op_rasuflatori_camine_na}}</td></tr>
+  <tr><td class="ctr">8</td><td>Verificarea documentelor prezentate de client, din care să reiasă că a fost efectuată curățarea coșurilor și a canalelor de evacuare a gazelor de ardere de către operatori economici autorizați, emise cu maximum 6 luni înainte de data verificării tehnice</td><td class="chk">{{op_documente_curatare_cosuri_da}}</td><td class="chk">{{op_documente_curatare_cosuri_nu}}</td><td class="chk">{{op_documente_curatare_cosuri_na}}</td></tr>
+  <tr><td class="ctr">9</td><td>Verificarea stării construcțiilor care adăpostesc stațiile și posturile de reglare sau reglare-măsurare</td><td class="chk">{{op_constructii_statii_da}}</td><td class="chk">{{op_constructii_statii_nu}}</td><td class="chk">{{op_constructii_statii_na}}</td></tr>
+  <tr><td class="ctr">10</td><td>Verificarea documentelor prezentate de client, care să ateste efectuarea în termen a verificării tehnice periodice a aparatelor consumatoare de combustibili gazoși de către operatorii economici autorizați de ISCIR</td><td class="chk">{{op_documente_iscir_aparate_da}}</td><td class="chk">{{op_documente_iscir_aparate_nu}}</td><td class="chk">{{op_documente_iscir_aparate_na}}</td></tr>
+  <tr><td class="ctr">11</td><td>Verificarea tehnică a instalației comune de utilizare a gazelor naturale care deservește mai mulți clienți finali, cuprinsă între stația sau postul de reglare și sistemele/mijloacele de măsurare a gazelor naturale</td><td class="chk">{{op_instalatie_comuna_da}}</td><td class="chk">{{op_instalatie_comuna_nu}}</td><td class="chk">{{op_instalatie_comuna_na}}</td></tr>
+  <tr><td class="ctr">12</td><td>Verificarea faptului că racordul flexibil montat în instalația de utilizare este în termen de valabilitate, având în vedere durata normală de utilizare specificată în prescripțiile tehnice ale producătorului</td><td class="chk">{{op_racord_flexibil_da}}</td><td class="chk">{{op_racord_flexibil_nu}}</td><td class="chk">{{op_racord_flexibil_na}}</td></tr>
+  <tr><td class="ctr">13</td><td>Verificarea faptului că detectorul/detectoarele automat/e de gaze naturale montat/e la locul de consum este/sunt în termen de valabilitate, având în vedere durata normată de utilizare specificată în prescripțiile tehnice ale producătorului</td><td class="chk">{{op_detector_gaze_da}}</td><td class="chk">{{op_detector_gaze_nu}}</td><td class="chk">{{op_detector_gaze_na}}</td></tr>
+  <tr><td class="ctr">14</td><td>Verificarea existenței instrucțiunilor de utilizare a gazelor naturale, întocmite conform prevederilor Procedurii aprobate de Ordinul ANRE nr. 32/2012</td><td class="chk">{{op_instructiuni_utilizare_da}}</td><td class="chk">{{op_instructiuni_utilizare_nu}}</td><td class="chk">{{op_instructiuni_utilizare_na}}</td></tr>
+</table>
+
+<h2>Tabel nr. 4 — Defecte constatate</h2>
+<table class="t">
+  <tr><th style="width:34px">Nr.</th><th>Defecte constatate</th><th>Mod de remediere</th><th>Remediat Da</th><th>Remediat Nu</th></tr>
+  {{defecte_table}}
+</table>
+
+<h2>Tabel nr. 5 — Condiții tehnice de funcționare</h2>
+<table class="t">
+  <tr><td style="width:70%">Instalația de utilizare a gazelor naturale îndeplinește condițiile tehnice de funcționare în siguranță prevăzute în normele tehnice din domeniul gazelor naturale</td><td class="chk">Da {{conditii_da}}</td><td class="chk">Nu {{conditii_nu}}</td></tr>
+  <tr><td>Observații</td><td colspan="2">{{conditii_observatii}}</td></tr>
+</table>
+
+<h2>Tabel nr. 6 — Aparate consumatoare + documente</h2>
+<table class="t">
+  <tr><th style="width:34px">Nr.</th><th>Aparat</th><th>Debit</th><th>Curățare coșuri nr.</th><th>Dată</th><th>Verificare aparate nr.</th><th>Dată</th></tr>
+  {{documente_aparate_table}}
+</table>
+
+<h2>Tabel nr. 7</h2>
+<table class="t">
+  <tr><td style="width:70%">Pe baza documentelor prezentate și a operațiunilor realizate în cadrul verificării tehnice se constată că instalația de utilizare a gazelor naturale respectă prevederile normelor tehnice și poate funcționa în condiții de siguranță</td><td class="chk">Da {{tabel8_da}}</td><td class="chk">Nu {{tabel8_nu}}</td></tr>
+</table>
+
+<h2>FORMULAR DE APRECIERE</h2>
+<p class="muted">privind calitatea lucrărilor realizate / serviciilor prestate de operatorul autorizat ANRE (1 = cel mai puțin mulțumit ... 10 = foarte mulțumit)</p>
+<table class="t">
+  <tr><th style="width:34px">Nr.</th><th>Indicator</th><th style="width:90px">Punctaj</th></tr>
+  <tr><td class="ctr">1</td><td>Sunteți mulțumit de durata lucrărilor/serviciilor în raport cu prevederile contractuale?</td><td class="ctr">{{apreciere_i1}}</td></tr>
+  <tr><td class="ctr">2</td><td>Sunteți mulțumit de numărul și pregătirea personalului alocat lucrărilor/serviciilor contractate?</td><td class="ctr">{{apreciere_i2}}</td></tr>
+  <tr><td class="ctr">3</td><td>Sunteți mulțumit de disponibilitatea și calitatea dotărilor materiale, materialelor și componentelor utilizate, respectiv a documentelor elaborate?</td><td class="ctr">{{apreciere_i3}}</td></tr>
+  <tr><td class="ctr">4</td><td>Sunteți mulțumit de tipul și modul de rezolvare a solicitărilor punctuale adresate titularului de autorizație sau a personalului acestuia?</td><td class="ctr">{{apreciere_i4}}</td></tr>
+  <tr><td class="ctr">5</td><td>Sunteți mulțumit de calitatea globală a lucrărilor realizate sau a serviciilor prestate?</td><td class="ctr">{{apreciere_i5}}</td></tr>
+  <tr><td colspan="2"><strong>Grad de satisfacție (media aritmetică)</strong></td><td class="ctr"><strong>{{apreciere_grad}}</strong></td></tr>
+</table>
+
+<p style="margin-top:10px"><strong>Concluzie:</strong> instalația de utilizare a gazelor naturale a fost declarată
+<strong>{{decizie_admis}} ADMIS</strong> / <strong>{{decizie_respins}} RESPINS</strong>.
+Scadența următoarei verificări tehnice: <strong>{{next_date}}</strong>.</p>
+<p class="muted">{{observatii}}</p>
+
+<table class="t sig" style="margin-top:18px">
+  <tr>
+    <td><strong>Reprezentant legal</strong><br>al operatorului economic autorizat ANRE<br><br>{{tenant_name}}<br>{{tenant_admin_name}}<br>{{tenant_stamp}}</td>
+    <td><strong>Instalator autorizat</strong><br>care a efectuat verificarea tehnică<br><br>{{instalator_nume}}<br>{{tenant_signature}}</td>
+    <td><strong>Client final</strong><br>Numele și prenumele<br><br>{{client_name}}<br>{{client_signature}}</td>
+  </tr>
+</table>

@@ -14,10 +14,11 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     "/admin",
     { onRequest: [requireRole("ADMIN")] },
     async (request) => {
-      const { category, search, scope, page, limit } = request.query as {
+      const { category, search, scope, type, page, limit } = request.query as {
         category?: string;
         search?: string;
         scope?: "all" | "system" | "tenant";
+        type?: "all" | "html" | "docx" | "group";
         page?: string;
         limit?: string;
       };
@@ -25,6 +26,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
         category,
         search,
         scope,
+        type,
         page: page ? Number(page) : undefined,
         limit: limit ? Number(limit) : undefined,
       });
@@ -37,6 +39,17 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     { onRequest: [requireRole("ADMIN")] },
     async (request) => {
       return templatesService.getDownloadUrl(fastify, request.params.id);
+    }
+  );
+
+  // Raw DOCX bytes (for the in-app editor — same-origin fetch, avoids S3 CORS)
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/content",
+    { onRequest: [requireRole("ADMIN")] },
+    async (request, reply) => {
+      const { buffer } = await templatesService.getFileContent(fastify, request.params.id);
+      reply.header("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      return reply.send(buffer);
     }
   );
 
@@ -61,6 +74,76 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
       return templatesService.bulkRemove(fastify, request.tenantId, ids);
     }
   );
+
+  // ── DOCX Groups ─────────────────────────────────────────────────────
+
+  // Create a DOCX group (members added afterwards)
+  fastify.post(
+    "/groups",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    async (request, reply) => {
+      const { name, category, description } = request.body as {
+        name?: string;
+        category?: string;
+        description?: string;
+      };
+      if (!name || !category) throw fastify.httpErrors.badRequest("name and category are required");
+      const group = await templatesService.createGroup(fastify, request.tenantId, { name, category, description });
+      return reply.status(201).send(group);
+    }
+  );
+
+  // List a group's DOCX members (ordered)
+  fastify.get<{ Params: { id: string } }>("/:id/docs", async (request) => {
+    return templatesService.listGroupDocs(fastify, request.tenantId, request.params.id);
+  });
+
+  // Upload one or more DOCX files into a group
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/docs",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    async (request, reply) => {
+      const parts = request.parts();
+      const files: Array<{ buffer: Buffer; filename: string; mimetype: string }> = [];
+      for await (const part of parts) {
+        if (part.type === "file") {
+          files.push({ buffer: await part.toBuffer(), filename: part.filename, mimetype: part.mimetype });
+        }
+      }
+      if (files.length === 0) throw fastify.httpErrors.badRequest("At least one file is required");
+      const created = await templatesService.addGroupDocs(fastify, request.tenantId, request.params.id, files);
+      return reply.status(201).send(created);
+    }
+  );
+
+  // Reorder a group's members
+  fastify.patch<{ Params: { id: string } }>(
+    "/:id/docs/reorder",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    async (request) => {
+      const { ids } = request.body as { ids?: string[] };
+      if (!ids?.length) throw fastify.httpErrors.badRequest("ids required");
+      return templatesService.reorderGroupDocs(fastify, request.tenantId, request.params.id, ids);
+    }
+  );
+
+  // Remove a member from a group
+  fastify.delete<{ Params: { id: string; docId: string } }>(
+    "/:id/docs/:docId",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    async (request) => {
+      return templatesService.removeGroupDoc(fastify, request.tenantId, request.params.id, request.params.docId);
+    }
+  );
+
+  // Download the whole group as a ZIP of its DOCX files
+  fastify.get<{ Params: { id: string } }>("/:id/zip", async (request, reply) => {
+    const { buffer, filename } = await templatesService.getGroupZip(fastify, request.tenantId, request.params.id);
+    reply
+      .header("Content-Type", "application/zip")
+      .header("Content-Disposition", `attachment; filename="${filename}"`);
+    return reply.send(buffer);
+  });
 
   // ── Template Categories CRUD ────────────────────────────────────────
 
@@ -98,13 +181,14 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     "/categories/:id",
     { onRequest: [requireRole("ADMIN")] },
     async (request) => {
-      const { name, description, icon, color, isActive, sortOrder } = request.body as {
+      const { name, description, icon, color, isActive, sortOrder, registrySeriesCode } = request.body as {
         name?: string;
         description?: string;
         icon?: string;
         color?: string;
         isActive?: boolean;
         sortOrder?: number;
+        registrySeriesCode?: string | null;
       };
       return fastify.prisma.templateCategory.update({
         where: { id: request.params.id },
@@ -115,6 +199,10 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
           ...(color !== undefined && { color }),
           ...(isActive !== undefined && { isActive }),
           ...(sortOrder !== undefined && { sortOrder }),
+          // "" → null (fall back to default series); a code → per-category series.
+          ...(registrySeriesCode !== undefined && {
+            registrySeriesCode: registrySeriesCode ? registrySeriesCode : null,
+          }),
         },
       });
     }
@@ -146,15 +234,17 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
 
   // List templates (paginated)
   fastify.get("/", async (request) => {
-    const { category, search, page, limit } = request.query as {
+    const { category, search, type, page, limit } = request.query as {
       category?: string;
       search?: string;
+      type?: "all" | "html" | "docx" | "group";
       page?: string;
       limit?: string;
     };
     return templatesService.list(fastify, request.tenantId, {
       category,
       search,
+      type,
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
     });

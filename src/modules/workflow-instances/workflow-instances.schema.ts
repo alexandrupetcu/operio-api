@@ -23,7 +23,16 @@ export const executeEventSchema = z.object({
   }),
 });
 
+export const addAdHocStepSchema = z.object({
+  name: z.string().min(1).max(200),
+  assignedUserId: z.string().cuid().nullable().optional(),
+  // ISO datetime string; the client builds it from a native date input.
+  dueAt: z.string().datetime().nullable().optional(),
+  requiresDocument: z.boolean().optional().default(false),
+});
+
 export type StartWorkflowInput = z.infer<typeof startWorkflowSchema>;
+export type AddAdHocStepInput = z.infer<typeof addAdHocStepSchema>;
 export type CompleteStepInput = z.infer<typeof completeStepSchema>;
 export type FailStepInput = z.infer<typeof failStepSchema>;
 export type ExecuteEventInput = z.infer<typeof executeEventSchema>;

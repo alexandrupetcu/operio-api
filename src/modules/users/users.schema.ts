@@ -13,6 +13,10 @@ export const updateUserSchema = z.object({
   lastName: z.string().min(1).max(50).optional(),
   role: z.enum(["ADMIN", "MANAGER", "OPERATOR"]).optional(),
   isActive: z.boolean().optional(),
+  // Persoana din echipă legată de acest cont; `null` desface legătura.
+  // Programările se atribuie unui Employee, deci fără legătură contul nu are
+  // „programările mele".
+  employeeId: z.string().cuid().nullable().optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

@@ -1,7 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
 import { paginationSchema } from "../../lib/pagination.js";
-import { createClientSchema, updateClientSchema, equipmentInputSchema, clientAddressInputSchema } from "./clients.schema.js";
+import {
+  createClientSchema,
+  updateClientSchema,
+  equipmentInputSchema,
+  clientAddressInputSchema,
+  gasInstallationInputSchema,
+  quickDossierInputSchema,
+  updateQuickDossierSchema,
+} from "./clients.schema.js";
 import * as clientsService from "./clients.service.js";
 
 export default async function clientsRoutes(fastify: FastifyInstance) {
@@ -9,8 +17,12 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.get("/", async (request) => {
     const query = paginationSchema.parse(request.query);
-    const { status } = request.query as Record<string, string>;
-    return clientsService.list(fastify, request.tenantId, { ...query, status });
+    const { status, type } = request.query as Record<string, string>;
+    return clientsService.list(fastify, request.tenantId, { ...query, status, type });
+  });
+
+  fastify.get("/stats", async (request) => {
+    return clientsService.stats(fastify, request.tenantId);
   });
 
   fastify.get<{ Params: { id: string } }>("/:id", async (request) => {
@@ -157,6 +169,116 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
         request.tenantId,
         request.params.id,
         request.params.equipmentId
+      );
+    }
+  );
+
+  // === Gas installation endpoints (instalații de utilizare) ===
+
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/installations",
+    async (request) => {
+      return clientsService.listInstallations(fastify, request.tenantId, request.params.id);
+    }
+  );
+
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/installations",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request, reply) => {
+      const body = gasInstallationInputSchema.parse(request.body);
+      const inst = await clientsService.addInstallation(
+        fastify,
+        request.tenantId,
+        request.params.id,
+        body
+      );
+      return reply.status(201).send(inst);
+    }
+  );
+
+  fastify.patch<{ Params: { id: string; installationId: string } }>(
+    "/:id/installations/:installationId",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request) => {
+      const body = gasInstallationInputSchema.partial().parse(request.body);
+      return clientsService.updateInstallation(
+        fastify,
+        request.tenantId,
+        request.params.id,
+        request.params.installationId,
+        body
+      );
+    }
+  );
+
+  // === Quick-dossier endpoints (client-level rapid generation) ===
+  // Backed by hidden Project rows (kind="quick_dossier") — see clients.service
+  // for the rationale. Anything that touches the project list is filtered to
+  // kind="project" so these stay scoped to the client detail page.
+
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/dossiers",
+    async (request) => {
+      return clientsService.listDossiers(fastify, request.tenantId, request.params.id);
+    }
+  );
+
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/dossiers",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request, reply) => {
+      const body = quickDossierInputSchema.parse(request.body);
+      const d = await clientsService.createDossier(
+        fastify,
+        request.tenantId,
+        request.user.sub,
+        request.params.id,
+        body,
+      );
+      return reply.status(201).send(d);
+    }
+  );
+
+  fastify.patch<{ Params: { id: string; dossierId: string } }>(
+    "/:id/dossiers/:dossierId",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request) => {
+      const body = updateQuickDossierSchema.parse(request.body);
+      return clientsService.updateDossier(
+        fastify,
+        request.tenantId,
+        request.params.id,
+        request.params.dossierId,
+        body,
+      );
+    }
+  );
+
+  fastify.post<{ Params: { id: string; dossierId: string } }>(
+    "/:id/dossiers/:dossierId/generate",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request, reply) => {
+      const docs = await clientsService.generateDossier(
+        fastify,
+        request.tenantId,
+        request.user.sub,
+        request.params.id,
+        request.params.dossierId,
+      );
+      return reply.status(202).send({ documents: docs });
+    }
+  );
+
+  fastify.delete<{ Params: { id: string; dossierId: string } }>(
+    "/:id/dossiers/:dossierId",
+    { onRequest: [requireRole("ADMIN", "MANAGER") ] },
+    async (request) => {
+      return clientsService.removeDossier(
+        fastify,
+        request.tenantId,
+        request.params.id,
+        request.params.dossierId,
       );
     }
   );

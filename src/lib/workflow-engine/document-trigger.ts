@@ -54,7 +54,9 @@ export async function triggerDocumentGeneration(
     });
     templateIds = templates.map((t) => t.id);
   } else if (stepConfig.templateRef) {
-    // Legacy: single template reference by ID
+    // Single template reference by ID. A DOCX group is NOT flattened here — it
+    // becomes one Document whose file is a ZIP of all rendered members (the
+    // doc-generation worker bundles them), so keep the group id as-is.
     templateIds = [stepConfig.templateRef as string];
   }
 
@@ -93,6 +95,7 @@ export async function triggerDocumentGeneration(
           tenantId,
           templateId: template.id,
           generatedById: stepInstance?.assignedUserId ?? null,
+          workflowStepInstanceId: stepInstanceId,
           name: template.name,
           status: "PENDING",
           projects: {
@@ -161,8 +164,8 @@ async function markStepFailed(
       stepInstanceId,
       eventType: "step_failed",
       payloadJson: {
-        stepCode: stepInstance.stepDefinition.code,
-        stepName: stepInstance.stepDefinition.name,
+        stepCode: stepInstance.stepDefinition?.code ?? null,
+        stepName: stepInstance.displayName ?? stepInstance.stepDefinition?.name ?? null,
         userId: "system",
         error,
       } as Prisma.InputJsonValue,

@@ -24,7 +24,8 @@ Available variables:
 - {{tenant_phone}} - Your company phone
 - {{tenant_email}} - Your company email
 - {{tenant_admin_name}} - Your company administrator name
-- {{tenant_stamp}} - Your company stamp image
+- {{tenant_stamp}} - Your company stamp image (stamp slot 1 / primary)
+- {{tenant_stamp_2}}, {{tenant_stamp_3}}, {{tenant_stamp_4}} - Additional stamp images (slots 2-4), for documents needing a different stamp
 - {{tenant_signature}} - Your company signature image
 - {{project_name}} - Project name
 - {{project_address}} - Project address

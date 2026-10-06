@@ -67,12 +67,18 @@ export default async function signingRoutes(fastify: FastifyInstance) {
           documentHash,
           expiresAt,
           signatories: {
+            // Explicit cryptographically-random token (256 bits) per
+            // signatory — overrides the schema's cuid() default, which is
+            // only ~88 bits and semi-sequential. These tokens are sent in
+            // email links and gate the public sign endpoint, so weakness
+            // here equals a contract-signing bypass.
             create: body.signatories.map((s, i) => ({
               name: s.name,
               email: s.email,
               phone: s.phone,
               role: s.role,
               signOrder: i + 1,
+              token: crypto.randomBytes(32).toString("hex"),
             })),
           },
         },

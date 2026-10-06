@@ -4,6 +4,7 @@ import { createClientSchema } from "../clients/clients.schema.js";
 export const createProjectSchema = z.object({
   clientId: z.string().cuid(),
   projectTypeId: z.string().cuid(),
+  distributorId: z.string().cuid().optional().nullable(),
   name: z.string().min(1).max(200),
   address: z.string().min(1),
   city: z.string().min(1),
@@ -20,6 +21,7 @@ export const updateProjectSchema = z.object({
   address: z.string().min(1).optional(),
   city: z.string().min(1).optional(),
   county: z.string().min(1).optional(),
+  distributorId: z.string().cuid().optional().nullable(),
   observations: z.string().optional().nullable(),
   participareISC: z.boolean().optional(),
   status: z.string().optional(),
@@ -35,6 +37,7 @@ export const createProjectWithClientSchema = z.object({
   ]),
   project: z.object({
     projectTypeId: z.string().cuid(),
+    distributorId: z.string().cuid().optional().nullable(),
     name: z.string().min(1).max(200),
     address: z.string().min(1),
     city: z.string().min(1),

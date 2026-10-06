@@ -4,8 +4,10 @@ import {
   completeStepSchema,
   failStepSchema,
   executeEventSchema,
+  addAdHocStepSchema,
 } from "./workflow-instances.schema.js";
 import * as workflowInstancesService from "./workflow-instances.service.js";
+import { requireRole } from "../../lib/rbac.js";
 import {
   uploadFile,
   ensureTenantFolder,
@@ -43,6 +45,23 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
         request.tenantId,
         request.params.projectId
       );
+    }
+  );
+
+  // POST /:id/step-instances — add an ad-hoc human step to a running instance
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/step-instances",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    async (request, reply) => {
+      const body = addAdHocStepSchema.parse(request.body);
+      const stepInstance = await workflowInstancesService.addAdHocStep(
+        fastify,
+        request.tenantId,
+        request.user.sub,
+        request.params.id,
+        body
+      );
+      return reply.status(201).send(stepInstance);
     }
   );
 
@@ -147,6 +166,75 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
       );
     }
   );
+
+  // PATCH /step-instances/:stepInstanceId/output — edit submitted output (data
+  // correction, no workflow advancement). Accepts json or multipart (files).
+  fastify.patch<{ Params: { stepInstanceId: string } }>(
+    "/step-instances/:stepInstanceId/output",
+    async (request) => {
+      const stepInstanceId = request.params.stepInstanceId;
+      const contentType = request.headers["content-type"] ?? "";
+      let payload: Record<string, unknown> = {};
+      const fileRefs: Record<string, { s3Key: string; filename: string; mimetype: string }> = {};
+
+      if (contentType.includes("multipart/form-data")) {
+        const parts = request.parts();
+        const fields: Record<string, string> = {};
+        const fileUploads: Array<{ fieldname: string; buffer: Buffer; filename: string; mimetype: string }> = [];
+
+        for await (const part of parts) {
+          if (part.type === "file") {
+            fileUploads.push({
+              fieldname: part.fieldname,
+              buffer: await part.toBuffer(),
+              filename: part.filename,
+              mimetype: part.mimetype,
+            });
+          } else {
+            fields[part.fieldname] = part.value as string;
+          }
+        }
+
+        try {
+          payload = JSON.parse(fields["payload"] ?? "{}");
+        } catch {
+          payload = {};
+        }
+
+        if (fileUploads.length > 0) {
+          const si = await fastify.prisma.workflowStepInstance.findFirst({
+            where: { id: stepInstanceId, tenantId: request.tenantId },
+            include: { workflowInstance: { select: { entityId: true } } },
+          });
+          if (si) {
+            await ensureTenantFolder(request.tenantId);
+            for (const f of fileUploads) {
+              const s3Key = buildStepFileKey(request.tenantId, si.workflowInstance.entityId, stepInstanceId, f.filename);
+              await uploadFile(s3Key, f.buffer, f.mimetype);
+              fileRefs[f.fieldname] = { s3Key, filename: f.filename, mimetype: f.mimetype };
+            }
+          }
+        }
+      } else {
+        const body = (request.body ?? {}) as { output?: Record<string, unknown> };
+        payload = body.output ?? {};
+      }
+
+      return workflowInstancesService.updateStepOutput(
+        fastify,
+        request.tenantId,
+        stepInstanceId,
+        payload,
+        fileRefs
+      );
+    }
+  );
+
+  // POST /step-files/presign — presigned download URL for a step-uploaded file
+  fastify.post("/step-files/presign", async (request) => {
+    const { s3Key } = (request.body ?? {}) as { s3Key?: string };
+    return workflowInstancesService.getStepFileUrl(fastify, request.tenantId, s3Key ?? "");
+  });
 
   // POST /step-instances/:stepInstanceId/fail — fail step
   fastify.post<{ Params: { stepInstanceId: string } }>(

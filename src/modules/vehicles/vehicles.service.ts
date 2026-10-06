@@ -6,10 +6,34 @@ import type { CreateVehicleInput, UpdateVehicleInput } from "./vehicles.routes.j
 export async function list(
   fastify: FastifyInstance,
   tenantId: string,
-  query: PaginationQuery
+  query: PaginationQuery & { isActive?: boolean; expiry?: "expired" | "soon" }
 ) {
+  const now = new Date();
+  const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const expiryFilter =
+    query.expiry === "expired"
+      ? {
+          OR: [
+            { itpExpiry: { lt: now } },
+            { insuranceExpiry: { lt: now } },
+            { vignetteExpiry: { lt: now } },
+          ],
+        }
+      : query.expiry === "soon"
+        ? {
+            OR: [
+              { itpExpiry: { gte: now, lte: in30 } },
+              { insuranceExpiry: { gte: now, lte: in30 } },
+              { vignetteExpiry: { gte: now, lte: in30 } },
+            ],
+          }
+        : undefined;
+
   const where = {
     tenantId,
+    ...(query.isActive !== undefined && { isActive: query.isActive }),
+    ...(expiryFilter ?? {}),
     ...(query.search && {
       OR: [
         { licensePlate: { contains: query.search, mode: "insensitive" as const } },
@@ -23,6 +47,8 @@ export async function list(
   const [data, total] = await Promise.all([
     fastify.prisma.vehicle.findMany({
       where,
+      // latest revision → current odometer ("total km")
+      include: { revisions: { orderBy: { date: "desc" }, take: 1, select: { km: true, date: true } } },
       ...paginationArgs(query),
       orderBy: { licensePlate: "asc" },
     }),
@@ -30,6 +56,43 @@ export async function list(
   ]);
 
   return { data, ...paginationMeta(total, query) };
+}
+
+/** KPI counts for the Parc Auto page header. */
+export async function stats(fastify: FastifyInstance, tenantId: string) {
+  const vehicles = await fastify.prisma.vehicle.findMany({
+    where: { tenantId },
+    select: {
+      itpExpiry: true,
+      insuranceExpiry: true,
+      vignetteExpiry: true,
+      isActive: true,
+      avgKmPerMonth: true,
+    },
+  });
+
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  let active = 0;
+  let inactive = 0;
+  let expired = 0;
+  let expiring = 0;
+  let totalKmPerMonth = 0;
+
+  for (const v of vehicles) {
+    v.isActive ? active++ : inactive++;
+    totalKmPerMonth += v.avgKmPerMonth ?? 0;
+    const dates = [v.itpExpiry, v.insuranceExpiry, v.vignetteExpiry]
+      .filter((d): d is Date => !!d)
+      .map((d) => Math.floor((d.getTime() - now) / day));
+    if (dates.length) {
+      const minDays = Math.min(...dates);
+      if (minDays < 0) expired++;
+      else if (minDays <= 30) expiring++;
+    }
+  }
+
+  return { total: vehicles.length, active, inactive, expired, expiring, totalKmPerMonth };
 }
 
 export async function getById(

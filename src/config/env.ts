@@ -35,6 +35,12 @@ const envSchema = z.object({
   // Gmail OAuth2 (optional — email ingestion)
   GMAIL_CLIENT_ID: z.string().optional(),
   GMAIL_CLIENT_SECRET: z.string().optional(),
+
+  // Web Push (VAPID) — browser notifications. Generate once with
+  // `npx web-push generate-vapid-keys` and keep the pair STABLE across deploys.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default("mailto:noreply@operio.app"),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import argon2 from "argon2";
+// Faithful ISCIR "Raport de verificări, încercări și probe" HTML (XLSX-shaped).
+import { TEMPLATE_HTML as ISCIR_TEMPLATE_HTML } from "../scripts/update-iscir-template.js";
 
 const prisma = new PrismaClient();
 
@@ -107,6 +109,39 @@ async function main() {
 
   const [bransament, conducta, revizieCentrala, dosarIscir] = projectTypes;
 
+  // Create distributors
+  const distributors = await Promise.all([
+    prisma.distributor.upsert({
+      where: { tenantId_code: { tenantId: tenant.id, code: "DISTRIGAZ" } },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        code: "DISTRIGAZ",
+        name: "Distrigaz",
+      },
+    }),
+    prisma.distributor.upsert({
+      where: { tenantId_code: { tenantId: tenant.id, code: "NEOGAS_GRID" } },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        code: "NEOGAS_GRID",
+        name: "Neogas Grid",
+      },
+    }),
+    prisma.distributor.upsert({
+      where: { tenantId_code: { tenantId: tenant.id, code: "MEGACONSTRUCT" } },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        code: "MEGACONSTRUCT",
+        name: "Megaconstruct",
+      },
+    }),
+  ]);
+
+  const [distrigaz, _neogas, _mega] = distributors;
+
   // Create sample clients
   const clientCompany = await prisma.client.create({
     data: {
@@ -114,9 +149,16 @@ async function main() {
       type: "COMPANY",
       companyName: "SC Gaz Construct SRL",
       cui: "RO12345678",
-      address: "Str. Industriei nr. 15",
       phone: "0264-123-456",
       email: "office@gazconstruct.ro",
+      addresses: {
+        create: [
+          {
+            address: "Str. Industriei nr. 15",
+            isPrimary: true,
+          },
+        ],
+      },
       contactPersons: {
         create: [
           {
@@ -142,9 +184,16 @@ async function main() {
       type: "PERSON",
       firstName: "Vasile",
       lastName: "Georgescu",
-      address: "Str. Florilor nr. 7",
       phone: "0740-555-666",
       email: "vasile.georgescu@email.ro",
+      addresses: {
+        create: [
+          {
+            address: "Str. Florilor nr. 7",
+            isPrimary: true,
+          },
+        ],
+      },
     },
   });
 
@@ -358,6 +407,7 @@ async function main() {
       tenantId: tenant.id,
       clientId: clientCompany.id,
       projectTypeId: bransament.id,
+      distributorId: distrigaz.id,
       name: "Branșament Gaz - SC Gaz Construct SRL",
       address: "Str. Industriei nr. 15",
       city: "Cluj-Napoca",
@@ -375,6 +425,7 @@ async function main() {
       tenantId: tenant.id,
       clientId: clientPerson.id,
       projectTypeId: conducta.id,
+      distributorId: distrigaz.id,
       name: "Extindere Conductă - Georgescu Vasile",
       address: "Str. Florilor nr. 7",
       city: "Cluj-Napoca",
@@ -598,107 +649,7 @@ async function main() {
     },
   });
 
-  // ISCIR revision HTML template (global — no tenantId)
-  const iscirTemplateContent = `<h1>RAPORT DE VERIFICĂRI, ÎNCERCĂRI ȘI PROBE</h1>
-<p><strong>Nr. înregistrare:</strong> _______ / <strong>Data:</strong> {{revision_date}}</p>
-<p><strong>Verificare tehnică periodică</strong></p>
-<hr>
-
-<h2>I. IDENTIFICARE UTILIZATOR</h2>
-<p><strong>Denumire / Numele și prenumele:</strong> {{client_name}}</p>
-<p><strong>Adresa:</strong> {{client_address}}, {{client_city}}, {{client_county}}</p>
-<p><strong>Telefon:</strong> {{client_phone}}</p>
-<p><strong>Loc de amplasare aparat:</strong> {{location}}</p>
-
-<h2>II. DATE PRIVIND INSTALAȚIA DE ARDERE</h2>
-<table style="width:100%;border-collapse:collapse">
-<tr><td style="border:1px solid #ccc;padding:6px;width:50%"><strong>Producător / Model:</strong></td><td style="border:1px solid #ccc;padding:6px">{{equipment_name}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px"><strong>Serie:</strong></td><td style="border:1px solid #ccc;padding:6px">{{equipment_serial}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px"><strong>Tip combustibil:</strong></td><td style="border:1px solid #ccc;padding:6px">{{fuel}}</td></tr>
-</table>
-
-<h2>III. VERIFICAREA DOCUMENTELOR</h2>
-<table style="width:100%;border-collapse:collapse">
-<tr><th style="border:1px solid #ccc;padding:6px;text-align:left">Document</th><th style="border:1px solid #ccc;padding:6px;width:60px">DA</th><th style="border:1px solid #ccc;padding:6px;width:60px">NU</th><th style="border:1px solid #ccc;padding:6px;width:60px">N/A</th></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Instrucțiuni de instalare, montare, reglare, utilizare și întreținere</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Declarație de conformitate pentru instalare/montare/reparare</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Schema termomecanică</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Documentație de reparare</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Aviz de combustibil</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-</table>
-
-<h2>IV. VERIFICAREA LUCRĂRILOR EFECTUATE</h2>
-<table style="width:100%;border-collapse:collapse">
-<tr><th style="border:1px solid #ccc;padding:6px;text-align:left">Verificare</th><th style="border:1px solid #ccc;padding:6px;width:60px">DA</th><th style="border:1px solid #ccc;padding:6px;width:60px">NU</th><th style="border:1px solid #ccc;padding:6px;width:60px">N/A</th></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Aparatul este instalat/montat conform instrucțiunilor</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Aparatul este reparat conform documentației de reparare</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Racord gaze</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Racord electricitate</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Racord apă</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Coș de fum evacuare gaze arse</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Tipul de combustibil corespunzător categoriei aparatului</td><td style="border:1px solid #ccc;padding:6px;text-align:center">X</td><td style="border:1px solid #ccc;padding:6px"></td><td style="border:1px solid #ccc;padding:6px"></td></tr>
-</table>
-
-<h2>V. VERIFICĂRI FUNCȚIONALE</h2>
-
-<h3>V.1 Verificări la rece</h3>
-<table style="width:100%;border-collapse:collapse">
-<tr><td style="border:1px solid #ccc;padding:6px">Verificare etanșeitate circuit combustibil</td><td style="border:1px solid #ccc;padding:6px;width:60px;text-align:center">DA</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Verificare etanșeitate circuit apă</td><td style="border:1px solid #ccc;padding:6px;text-align:center">DA</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Verificare instalație electrică - tensiune 220V</td><td style="border:1px solid #ccc;padding:6px;text-align:center">DA</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Verificarea legării la pământ</td><td style="border:1px solid #ccc;padding:6px;text-align:center">DA</td></tr>
-</table>
-
-<h3>V.3 Verificări la cald — Analiză gaze arse</h3>
-<p><strong>Analizor:</strong> {{analyzer_name}} — <strong>Serie:</strong> {{analyzer_serial}}</p>
-<table style="width:100%;border-collapse:collapse">
-<tr><th style="border:1px solid #ccc;padding:6px;background:#f5f5f5;text-align:left">Parametru</th><th style="border:1px solid #ccc;padding:6px;background:#f5f5f5">Valoare măsurată</th></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Temperatura gaze arse (T gaz)</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_t_gaz}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Temperatura aer (T aer)</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_t_aer}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">O₂</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_o2}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">CO₂</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_co2}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">CO</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_co}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Randament combustie (Ec)</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_ec}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Lambda (λ)</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_lambda}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Exces aer</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_excess_air}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">ΔT</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_delta_t}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Pierderi gaze arse (Qs)</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_qs}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Eficiență ardere (Es)</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_es}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">Eficiență totală (Et)</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_et}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">NO</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_no}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">NOx</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_nox}}</td></tr>
-<tr><td style="border:1px solid #ccc;padding:6px">PI (indice de poluare)</td><td style="border:1px solid #ccc;padding:6px;text-align:center">{{readings_pi}}</td></tr>
-</table>
-
-<h2>VI. CONCLUZII</h2>
-<p><strong>ADMIS</strong> — aparatul poate funcționa până la scadența următoarei verificări, cu obligația respectării instrucțiunilor de instalare, reglare, utilizare și întreținere date de producător și a prevederilor prescripției tehnice A1/2010.</p>
-<p><strong>Scadența următoarei verificări:</strong> {{next_revision_date}}</p>
-
-<hr>
-
-<p><strong>Numele și prenumele RSL:</strong> {{operator_name}}</p>
-<p><strong>Numele și prenumele utilizatorului:</strong> {{client_name}}</p>
-
-<hr>
-
-<table style="width:100%;border-collapse:collapse">
-<tr>
-<td style="width:50%;padding:12px;vertical-align:top">
-<p><strong>Prestator</strong></p>
-<p>{{tenant_name}}</p>
-<p>Reprezentant: {{tenant_admin_name}}</p>
-<p>{{tenant_stamp}}</p>
-<p>{{tenant_signature}}</p>
-</td>
-<td style="width:50%;padding:12px;vertical-align:top">
-<p><strong>Utilizator</strong></p>
-<p>{{client_name}}</p>
-<p>Semnătura: ___________________</p>
-</td>
-</tr>
-</table>`;
-
-  // Upsert ISCIR template (global, no tenantId)
+  // Upsert ISCIR template (global, no tenantId) — faithful XLSX-shaped HTML
   const existingIscir = await prisma.documentTemplate.findFirst({
     where: { tenantId: null, categoryCode: "REVIZIE_CENTRALA", name: "Raport Revizie Centrală (ISCIR)" },
   });
@@ -709,7 +660,7 @@ async function main() {
         categoryCode: "REVIZIE_CENTRALA",
         name: "Raport Revizie Centrală (ISCIR)",
         description: "Raport oficial de verificări, încercări și probe conform prescripției tehnice A1/2010",
-        content: iscirTemplateContent,
+        content: ISCIR_TEMPLATE_HTML,
         sortOrder: 1,
         isActive: true,
       },

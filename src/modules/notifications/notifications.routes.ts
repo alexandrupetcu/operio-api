@@ -3,6 +3,9 @@ import { requireRole } from "../../lib/rbac.js";
 import { paginationSchema } from "../../lib/pagination.js";
 import { createNotificationSchema, markReadSchema } from "./notifications.schema.js";
 import * as notificationsService from "./notifications.service.js";
+import * as prefs from "./notifications.preferences.js";
+import * as tenantSettings from "./tenant-settings.js";
+import { env } from "../../config/env.js";
 
 export default async function notificationsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
@@ -86,4 +89,53 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       );
     }
   );
+
+  // ── Tenant-level event switches (which notification types the firm emits) ─
+  fastify.get("/tenant-settings", async (request) => {
+    return tenantSettings.getTenantNotifSettings(fastify.prisma, request.tenantId);
+  });
+
+  fastify.put("/tenant-settings", { onRequest: [requireRole("ADMIN")] }, async (request) => {
+    const body = tenantSettings.tenantSettingsUpdateSchema.parse(request.body);
+    return tenantSettings.setTenantNotifSettings(fastify.prisma, request.tenantId, body.events);
+  });
+
+  // ── Per-user channel preferences ──────────────────────────────────────────
+  fastify.get("/preferences", async (request) => {
+    return prefs.getPreferences(fastify, request.tenantId, request.user.sub);
+  });
+
+  fastify.put("/preferences", async (request) => {
+    const body = prefs.preferencesUpdateSchema.parse(request.body);
+    return prefs.setPreferences(fastify, request.tenantId, request.user.sub, body.prefs);
+  });
+
+  // ── Web Push subscription ─────────────────────────────────────────────────
+  fastify.get("/push/vapid-public-key", async () => {
+    return { key: env.VAPID_PUBLIC_KEY ?? null };
+  });
+
+  fastify.post("/push/subscribe", async (request, reply) => {
+    const body = prefs.pushSubscribeSchema.parse(request.body);
+    const userAgent = request.headers["user-agent"];
+    await prefs.subscribePush(fastify, request.tenantId, request.user.sub, body, userAgent);
+    return reply.status(201).send({ success: true });
+  });
+
+  fastify.post("/push/unsubscribe", async (request) => {
+    const body = prefs.pushUnsubscribeSchema.parse(request.body);
+    return prefs.unsubscribePush(fastify, request.tenantId, body.endpoint);
+  });
+
+  // ── Mobile (Expo) push device registration ────────────────────────────────
+  fastify.post("/push/register-device", async (request, reply) => {
+    const body = prefs.deviceRegisterSchema.parse(request.body);
+    await prefs.registerDevice(fastify, request.tenantId, request.user.sub, body);
+    return reply.status(201).send({ success: true });
+  });
+
+  fastify.post("/push/unregister-device", async (request) => {
+    const body = prefs.deviceUnregisterSchema.parse(request.body);
+    return prefs.unregisterDevice(fastify, request.tenantId, body.expoToken);
+  });
 }

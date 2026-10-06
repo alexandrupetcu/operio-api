@@ -1,0 +1,142 @@
+<style>
+  .ct{ --fill:#e00; color:#000; font-family:"Times New Roman","Liberation Serif",serif; }
+  .ct p{ font-size:12.5px; margin:5px 6px; text-align:justify; line-height:1.35 }
+  .ct .f{ color:var(--fill)!important; font-weight:700 }
+  .ct .b{ font-weight:700 }
+  .ct .c{ text-align:center }
+  .ct .sec{ font-weight:700; text-decoration:underline }
+  .ct ol,.ct ul{ font-size:12.5px; margin:4px 6px 4px 26px }
+  .ct li{ margin-bottom:2px }
+  .ct table{ border-collapse:collapse; width:100%; table-layout:fixed; margin:0 }
+  .ct td{ border:none; padding:4px 6px; vertical-align:top; font-size:12.5px }
+  /* Outer frame repeated on every printed page. */
+  .ct .pageframe{ position:fixed; top:0; left:0; right:0; bottom:0; border:1px solid #000; pointer-events:none }
+  body{ padding:2mm 1.5mm!important }
+</style>
+
+<div class="ct">
+<div class="pageframe"></div>
+
+<p class="c b" style="font-size:14.5px;margin-top:8px">Contract de prestări servicii pentru</p>
+<p class="c b" style="font-size:14.5px"><span style="text-decoration:underline">verificare / revizie</span> instalații de utilizare gaze naturale ale consumatorilor</p>
+<p class="c b" style="font-size:13.5px">Nr. <span class="f">{{inst_contract_nr}}</span> / Data <span class="f">{{inst_contract_data}}</span></p>
+
+<p class="sec" style="margin-top:10px">I. PĂRȚILE CONTRACTANTE:</p>
+<p class="b">1.1. {{tenant_name}} cu sediul în {{tenant_address}}, înmatriculată la Oficiul Registrului Comerțului sub nr. {{tenant_reg_com}}, tel: {{tenant_phone}}, CUI: {{tenant_cui}}, cont: IBAN: {{tenant_iban}}, deschis la {{tenant_bank}}, email: {{tenant_email}}, reprezentată prin {{tenant_admin_name}} - Administrator, în calitate de „PRESTATOR" și:</p>
+<p class="b">1.2. [ <span class="f">{{client_pf_x}}</span> ] Client Persoană Fizică: <span class="f">{{client_pf_name}}</span>, cu domiciliul în Loc. <span class="f">{{client_home_city}}</span>, <span class="f">{{client_home_address}}</span>, sec./jud. <span class="f">{{client_home_county}}</span>, având C.I. Seria ......., nr. ................., CNP ..............................., eliberat la data de ......................., de către ....................................... .</p>
+<p class="b" style="text-decoration:underline">sau</p>
+<p class="b">[ <span class="f">{{client_pj_x}}</span> ] Client Persoană Juridică: <span class="f">{{client_pj_name}}</span>, cu sediul în ................................................, str. ....................................................., nr. .........., bl. ........., sc. ......., et. ......., ap. .........., sector/județ ...................................., CUI <span class="f">{{client_pj_cui}}</span>, Reg. Com. .................................., Cont: ........................................... deschis la ......................................... .</p>
+<p class="b">denumită în continuare „BENEFICIAR", numite în ceea ce urmează în mod colectiv „PĂRȚILE".</p>
+<p class="b" style="margin-left:18px">a) Amplasament / loc consum ( dacă diferă față de adresa menționată la cap. I., pct. 1.2.)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[ <span class="f">{{amplasament_da}}</span> ] DA / [ <span class="f">{{amplasament_nu}}</span> ] NU<br>
+&nbsp;&nbsp;&nbsp;&nbsp;Loc. <span class="f">{{client_city}}</span>, str. <span class="f">{{client_address}}</span>, jud/sec. <span class="f">{{client_county}}</span>.</p>
+
+<p class="sec">II. OBIECTUL ȘI DURATA CONTRACTULUI:</p>
+<p class="b">2.1 Constă în prestarea serviciului de [ &nbsp;&nbsp;&nbsp; ] VERIFICARE / [ <span class="f">X</span> ] REVIZIE tehnică periodică a instalațiilor de utilizare gaze naturale (IUGN), în conformitate cu Fișa de Verificare/Revizie Tehnică Periodică a Instalației de Utilizare Gaze Naturale, Anexa 2 la prezentul contract.</p>
+<p class="b">2.2. Operațiile incluse în verificare / revizie periodică a instalațiilor de utilizare gaze naturale sunt prevăzute în Anexa 3, la prezentul contract.</p>
+
+<p class="sec">III. DURATA CONTRACTULUI:</p>
+<p class="b">3.1. Contractul produce efectele de la data semnării de către ambele părți și se încheie la data emiterii facturii de prestări servicii.</p>
+
+<p class="sec">IV. PREȚUL CONTRACTULUI:</p>
+<p class="b">4.1. Prețul contractului este în funcție de serviciul ales de către Client, respectiv <span style="text-decoration:underline">verificare / revizie</span> tehnică periodică a instalațiilor de utilizare gaze naturale și emis pe factura de prestări servicii.</p>
+<p class="b">4.2. Prețul este fix și valabil pe întreaga perioadă contractuală.</p>
+<p class="b">4.3. Prețurile pentru alte servicii, prestate opțional Clientului, sunt specificate în factura de prestări servicii sau comanda de execuție lucrări, după caz, care vine Anexă la Contract, acceptată de Client și aprobată de Prestator.</p>
+
+<p class="sec">V. CONDIȚII DE PLATĂ:</p>
+<p class="b">5.1. Plata contravalorii serviciilor prezentului contract se va face în baza facturii emise de Prestator care va detalia fiecare categorie de serviciu în parte.</p>
+<p class="b">5.2. Plata contravalorii serviciilor prestate se face numerar la data emiterii facturii și prestării serviciilor.</p>
+<p class="b">5.3. Alte condiții și termene de plată solicitate de Client se va face numai cu aprobarea Prestatorului și menționate expres în comanda și factura de prestări servicii.</p>
+<p class="b">5.4. Neachitarea contravalorii serviciilor prestate în baza prezentului contract în termenul prevăzut pe factura de prestări servicii, atrage perceperea de penalități de întârziere (0,2% pe zi) și despăgubirile prevăzute de legislația în vigoare.</p>
+
+<p class="sec">VI. ÎNCETAREA CONTRACTULUI:</p>
+<p class="b">6.1. Prezentul contract încetează prin:</p>
+<p class="b" style="margin-left:18px">a) ajungere la termen;<br>
+b) denunțarea unilaterală de către Părți, cu notificare prealabilă în scris, cu cel puțin 30 zile calendaristice înainte de data denunțării;<br>
+c) reziliere, în caz de nerespectare a prevederilor contractuale de către Părți.</p>
+
+<p class="sec">VII. LITIGII:</p>
+<p class="b" style="text-decoration:underline">7.1 Toate neînțelegerile dintre Părți vor fi soluționate pe cale amiabilă.</p>
+<p class="b" style="text-decoration:underline">7.2. În caz contrar, eventualele litigii se vor soluționa de instanțele judecătorești din circumscripția în raza căreia se află sediul Prestatorului.</p>
+
+<p class="sec">VIII. FORȚA MAJORĂ:</p>
+<p class="b">8.1 Nici una dintre Părțile contractante nu răspunde de neexecutarea la termen sau / și de executarea în mod necorespunzător, total sau parțial, a oricărei obligații care îi revine în baza prezentului Contract. Dacă Partea care invocă forța majoră este obligată să notifice celeilalte părți, în termen de 24 de ore, producerea evenimentului și să ia toate măsurile posibile în vederea limitării consecințelor lui.</p>
+<p class="b">8.2. Dacă în termen de 15 zile de la producere, evenimentul respectiv nu încetează, Părțile au dreptul să-și notifice încetarea de plin drept a prezentului Contract fără ca vreuna dintre ele să pretindă daune-interese.</p>
+
+<p class="sec">IX. NOTIFICĂRI ȘI RECLAMAȚII:</p>
+<p class="b">9.1. În accepțiunea Părților contractante, orice notificare adresată de una dintre acestea, celeilalte este valabil îndeplinită dacă va fi transmisă la sediul prevăzut în partea introductivă a prezentului contract, notificările verbale nefiind luate în considerare de niciuna dintre Părți.</p>
+<p class="b">9.2. Clientul are dreptul să reclame și să facă sesizări / petiții la adresa de corespondență a Prestatorului din {{tenant_address}} sau pe email: {{tenant_email}}.</p>
+
+<p class="sec">X. CONFIDENȚIALITATE ȘI CLAUZE FINALE:</p>
+<p class="b">10.1. Prestatorul își asumă obligația de a respecta legislația în vigoare privind protejarea datelor cu caracter personal, prelucrate în baza Contractului.</p>
+<p class="b">10.2. Modificarea prezentului Contract se face numai prin voința Părților contractante prin Act Adițional.</p>
+<p class="b">10.3. Prezentul Contract reprezintă voința Părților și înlătură orice altă înțelegere verbală dintre aceștia, anterioară sau ulterioară încheierii lui.</p>
+<p class="b">10.4. Prezentul Contract s-a încheiat în două exemplare, câte unul pentru fiecare Parte.</p>
+
+<p><span class="sec">ANEXA 1</span> <span class="b">– Fișa de Verificare / Revizie Tehnică Periodică</span></p>
+<p><span class="sec">ANEXA 2</span> <span class="b">– Factura de Prestări Servicii</span></p>
+<p><span class="sec">ANEXA 3</span> <span class="b">– Operații efectuate cu ocazia Verificării / Reviziei Tehnice Periodice:</span></p>
+<ol>
+  <li class="b"><span style="text-decoration:underline">Verificare</span> Tehnică Periodică a instalațiilor de utilizare <em style="text-decoration:underline">obligatorie la 2 ani</em>. / Sau</li>
+  <li class="b"><span style="text-decoration:underline">Revizie</span> Tehnică Periodică a instalațiilor de utilizare <em style="text-decoration:underline">obligatorie la 10 ani</em> <em>sau după orice întrerupere a utilizării instalației</em> pentru o perioadă de timp mai mare de 6 luni și după orice accident tehnic care poate afecta instalația se face conform instrucțiunilor specifice și constă în efectuarea următoarelor operațiuni:</li>
+</ol>
+<ol style="list-style-type:lower-alpha;font-style:italic">
+  <li class="b">verificarea arzătoarelor și a stării îmbinărilor și garniturilor de etanșare aferente;</li>
+  <li class="b">verificarea stabilității conductelor montate aparent pe suporturi;</li>
+  <li class="b">verificarea etanșeității îmbinării conductelor și armăturilor la presiunea de lucru a gazului din instalație, cu spumă de apă și săpun sau cu alte tehnologii de verificare a etanșeității;</li>
+  <li class="b">verificarea funcționării aparatelor de măsurare, control, reglare și de siguranță;</li>
+  <li class="b">demontarea / debranșarea punctelor de consum fără aprobare legală și a conductelor de alimentare aferente;</li>
+  <li class="b">verificarea funcționării echipamentului de reglare din instalațiile de utilizare;</li>
+  <li class="b">verificarea stării răsuflătorilor și a căminelor existente;</li>
+  <li class="b">verificarea documentelor prezentate de consumator, din care să reiasă că a fost efectuată curățirea coșurilor și a canalelor de evacuare a gazelor arse de către operatori economici autorizați, conform reglementărilor în vigoare, emise cu maximum 6 luni înainte de data verificării periodice a instalației de utilizare;</li>
+  <li class="b">verificarea stării construcțiilor care adăpostesc stațiile și posturile de reglare sau reglare-măsurare;</li>
+  <li class="b">verificarea documentelor prezentate de consumator, care să ateste efectuarea în termen, a verificării tehnice periodice a aparatelor consumatoare de combustibili gazoși, de către operatori economici autorizați, conform reglementărilor în vigoare.</li>
+</ol>
+<p class="b"><em>*În cazul reviziei tehnice periodice prevăzută la punctul 2, proba de etanșeitate pentru întreaga instalație și proba de rezistență pentru partea de instalație la care s-au făcut înlocuiri și / sau modificări, s-a efectuat în prezența delegatului operatorului de distribuție, în condițiile și cu rezultatele înscrise în procesul verbal de recepție tehnică anexat, nr. <span class="f">{{nr_inregistrare}}</span>, din data de: <span class="f">{{date}}</span>.</em></p>
+
+<p class="sec">ANEXA 4 – INFORMAȚII PENTRU CLIENT</p>
+<p class="b" style="margin-left:18px">1. Remedierea defecțiunilor la instalația de gaze sau la aparate se realizează numai prin intermediul unui agent economic autorizat A.N.R.E. Verificarea și curățirea coșurilor de fum se realizează printr-o unitate abilitată. Indicații speciale:</p>
+<p class="b">La utilizarea gazelor naturale este interzis:</p>
+<ul>
+  <li class="b">aprinderea focului dacă se simte mirosul caracteristic al gazelor naturale;</li>
+  <li class="b">lăsarea focului nesupravegheat la aparatele neautomatizate;</li>
+  <li class="b">obturarea coșului de fum al aparatelor consumatoare de combustibili gazoși;</li>
+  <li class="b">modificarea instalațiilor de gaze fără aprobări legale și prin persoane neautorizate;</li>
+  <li class="b">dormitul în încăperi cu focul aprins;</li>
+  <li class="b">dormitul în încăperi cu aparate consumatoare de combustibili gazoși nelegate la coș de fum ( reșeu, aragaz, etc.)</li>
+</ul>
+<p class="b" style="margin-left:18px">2. Dacă se simte mirosul caracteristic al gazelor naturale se iau imediat următoarele măsuri:</p>
+<ul>
+  <li class="b">se sting toate focurile;</li>
+  <li class="b">se deschid toate ușile și ferestrele;</li>
+  <li class="b">nu se aprinde nici o sursă de foc;</li>
+  <li class="b">nu se manevrează aparate electrice;</li>
+  <li class="b">nu se doarme în astfel de încăperi;</li>
+  <li class="b">se anunță imediat operatorul licențiat de distribuție la telefoanele: <span style="font-size:14.5px">0219281</span> / prefix local + <span style="font-size:14.5px">9281</span>.</li>
+</ul>
+<p class="b" style="margin-left:18px">4. Clientul / Beneficiarul a luat la cunoștință de:</p>
+<ul>
+  <li class="b">obligația cu privire la înlocuirea racordului flexibil montat în instalația de utilizare înaintea expirării duratei normale de utilizare conform recomandărilor producătorilor acestuia;</li>
+  <li class="b">obligația ce îi revine cu privire la înlocuirea detectorului de gaze naturale conform recomandărilor producătorului acestuia;</li>
+  <li class="b">obligația ca orice modificare adusă ulterior instalației de utilizare recepționate să fie efectuată numai prin intermediul unui operator economic autorizat de către A.N.R.E.</li>
+</ul>
+<p class="b">Semnătura clientului......................................... {{client_signature}}</p>
+
+<table style="margin-top:24px">
+  <colgroup><col style="width:50%"><col style="width:50%"></colgroup>
+  <tr>
+    <td class="c">
+      <div class="b">PRESTATOR</div>
+      <div class="b" style="margin-top:8px">{{tenant_name}}</div>
+      <div class="b" style="margin-top:8px">ADMINISTRATOR</div>
+      <div class="b" style="margin-top:8px">{{tenant_admin_name}} {{tenant_stamp}}</div>
+    </td>
+    <td class="c">
+      <div class="b">BENEFICIAR / CLIENT</div>
+      <div class="b f" style="margin-top:8px">{{client_name}}</div>
+      <div class="b" style="margin-top:8px">Semnătura:................................. {{client_signature}}</div>
+    </td>
+  </tr>
+</table>
+
+</div>

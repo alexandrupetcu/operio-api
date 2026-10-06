@@ -167,6 +167,38 @@ export async function listEntries(
   return { data, total };
 }
 
+/** KPI header for the Registratură page: per-year totals grouped by direction + last number. */
+export async function stats(fastify: FastifyInstance, tenantId: string, year: number) {
+  const series = await fastify.prisma.registrySeries.findMany({
+    where: { tenantId },
+    select: { id: true, direction: true },
+  });
+  const dirById = new Map(series.map((s) => [s.id, s.direction]));
+
+  const grouped = await fastify.prisma.registryEntry.groupBy({
+    by: ["seriesId"],
+    where: { tenantId, year },
+    _count: { _all: true },
+  });
+
+  const byDirection: Record<string, number> = { IN: 0, OUT: 0, INTERNAL: 0 };
+  let total = 0;
+  for (const g of grouped) {
+    const count = g._count._all;
+    total += count;
+    const dir = dirById.get(g.seriesId) ?? "INTERNAL";
+    byDirection[dir] = (byDirection[dir] ?? 0) + count;
+  }
+
+  const last = await fastify.prisma.registryEntry.findFirst({
+    where: { tenantId, year },
+    orderBy: { createdAt: "desc" },
+    select: { displayNumber: true },
+  });
+
+  return { total, byDirection, lastNumber: last?.displayNumber ?? null };
+}
+
 export async function getEntryById(fastify: FastifyInstance, tenantId: string, id: string) {
   const entry = await fastify.prisma.registryEntry.findFirst({
     where: { id, tenantId },

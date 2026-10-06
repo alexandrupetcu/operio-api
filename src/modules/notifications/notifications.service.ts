@@ -18,6 +18,7 @@ export async function list(
     channel?: string;
     status?: string;
     userId?: string;
+    category?: string;
   }
 ) {
   const where: Prisma.NotificationWhereInput = {

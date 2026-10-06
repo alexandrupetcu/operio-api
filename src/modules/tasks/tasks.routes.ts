@@ -9,14 +9,22 @@ export default async function tasksRoutes(fastify: FastifyInstance) {
 
   fastify.get("/", async (request) => {
     const query = paginationSchema.parse(request.query);
-    const { status, assignedUserId, projectId, workflowInstanceId } =
-      request.query as Record<string, string>;
+    const {
+      status,
+      assignedUserId,
+      projectId,
+      workflowInstanceId,
+      taskType,
+      excludeTaskType,
+    } = request.query as Record<string, string>;
     return tasksService.list(fastify, request.tenantId, {
       ...query,
       status,
       assignedUserId,
       projectId,
       workflowInstanceId,
+      taskType,
+      excludeTaskType,
     });
   });
 

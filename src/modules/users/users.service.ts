@@ -13,6 +13,7 @@ const userSelect = {
   isActive: true,
   createdAt: true,
   updatedAt: true,
+  employee: { select: { id: true, firstName: true, lastName: true } },
 };
 
 export async function list(
@@ -87,9 +88,37 @@ export async function update(
   input: UpdateUserInput
 ) {
   await getById(fastify, tenantId, id);
+  const { employeeId, ...userFields } = input;
+
+  // Legătura cu persoana din echipă trăiește pe Employee, deci se scrie separat —
+  // în aceeași tranzacție, ca un cont să nu rămână legat de doi angajați.
+  if (employeeId !== undefined) {
+    await fastify.prisma.$transaction(async (tx) => {
+      if (employeeId !== null) {
+        // Tenantul se verifică aici: FK-ul nu poate lega cheia compusă, deci
+        // fără această citire un admin ar putea lega un angajat din alt tenant.
+        const employee = await tx.employee.findFirst({
+          where: { id: employeeId, tenantId },
+          select: { id: true, userId: true },
+        });
+        if (!employee) throw fastify.httpErrors.notFound("Angajatul nu a fost găsit");
+        if (employee.userId && employee.userId !== id) {
+          throw fastify.httpErrors.conflict("Angajatul este deja legat de alt cont");
+        }
+      }
+      await tx.employee.updateMany({ where: { tenantId, userId: id }, data: { userId: null } });
+      if (employeeId !== null) {
+        await tx.employee.update({ where: { id: employeeId }, data: { userId: id } });
+      }
+    });
+  }
+
+  if (Object.keys(userFields).length === 0) {
+    return getById(fastify, tenantId, id);
+  }
   return fastify.prisma.user.update({
     where: { id },
-    data: input,
+    data: userFields,
     select: userSelect,
   });
 }

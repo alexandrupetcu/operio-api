@@ -70,14 +70,68 @@ export function parseRevisionText(rawText: string): ParsedRevision {
 
   // Equipment (on same line as Location/Client, in second column)
   const equipmentName = extractField(rawText, /Equipment:\s*(.+?)(?:\s{2,}|$)/);
-  const equipmentSerial = extractField(rawText, /Address:\s*(EUROSTAR\s+\S+)/);
+
+  // Column-aware extraction of the equipment serial.
+  //
+  // The Seitron report is a 3-column table:
+  //   Col A (client) | Col B (equipment) | Col C (operator)
+  // and each column has an "Address:" row that means something different:
+  //   B.Address = equipment serial (what we want)
+  //   C.Address = operator street address
+  // A.Address is labelled "Client address:" (compound label, distinguishable).
+  //
+  // We detect the column boundaries from the header row (contains BOTH
+  // "Equipment:" and "Operator:") and then filter every "Address:" match
+  // by its column position:
+  //   col < equipmentCol → column A → not the serial
+  //   equipmentCol ≤ col < operatorCol → column B → THIS is the serial
+  //   col ≥ operatorCol → column C → operator's address
+  //
+  // This is more robust than "first Address: on the Client: line" because
+  // long equipment names can wrap, pushing "Address:" down to another line.
+  //
+  // Historically this used a `/Address:\s*(EUROSTAR\s+\S+)/` regex hardcoded
+  // for one brand+model combo — silently returning null for anything else.
+  const lines = rawText.split("\n");
+  let equipmentCol = -1;
+  let operatorCol = -1;
+  for (const line of lines) {
+    const eIdx = line.indexOf("Equipment:");
+    const oIdx = line.indexOf("Operator:");
+    if (eIdx > 0 && oIdx > eIdx) {
+      equipmentCol = eIdx;
+      operatorCol = oIdx;
+      break;
+    }
+  }
+  let equipmentSerial: string | null = null;
+  if (equipmentCol > 0 && operatorCol > equipmentCol) {
+    for (const line of lines) {
+      for (const m of line.matchAll(/Address:\s*(.+?)(?=\s{2,}|$)/g)) {
+        const col = m.index!;
+        // Column-A "Client address:" — the substring right before "Address:"
+        // ends with "Client ".
+        if (line.substring(Math.max(0, col - 7), col).endsWith("Client ")) continue;
+        // Column C — operator's address.
+        if (col >= operatorCol) continue;
+        // Column A — outside the equipment column.
+        if (col < equipmentCol) continue;
+        const value = m[1].trim();
+        // Seitron uses "---" as a placeholder for empty fields.
+        if (value && value !== "---") {
+          equipmentSerial = value;
+          break;
+        }
+      }
+      if (equipmentSerial) break;
+    }
+  }
 
   // Operator (third column in info section)
   const operatorName = extractField(rawText, /Operator:\s*(.+?)$/m);
   // Operator address is in the third column (rightmost).
   // On the line with "Client:", there are two "Address:" entries — the one after position 60 is the operator's.
   const operatorAddressLines: string[] = [];
-  const lines = rawText.split("\n");
   let foundOperator = false;
   let collectOperatorAddr = false;
   for (const line of lines) {

@@ -43,6 +43,12 @@ export async function spawnSubWorkflow(
     );
   }
 
+  if (childDef.role !== "secondary") {
+    throw fastify.httpErrors.badRequest(
+      `Workflow "${childDef.name}" has role "${childDef.role}" — only "secondary" workflows can be spawned as sub-workflows.`
+    );
+  }
+
   const startStep = childDef.steps[0];
   if (!startStep) {
     throw fastify.httpErrors.badRequest(

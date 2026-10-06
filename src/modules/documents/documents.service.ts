@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import type { MultipartFile } from "@fastify/multipart";
+import { Prisma } from "@prisma/client";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
 import { uploadFile, getPresignedUrl, deleteFile } from "../../lib/s3.js";
+import { safeS3Filename } from "../../lib/safe-filename.js";
 
 const documentQueue = new Queue("document-generation", {
   connection: redisConnection,
@@ -115,23 +117,22 @@ export async function generateBatch(
       categoryCode: category,
       OR: [{ tenantId }, { tenantId: null }],
       isActive: true,
+      parentGroupId: null, // only top-level (a group renders as one ZIP document)
     },
     orderBy: { sortOrder: "asc" },
   });
 
-  if (templates.length === 0) {
+  // Keep groups as a single template id — the worker renders a group into ONE
+  // ZIP document (bundling its members), instead of one document per member.
+  const templateIds = templates.map((t) => t.id);
+
+  if (templateIds.length === 0) {
     throw fastify.httpErrors.badRequest(
       "No templates found for this category"
     );
   }
 
-  return generate(
-    fastify,
-    tenantId,
-    projectId,
-    templates.map((t) => t.id),
-    userId
-  );
+  return generate(fastify, tenantId, projectId, templateIds, userId);
 }
 
 export async function upload(
@@ -147,7 +148,9 @@ export async function upload(
   if (!project) throw fastify.httpErrors.notFound("Project not found");
 
   const buffer = await file.toBuffer();
-  const s3Key = `${tenantId}/projects/${projectId}/uploads/${Date.now()}-${file.filename}`;
+  // Sanitize the user-supplied filename before embedding in the S3 key.
+  // Original filename is preserved in the DB row (Document.name) for display.
+  const s3Key = `${tenantId}/projects/${projectId}/uploads/${Date.now()}-${safeS3Filename(file.filename)}`;
   await uploadFile(s3Key, buffer, file.mimetype);
 
   return fastify.prisma.document.create({
@@ -217,7 +220,7 @@ export async function generateForClient(
           generatedById: userId,
           name: template.name,
           status: "PENDING",
-          contextJson: context ?? undefined,
+          contextJson: (context ?? undefined) as Prisma.InputJsonValue | undefined,
           clients: {
             create: { clientId },
           },
@@ -256,7 +259,12 @@ export async function getDownloadUrl(
     throw fastify.httpErrors.badRequest("Document has not been generated yet");
   }
 
-  const url = await getPresignedUrl(doc.s3Key);
+  // Download with a friendly name + the stored file's extension (e.g. a group
+  // ZIP saves as "<name>.zip" rather than "<cuid>.zip").
+  const ext = doc.s3Key.includes(".") ? doc.s3Key.split(".").pop()! : "";
+  const base = doc.name.replace(/\.[a-z0-9]+$/i, "");
+  const filename = ext ? `${base}.${ext}` : doc.name;
+  const url = await getPresignedUrl(doc.s3Key, 3600, filename);
   return { url, name: doc.name };
 }
 

@@ -81,6 +81,11 @@ export default async function registryRoutes(fastify: FastifyInstance) {
     });
   });
 
+  fastify.get<{ Querystring: { year?: string } }>("/stats", async (request) => {
+    const year = request.query.year ? parseInt(request.query.year) : new Date().getFullYear();
+    return registryService.stats(fastify, request.tenantId, year);
+  });
+
   fastify.get<{ Querystring: { seriesId: string } }>(
     "/entries/next-number",
     async (request) => {

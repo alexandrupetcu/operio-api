@@ -6,6 +6,7 @@ import puppeteer from "puppeteer";
 import { redisConnection } from "../config/redis.js";
 import { getFileStream, uploadFile, ensureBucket } from "../lib/s3.js";
 import { sendSigningComplete } from "../lib/email.js";
+import { extractPdfMarkers } from "../lib/pdf-footer.js";
 
 interface SigningCompleteJobData {
   signingSessionId: string;
@@ -27,6 +28,9 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
 
 /** Convert HTML to PDF using Puppeteer (same as document-generation worker) */
 async function htmlToPdf(html: string): Promise<Buffer> {
+  // Reproduce the per-page header/footer embedded in the saved HTML markers.
+  const { body, headerHtml, footerHtml } = extractPdfMarkers(html);
+  html = body;
   const browser = await puppeteer.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -84,8 +88,22 @@ async function htmlToPdf(html: string): Promise<Buffer> {
     await page.setContent(styledHtml, { waitUntil: "networkidle0" });
     const pdf = await page.pdf({
       format: "A4",
-      margin: { top: "20mm", right: "15mm", bottom: "20mm", left: "15mm" },
       printBackground: true,
+      ...(headerHtml || footerHtml
+        ? {
+            displayHeaderFooter: true,
+            headerTemplate: headerHtml ?? "<div></div>",
+            footerTemplate: footerHtml ?? "<div></div>",
+            margin: {
+              top: headerHtml ? "32mm" : "10mm",
+              right: headerHtml ? "12mm" : "10mm",
+              bottom: "18mm",
+              left: headerHtml ? "12mm" : "10mm",
+            },
+          }
+        : {
+            margin: { top: "20mm", right: "15mm", bottom: "20mm", left: "15mm" },
+          }),
     });
     return Buffer.from(pdf);
   } finally {
@@ -363,7 +381,7 @@ async function processJob(job: Job<SigningCompleteJobData>) {
 async function buildFallbackSignedPdf(
   pdfBuffer: Buffer,
   session: Awaited<ReturnType<typeof prisma.signingSession.findUniqueOrThrow>>
-    & { signatories: any[]; events: any[] }
+    & { signatories: any[]; events: any[]; document: { name: string } }
 ): Promise<Buffer> {
   const pdfDoc = await PDFDocument.load(pdfBuffer);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);

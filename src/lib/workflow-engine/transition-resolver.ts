@@ -1,19 +1,54 @@
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
+import { Queue } from "bullmq";
+import { redisConnection } from "../../config/redis.js";
 import { evaluateCondition } from "./condition-evaluator.js";
 import { calculateDeadlines } from "./deadline-calculator.js";
 import { logEvent } from "./execution-logger.js";
+import { isTenantEventEnabled } from "../../modules/notifications/tenant-settings.js";
+import { dispatchWorkflowEvent } from "../../modules/notifications/dispatch.js";
 import { executeActions } from "./action-executor.js";
 import { spawnSubWorkflow } from "./sub-workflow.js";
 import { triggerDocumentGeneration } from "./document-trigger.js";
+import { applyStepProjectStatus } from "./project-status-sync.js";
 
-/** Step types that auto-complete without user interaction */
-const AUTO_STEP_TYPES = new Set(["notification", "timer_wait", "system_action", "document_generation"]);
+/** Shared BullMQ queue for engine-level delayed jobs (reminders, activations, etc.) */
+const workflowQueue = new Queue("workflow-engine", { connection: redisConnection });
+
+/**
+ * Schedule the `mark_step_overdue` delayed job for a step instance with a future
+ * dueAt. The worker (handleMarkStepOverdue) skips if the step is already
+ * completed/cancelled or if dueAt changed since. Shared by the transition
+ * resolver and the ad-hoc-step service so both use the same queue instance.
+ */
+export async function scheduleStepOverdue(
+  stepInstanceId: string,
+  tenantId: string,
+  dueAt: Date,
+  now: Date = new Date()
+): Promise<void> {
+  if (dueAt.getTime() <= now.getTime()) return;
+  await workflowQueue.add(
+    "mark_step_overdue",
+    { type: "mark_step_overdue", tenantId, workflowStepInstanceId: stepInstanceId },
+    { delay: dueAt.getTime() - now.getTime(), removeOnComplete: 100, removeOnFail: 100 }
+  );
+}
+
+/**
+ * Step types that auto-complete synchronously without user interaction.
+ *
+ * NOTE: "document_generation" is NOT in this set anymore — it now waits for
+ * asynchronous BullMQ jobs to finish. The document-generation worker calls
+ * completeStep / failStep when all documents reach a terminal status.
+ */
+const AUTO_STEP_TYPES = new Set(["notification", "timer_wait", "system_action"]);
 
 interface CompletedStepInstance {
   id: string;
-  stepDefinitionId: string;
+  /** null for ad-hoc steps — yields no outgoing transitions (dead-end). */
+  stepDefinitionId: string | null;
   outputJson: unknown;
   workflowInstanceId: string;
   /** Inherited item context from a foreach-spawned parent — propagates through the chain */
@@ -45,6 +80,11 @@ export async function resolveTransitions(
   workflowInstance: WorkflowInstanceRef,
   cache: Map<string, unknown> = new Map()
 ): Promise<string[]> {
+  // Ad-hoc steps (no definition) have no outgoing transitions — dead-end.
+  if (!completedStepInstance.stepDefinitionId) {
+    return [];
+  }
+
   // 1. Load all transitions FROM the completed step's definition
   const transitions = await fastify.prisma.workflowTransition.findMany({
     where: {
@@ -112,6 +152,7 @@ export async function resolveTransitions(
           scheduledDate: true,
           projectTypeId: true,
           clientId: true,
+          distributorId: true,
         },
       });
       if (result) {
@@ -244,6 +285,11 @@ async function createAndActivateStepInstance(
 
   createdIds.push(stepInstance.id);
 
+  // Schedule overdue transition when the step has a future dueAt.
+  if (dueAt) {
+    await scheduleStepOverdue(stepInstance.id, tenantId, dueAt, now);
+  }
+
   // Log step activation
   await logEvent(
     fastify,
@@ -261,6 +307,20 @@ async function createAndActivateStepInstance(
       ...(spawnGroupId ? { spawnGroupId } : {}),
       ...(itemContext !== null ? { itemContext } : {}),
     }
+  );
+
+  // Workflow-driven project status: if this step declares configJson.projectStatus,
+  // move the attached project to that status on activation.
+  await applyStepProjectStatus(
+    fastify,
+    tenantId,
+    {
+      entityType: workflowInstance.entityType,
+      entityId: workflowInstance.entityId,
+      workflowInstanceId: workflowInstance.id,
+    },
+    toStep.configJson,
+    stepInstance.id,
   );
 
   // Fire backend on_enter actions (non-blocking)
@@ -309,7 +369,41 @@ async function createAndActivateStepInstance(
     }
   }
 
-  // 4c. Auto-execute automatic step types
+  // 4c. document_generation — queue jobs and WAIT for worker to complete the step
+  if (toStep.stepType === "document_generation") {
+    const cfg = (toStep.configJson ?? {}) as Record<string, unknown>;
+    const success = await triggerDocumentGeneration(
+      fastify,
+      tenantId,
+      stepInstance.id,
+      workflowInstance,
+      cfg
+    );
+    if (!success) {
+      // triggerDocumentGeneration already marked step as failed — nothing more to do
+      return createdIds;
+    }
+
+    // Move step to "waiting" — the document-generation worker will call
+    // completeStep/failStep when all documents reach a terminal status.
+    await fastify.prisma.workflowStepInstance.update({
+      where: { id: stepInstance.id },
+      data: { status: "waiting" },
+    });
+
+    await logEvent(
+      fastify,
+      tenantId,
+      workflowInstance.id,
+      stepInstance.id,
+      "step_waiting_for_documents",
+      { stepCode: toStep.code }
+    );
+
+    return createdIds;
+  }
+
+  // 4d. Auto-execute automatic step types (synchronous)
   if (AUTO_STEP_TYPES.has(toStep.stepType)) {
     const cfg = (toStep.configJson ?? {}) as Record<string, unknown>;
 
@@ -326,20 +420,6 @@ async function createAndActivateStepInstance(
         now,
         templateContext
       );
-    }
-
-    if (toStep.stepType === "document_generation") {
-      const success = await triggerDocumentGeneration(
-        fastify,
-        tenantId,
-        stepInstance.id,
-        workflowInstance,
-        cfg
-      );
-      if (!success) {
-        // Step was marked as failed inside triggerDocumentGeneration — skip auto-complete
-        return createdIds;
-      }
     }
 
     // Auto-complete the step
@@ -504,6 +584,9 @@ async function fireActivationNotifications(
   now: Date,
   templateContext: Record<string, unknown>
 ) {
+  // Tenant-level switch: firm-wide mute for workflow notifications.
+  if (!(await isTenantEventEnabled(fastify.prisma, tenantId, "workflow_events"))) return;
+
   const outgoing = await fastify.prisma.workflowTransition.findMany({
     where: {
       workflowDefinitionId: workflowInstance.workflowDefinitionId,
@@ -524,20 +607,13 @@ async function fireActivationNotifications(
     const subject = rawSubject ? resolveNameTemplate(rawSubject, templateContext) : null;
     const body = resolveNameTemplate(rawBody, templateContext);
 
-    await fastify.prisma.notification.create({
-      data: {
-        tenantId,
-        projectId: workflowInstance.entityId ?? null,
-        workflowInstanceId: workflowInstance.id,
-        channel: (cfg.channel as string) ?? "in_app",
-        subject,
-        body,
-        status: "pending",
-        metadataJson: {
-          trigger: "on_activation",
-          stepCode: activatedStep.code,
-        } as Prisma.InputJsonValue,
-      },
+    await dispatchWorkflowEvent(fastify.prisma, tenantId, {
+      category: "projects",
+      subject: subject ?? "Notificare workflow",
+      body,
+      url: workflowInstance.entityId ? `/projects/${workflowInstance.entityId}` : "/dashboard",
+      projectId: workflowInstance.entityId ?? null,
+      workflowInstanceId: workflowInstance.id,
     });
 
     await logEvent(
@@ -572,6 +648,11 @@ async function executeNotificationStep(
     return;
   }
 
+  // Tenant-level switch: firm-wide mute for workflow notifications.
+  if (!(await isTenantEventEnabled(fastify.prisma, tenantId, "workflow_events"))) {
+    return;
+  }
+
   const trigger = (stepConfig.trigger as string) ?? "on_completion";
   const channel = (stepConfig.channel as string) ?? "in_app";
 
@@ -585,16 +666,13 @@ async function executeNotificationStep(
 
   // Immediate triggers: on_completion, on_activation
   if (trigger === "on_completion" || trigger === "on_activation") {
-    await fastify.prisma.notification.create({
-      data: {
-        tenantId,
-        projectId,
-        workflowInstanceId: workflowInstance.id,
-        channel,
-        subject,
-        body,
-        status: "pending",
-      },
+    await dispatchWorkflowEvent(fastify.prisma, tenantId, {
+      category: "projects",
+      subject: subject ?? "Notificare workflow",
+      body,
+      url: projectId ? `/projects/${projectId}` : "/dashboard",
+      projectId,
+      workflowInstanceId: workflowInstance.id,
     });
     return;
   }
@@ -635,17 +713,13 @@ async function executeNotificationStep(
 
   if (!deadlineDate) {
     // No deadline found — fall back to sending immediately
-    await fastify.prisma.notification.create({
-      data: {
-        tenantId,
-        projectId,
-        workflowInstanceId: workflowInstance.id,
-        channel,
-        subject,
-        body,
-        status: "pending",
-        metadataJson: { trigger, fallback: "no_deadline_found" } as Prisma.InputJsonValue,
-      },
+    await dispatchWorkflowEvent(fastify.prisma, tenantId, {
+      category: "projects",
+      subject: subject ?? "Notificare workflow",
+      body,
+      url: projectId ? `/projects/${projectId}` : "/dashboard",
+      projectId,
+      workflowInstanceId: workflowInstance.id,
     });
     return;
   }
@@ -666,17 +740,19 @@ async function executeNotificationStep(
     const startTime = Math.max(startMs, now.getTime());
 
     for (let t = startTime; t < deadlineDate.getTime(); t += intervalMs) {
-      await fastify.prisma.scheduledJob.create({
-        data: {
+      await workflowQueue.add(
+        "send_reminder",
+        {
+          type: "send_reminder",
           tenantId,
-          jobType: "send_reminder",
-          relatedEntityType: "workflow_step_instance",
-          relatedEntityId: stepInstanceId,
-          runAt: new Date(t),
-          status: "pending",
-          payloadJson: basePayload as Prisma.InputJsonValue,
+          workflowInstanceId: basePayload.workflowInstanceId,
+          projectId: basePayload.projectId,
+          channel: basePayload.channel,
+          subject: basePayload.subject,
+          body: basePayload.body,
         },
-      });
+        { delay: Math.max(0, t - now.getTime()), removeOnComplete: 100, removeOnFail: 100 }
+      );
     }
 
     await logEvent(fastify, tenantId, workflowInstance.id, stepInstanceId, "reminders_scheduled", {
@@ -687,17 +763,23 @@ async function executeNotificationStep(
     });
   } else if (trigger === "on_overdue") {
     // Schedule a notification at exactly the deadline
-    await fastify.prisma.scheduledJob.create({
-      data: {
+    await workflowQueue.add(
+      "send_reminder",
+      {
+        type: "send_reminder",
         tenantId,
-        jobType: "send_reminder",
-        relatedEntityType: "workflow_step_instance",
-        relatedEntityId: stepInstanceId,
-        runAt: deadlineDate,
-        status: "pending",
-        payloadJson: basePayload as Prisma.InputJsonValue,
+        workflowInstanceId: basePayload.workflowInstanceId,
+        projectId: basePayload.projectId,
+        channel: basePayload.channel,
+        subject: basePayload.subject,
+        body: basePayload.body,
       },
-    });
+      {
+        delay: Math.max(0, deadlineDate.getTime() - now.getTime()),
+        removeOnComplete: 100,
+        removeOnFail: 100,
+      }
+    );
 
     // If repeat is enabled, schedule additional notifications after the deadline
     if (stepConfig.reminderEnabled) {
@@ -706,17 +788,19 @@ async function executeNotificationStep(
       // Schedule repeats for up to 30 days after deadline
       const maxRepeatEnd = deadlineDate.getTime() + 30 * 24 * 60 * 60 * 1000;
       for (let t = deadlineDate.getTime() + intervalMs; t < maxRepeatEnd; t += intervalMs) {
-        await fastify.prisma.scheduledJob.create({
-          data: {
+        await workflowQueue.add(
+          "send_reminder",
+          {
+            type: "send_reminder",
             tenantId,
-            jobType: "send_reminder",
-            relatedEntityType: "workflow_step_instance",
-            relatedEntityId: stepInstanceId,
-            runAt: new Date(t),
-            status: "pending",
-            payloadJson: basePayload as Prisma.InputJsonValue,
+            workflowInstanceId: basePayload.workflowInstanceId,
+            projectId: basePayload.projectId,
+            channel: basePayload.channel,
+            subject: basePayload.subject,
+            body: basePayload.body,
           },
-        });
+          { delay: Math.max(0, t - now.getTime()), removeOnComplete: 100, removeOnFail: 100 }
+        );
       }
 
       await logEvent(fastify, tenantId, workflowInstance.id, stepInstanceId, "overdue_reminders_scheduled", {
