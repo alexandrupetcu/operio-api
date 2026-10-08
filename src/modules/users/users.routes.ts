@@ -36,4 +36,29 @@ export default async function usersRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: { id: string } }>("/:id", async (request) => {
     return usersService.remove(fastify, request.tenantId, request.params.id);
   });
+
+  // ── Mobile devices (phones that logged into the technician app) ────────────
+  fastify.get<{ Params: { id: string } }>("/:id/devices", async (request) => {
+    return usersService.listDevices(fastify, request.tenantId, request.params.id);
+  });
+
+  fastify.post<{ Params: { id: string; deviceId: string } }>(
+    "/:id/devices/:deviceId/revoke",
+    async (request) => {
+      return usersService.revokeDevice(
+        fastify,
+        request.tenantId,
+        request.params.id,
+        request.params.deviceId,
+        request.user.sub,
+      );
+    },
+  );
+
+  fastify.post<{ Params: { id: string; deviceId: string } }>(
+    "/:id/devices/:deviceId/restore",
+    async (request) => {
+      return usersService.restoreDevice(fastify, request.tenantId, request.params.id, request.params.deviceId);
+    },
+  );
 }

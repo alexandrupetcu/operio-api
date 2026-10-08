@@ -3,6 +3,7 @@ import { hashPassword } from "../../lib/hash.js";
 import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateUserInput, UpdateUserInput } from "./users.schema.js";
+import { clearMobileDeviceRevoked, markMobileDeviceRevoked } from "../../lib/mobile-devices.js";
 
 const userSelect = {
   id: true,
@@ -11,10 +12,71 @@ const userSelect = {
   lastName: true,
   role: true,
   isActive: true,
+  mobileAccess: true,
   createdAt: true,
   updatedAt: true,
   employee: { select: { id: true, firstName: true, lastName: true } },
 };
+
+const deviceSelect = {
+  id: true,
+  deviceId: true,
+  platform: true,
+  model: true,
+  name: true,
+  appVersion: true,
+  status: true,
+  firstSeenAt: true,
+  lastSeenAt: true,
+  revokedAt: true,
+  revokedBy: { select: { id: true, firstName: true, lastName: true } },
+};
+
+/** Phones that logged into the mobile app with this account, newest activity first. */
+export async function listDevices(fastify: FastifyInstance, tenantId: string, userId: string) {
+  await getById(fastify, tenantId, userId);
+  return fastify.prisma.mobileDevice.findMany({
+    where: { tenantId, userId },
+    select: deviceSelect,
+    orderBy: { lastSeenAt: "desc" },
+  });
+}
+
+/**
+ * Revoke a phone: it can't refresh its session any more, and the Redis
+ * denylist cuts its current access token off immediately. Mobile refresh
+ * tokens bound to the device are deleted so nothing lingers.
+ */
+export async function revokeDevice(
+  fastify: FastifyInstance,
+  tenantId: string,
+  userId: string,
+  deviceRowId: string,
+  revokedById: string,
+) {
+  const device = await fastify.prisma.mobileDevice.findFirst({ where: { id: deviceRowId, tenantId, userId } });
+  if (!device) throw fastify.httpErrors.notFound("Dispozitivul nu a fost găsit");
+  const updated = await fastify.prisma.mobileDevice.update({
+    where: { id: device.id },
+    data: { status: "revoked", revokedAt: new Date(), revokedById },
+    select: deviceSelect,
+  });
+  await fastify.prisma.refreshToken.deleteMany({ where: { userId, client: "mobile", deviceId: device.deviceId } });
+  await markMobileDeviceRevoked(userId, device.deviceId);
+  return updated;
+}
+
+/** Re-allow a previously revoked phone (next login from it works again). */
+export async function restoreDevice(fastify: FastifyInstance, tenantId: string, userId: string, deviceRowId: string) {
+  const device = await fastify.prisma.mobileDevice.findFirst({ where: { id: deviceRowId, tenantId, userId } });
+  if (!device) throw fastify.httpErrors.notFound("Dispozitivul nu a fost găsit");
+  await clearMobileDeviceRevoked(userId, device.deviceId);
+  return fastify.prisma.mobileDevice.update({
+    where: { id: device.id },
+    data: { status: "active", revokedAt: null, revokedById: null },
+    select: deviceSelect,
+  });
+}
 
 export async function list(
   fastify: FastifyInstance,
@@ -115,6 +177,11 @@ export async function update(
 
   if (Object.keys(userFields).length === 0) {
     return getById(fastify, tenantId, id);
+  }
+  // Switching mobile access off ends the phone sessions: refresh is refused and
+  // the access tokens still in flight expire within JWT_ACCESS_EXPIRY.
+  if (userFields.mobileAccess === false) {
+    await fastify.prisma.refreshToken.deleteMany({ where: { userId: id, client: "mobile" } });
   }
   return fastify.prisma.user.update({
     where: { id },

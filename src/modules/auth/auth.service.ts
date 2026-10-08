@@ -6,11 +6,82 @@ import { env } from "../../config/env.js";
 import type {
   RegisterInput,
   LoginInput,
+  MobileDeviceInput,
   ChangePasswordInput,
   ForgotPasswordInput,
   ResetPasswordInput,
 } from "./auth.schema.js";
 import { readSchedulingSettings } from "../tenant/scheduling-settings.js";
+import type { ClientKind } from "../../plugins/auth.js";
+import { isMobileDeviceRevoked } from "../../lib/mobile-devices.js";
+
+interface SessionUser {
+  id: string;
+  tenantId: string | null;
+  role: "MASTER_ADMIN" | "ADMIN" | "MANAGER" | "OPERATOR";
+}
+
+/**
+ * Mint an access + refresh token pair. `client`/`deviceId` are stamped into the
+ * access token (so routes know the caller without a DB read) and stored on the
+ * refresh token so rotation keeps them.
+ */
+async function issueTokens(
+  fastify: FastifyInstance,
+  user: SessionUser,
+  session: { client: ClientKind; deviceId?: string },
+) {
+  const accessToken = fastify.jwt.sign({
+    sub: user.id,
+    tenantId: user.tenantId,
+    role: user.role,
+    client: session.client,
+    ...(session.deviceId ? { deviceId: session.deviceId } : {}),
+  });
+  const refreshToken = generateRefreshToken();
+  await fastify.prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      // Store SHA-256(token) — never the plaintext that's handed to the client.
+      token: hashRefreshToken(refreshToken),
+      client: session.client,
+      deviceId: session.deviceId ?? null,
+      expiresAt: parseExpiry(env.JWT_REFRESH_EXPIRY),
+    },
+  });
+  return { accessToken, refreshToken };
+}
+
+/**
+ * Mobile login gate: the account must be opted in (User.mobileAccess) and the
+ * phone must not be revoked. First login from a phone registers it
+ * automatically; later logins just bump lastSeenAt / model info.
+ */
+async function registerMobileDevice(
+  fastify: FastifyInstance,
+  user: { id: string; tenantId: string | null; mobileAccess: boolean },
+  device: MobileDeviceInput,
+) {
+  if (!user.mobileAccess || !user.tenantId) {
+    throw fastify.httpErrors.forbidden(
+      "Contul nu are acces la aplicația mobilă. Cere administratorului să îl activeze.",
+    );
+  }
+  const existing = await fastify.prisma.mobileDevice.findUnique({
+    where: { userId_deviceId: { userId: user.id, deviceId: device.deviceId } },
+  });
+  if (existing?.status === "revoked") {
+    throw fastify.httpErrors.forbidden("Acest telefon a fost revocat de administrator.");
+  }
+  const info = { platform: device.platform, model: device.model, name: device.name, appVersion: device.appVersion };
+  if (existing) {
+    await fastify.prisma.mobileDevice.update({ where: { id: existing.id }, data: { ...info, lastSeenAt: new Date() } });
+  } else {
+    await fastify.prisma.mobileDevice.create({
+      data: { tenantId: user.tenantId, userId: user.id, deviceId: device.deviceId, ...info },
+    });
+  }
+}
 
 /** 64 bytes = 512 bits of entropy. Encoded as hex (128 chars). */
 function generateRefreshToken(): string {
@@ -66,21 +137,11 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
     return { tenant, user };
   });
 
-  const accessToken = fastify.jwt.sign({
-    sub: result.user.id,
-    tenantId: result.tenant.id,
-    role: result.user.role,
-  });
-
-  const refreshToken = generateRefreshToken();
-  await fastify.prisma.refreshToken.create({
-    data: {
-      userId: result.user.id,
-      // Store SHA-256(token) — never the plaintext that's handed to the client.
-      token: hashRefreshToken(refreshToken),
-      expiresAt: parseExpiry(env.JWT_REFRESH_EXPIRY),
-    },
-  });
+  const { accessToken, refreshToken } = await issueTokens(
+    fastify,
+    { id: result.user.id, tenantId: result.tenant.id, role: result.user.role },
+    { client: "web" },
+  );
 
   return {
     accessToken,
@@ -122,20 +183,15 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
     throw fastify.httpErrors.unauthorized("Invalid credentials");
   }
 
-  const accessToken = fastify.jwt.sign({
-    sub: user.id,
-    tenantId: tenant?.id ?? null,
-    role: user.role,
-  });
+  if (input.client === "mobile") {
+    await registerMobileDevice(fastify, user, input.device!);
+  }
 
-  const refreshToken = generateRefreshToken();
-  await fastify.prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      token: hashRefreshToken(refreshToken),
-      expiresAt: parseExpiry(env.JWT_REFRESH_EXPIRY),
-    },
-  });
+  const { accessToken, refreshToken } = await issueTokens(
+    fastify,
+    { id: user.id, tenantId: tenant?.id ?? null, role: user.role },
+    { client: input.client, deviceId: input.client === "mobile" ? input.device!.deviceId : undefined },
+  );
 
   return {
     accessToken,
@@ -146,6 +202,7 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      mobileAccess: user.mobileAccess,
     },
     tenant: tenant
       ? {
@@ -179,21 +236,27 @@ export async function refresh(fastify: FastifyInstance, token: string) {
   await fastify.prisma.refreshToken.delete({ where: { id: storedToken.id } });
 
   const { user } = storedToken;
-  const accessToken = fastify.jwt.sign({
-    sub: user.id,
-    tenantId: user.tenantId,
-    role: user.role,
-  });
+  if (!user.isActive) throw fastify.httpErrors.unauthorized("Account inactive");
 
-  const newRefreshToken = generateRefreshToken();
-  await fastify.prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      token: hashRefreshToken(newRefreshToken),
-      expiresAt: parseExpiry(env.JWT_REFRESH_EXPIRY),
-    },
-  });
+  const client = (storedToken.client as ClientKind) ?? "web";
+  const deviceId = storedToken.deviceId ?? undefined;
+  if (client === "mobile") {
+    // Mobile sessions re-check the gate on every rotation (≤ access expiry):
+    // access switched off, phone revoked, or denylisted since the last token.
+    const device = deviceId
+      ? await fastify.prisma.mobileDevice.findUnique({ where: { userId_deviceId: { userId: user.id, deviceId } } })
+      : null;
+    if (!user.mobileAccess || !device || device.status !== "active" || (await isMobileDeviceRevoked(user.id, device.deviceId))) {
+      throw fastify.httpErrors.unauthorized("Accesul de pe acest telefon a fost revocat");
+    }
+    await fastify.prisma.mobileDevice.update({ where: { id: device.id }, data: { lastSeenAt: new Date() } });
+  }
 
+  const { accessToken, refreshToken: newRefreshToken } = await issueTokens(
+    fastify,
+    { id: user.id, tenantId: user.tenantId, role: user.role },
+    { client, deviceId },
+  );
   return { accessToken, refreshToken: newRefreshToken };
 }
 
@@ -330,6 +393,7 @@ export async function me(fastify: FastifyInstance, userId: string) {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      mobileAccess: user.mobileAccess,
     },
     employee: user.employee,
     // Modul de programare al firmei — clienții decid pe baza lui ce afișează.

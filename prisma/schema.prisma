@@ -10,66 +10,67 @@ datasource db {
 // ─── Multi-tenancy ──────────────────────────────────────────────────────────
 
 model Tenant {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  address      String?
-  phone        String?
-  email        String?
-  cui          String?
-  regCom       String?
-  isVatPayer       Boolean  @default(false)
-  adminName        String?
-  iscirNumber      String?  // ex: "89C - 689"
-  iscirDate        String?  // ex: "12.07.2023"
-  stampS3Key       String?
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  address        String?
+  phone          String?
+  email          String?
+  cui            String?
+  regCom         String?
+  isVatPayer     Boolean  @default(false)
+  adminName      String?
+  iscirNumber    String? // ex: "89C - 689"
+  iscirDate      String? // ex: "12.07.2023"
+  stampS3Key     String?
   signatureS3Key String?
-  logoS3Key        String?
-  timezone     String   @default("Europe/Bucharest")
-  locale       String   @default("ro")
-  settingsJson Json?
-  brandingJson Json?
-  countryId    Int?
-  country      Country? @relation(fields: [countryId], references: [id])
-  stateId      Int?
-  state        State?   @relation(fields: [stateId], references: [id])
-  cityId       Int?
-  city         City?    @relation(fields: [cityId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  logoS3Key      String?
+  timezone       String   @default("Europe/Bucharest")
+  locale         String   @default("ro")
+  settingsJson   Json?
+  brandingJson   Json?
+  countryId      Int?
+  country        Country? @relation(fields: [countryId], references: [id])
+  stateId        Int?
+  state          State?   @relation(fields: [stateId], references: [id])
+  cityId         Int?
+  city           City?    @relation(fields: [cityId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  users                 User[]
-  clients               Client[]
-  projects              Project[]
-  projectTypes          ProjectType[]
-  distributors          Distributor[]
-  fieldPresets          FieldPreset[]
-  documents             Document[]
-  documentTemplates     DocumentTemplate[]
-  services              Service[]
-  employees             Employee[]
-  vehicles              Vehicle[]
-  workflowDefinitions   WorkflowDefinition[]
-  workflowInstances     WorkflowInstance[]
-  tasks                 Task[]
-  scheduledJobs         ScheduledJob[]
-  notifications         Notification[]
-  notificationTemplates NotificationTemplate[]
+  users                   User[]
+  clients                 Client[]
+  projects                Project[]
+  projectTypes            ProjectType[]
+  distributors            Distributor[]
+  fieldPresets            FieldPreset[]
+  documents               Document[]
+  documentTemplates       DocumentTemplate[]
+  services                Service[]
+  employees               Employee[]
+  vehicles                Vehicle[]
+  workflowDefinitions     WorkflowDefinition[]
+  workflowInstances       WorkflowInstance[]
+  tasks                   Task[]
+  scheduledJobs           ScheduledJob[]
+  notifications           Notification[]
+  notificationTemplates   NotificationTemplate[]
   notificationPreferences NotificationPreference[]
-  webPushSubscriptions  WebPushSubscription[]
-  pushDevices           PushDevice[]
-  auditLogs             AuditLog[]
-  outboxEvents          OutboxEvent[]
-  drawingTemplates      DrawingTemplate[]
-  signingSessions       SigningSession[]
-  appointments          Appointment[]
-  emailInboxes          EmailInbox[]
-  emailIngestionEnabled Boolean  @default(false)
-  registrySeries        RegistrySeries[]
-  registryEntries       RegistryEntry[]
-  emailIngestLogs       EmailIngestLog[]
-  actionFeedStates      ActionFeedState[]
-  actionFeedSnoozeNotes ActionFeedSnoozeNote[]
+  webPushSubscriptions    WebPushSubscription[]
+  pushDevices             PushDevice[]
+  mobileDevices           MobileDevice[]
+  auditLogs               AuditLog[]
+  outboxEvents            OutboxEvent[]
+  drawingTemplates        DrawingTemplate[]
+  signingSessions         SigningSession[]
+  appointments            Appointment[]
+  emailInboxes            EmailInbox[]
+  emailIngestionEnabled   Boolean                  @default(false)
+  registrySeries          RegistrySeries[]
+  registryEntries         RegistryEntry[]
+  emailIngestLogs         EmailIngestLog[]
+  actionFeedStates        ActionFeedState[]
+  actionFeedSnoozeNotes   ActionFeedSnoozeNote[]
 
   @@index([countryId])
   @@index([stateId])
@@ -86,23 +87,27 @@ model User {
   lastName     String
   role         Role     @default(OPERATOR)
   isActive     Boolean  @default(true)
+  // Explicit opt-in for the technician mobile app (see MobileDevice).
+  mobileAccess Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  refreshTokens         RefreshToken[]
-  passwordResetTokens   PasswordResetToken[]
-  documents             Document[]
-  createdWorkflows      WorkflowDefinition[]  @relation("WorkflowCreatedBy")
-  assignedStepInstances WorkflowStepInstance[] @relation("StepAssignedUser")
-  assignedTasks         Task[]                @relation("TaskAssignedUser")
-  auditLogs             AuditLog[]
-  signingSessions       SigningSession[]
-  createdRegistryEntries RegistryEntry[]      @relation("RegistryCreator")
-  voidedRegistryEntries  RegistryEntry[]      @relation("RegistryVoider")
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  documents               Document[]
+  createdWorkflows        WorkflowDefinition[]     @relation("WorkflowCreatedBy")
+  assignedStepInstances   WorkflowStepInstance[]   @relation("StepAssignedUser")
+  assignedTasks           Task[]                   @relation("TaskAssignedUser")
+  auditLogs               AuditLog[]
+  signingSessions         SigningSession[]
+  createdRegistryEntries  RegistryEntry[]          @relation("RegistryCreator")
+  voidedRegistryEntries   RegistryEntry[]          @relation("RegistryVoider")
   notificationPreferences NotificationPreference[]
-  webPushSubscriptions   WebPushSubscription[]
-  pushDevices            PushDevice[]
-  employee               Employee?
+  webPushSubscriptions    WebPushSubscription[]
+  pushDevices             PushDevice[]
+  mobileDevices           MobileDevice[]
+  revokedMobileDevices    MobileDevice[]           @relation("MobileDeviceRevokedBy")
+  employee                Employee?
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -120,6 +125,10 @@ model RefreshToken {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
+  // Which client the session was opened from; carried into every access token
+  // minted from this refresh token. Mobile sessions are bound to a device.
+  client    String   @default("web") // web | mobile
+  deviceId  String?
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -171,15 +180,15 @@ model Client {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  addresses       ClientAddress[]
-  projects        Project[]
-  contactPersons  ContactPerson[]
-  equipment       Equipment[]
-  documents       ClientDocument[]
-  tasks           Task[]
-  notifications   Notification[]
-  appointments    Appointment[]
-  registryEntries RegistryEntry[]
+  addresses        ClientAddress[]
+  projects         Project[]
+  contactPersons   ContactPerson[]
+  equipment        Equipment[]
+  documents        ClientDocument[]
+  tasks            Task[]
+  notifications    Notification[]
+  appointments     Appointment[]
+  registryEntries  RegistryEntry[]
   gasInstallations GasInstallation[]
 
   @@index([tenantId])
@@ -201,7 +210,7 @@ model ClientAddress {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  equipment Equipment[]
+  equipment        Equipment[]
   gasInstallations GasInstallation[]
   appointments     Appointment[]
 
@@ -230,59 +239,59 @@ enum EquipmentType {
 }
 
 model Equipment {
-  id              String         @id @default(cuid())
+  id              String              @id @default(cuid())
   clientId        String
-  client          Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client          Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
   clientAddressId String?
-  clientAddress   ClientAddress? @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
-  type            EquipmentType  @default(CENTRALA)
+  clientAddress   ClientAddress?      @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
+  type            EquipmentType       @default(CENTRALA)
   name            String?
   internalName    String?
   fuel            String?
   serial          String?
-  deviceType      String?   // MURALA, STATIV, etc.
-  power           String?   // KW, ex: "24"
-  airSupply       String?   // aspirat | insuflat
-  feeding         String?   // manuala | automata
-  location        String?   // BUCATARIE, CENTRALA TERMICA
-  fuelIscir       String?   // G20, G25, etc.
-  deviceAge       String?   // nou | vechi
+  deviceType      String? // MURALA, STATIV, etc.
+  power           String? // KW, ex: "24"
+  airSupply       String? // aspirat | insuflat
+  feeding         String? // manuala | automata
+  location        String? // BUCATARIE, CENTRALA TERMICA
+  fuelIscir       String? // G20, G25, etc.
+  deviceAge       String? // nou | vechi
   revisions       EquipmentRevision[]
   appointments    Appointment[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@index([clientId])
   @@index([clientAddressId])
 }
 
 model EquipmentRevision {
-  id              String    @id @default(cuid())
-  equipmentId     String
-  equipment       Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  revisionDate    DateTime
-  status          String    @default("COMPLETED") // PENDING, PROCESSING, COMPLETED, FAILED
-  s3Key           String?
-  fileName        String?
-  operatorName    String?
-  operatorAddress String?
-  operatorPhone   String?
-  operatorEmail   String?
-  analyzerName    String?
-  analyzerSerial  String?
-  location        String?
+  id                 String    @id @default(cuid())
+  equipmentId        String
+  equipment          Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  revisionDate       DateTime
+  status             String    @default("COMPLETED") // PENDING, PROCESSING, COMPLETED, FAILED
+  s3Key              String?
+  fileName           String?
+  operatorName       String?
+  operatorAddress    String?
+  operatorPhone      String?
+  operatorEmail      String?
+  analyzerName       String?
+  analyzerSerial     String?
+  location           String?
   pdfEquipmentName   String?
   pdfEquipmentSerial String?
   pdfClientAddress   String?
-  analysisData    Json?
-  rawText         String?   @db.Text
-  notes           String?   @db.Text
-  sourceEmailId   String?
-  iscirDocumentId String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  analysisData       Json?
+  rawText            String?   @db.Text
+  notes              String?   @db.Text
+  sourceEmailId      String?
+  iscirDocumentId    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  appointment     Appointment?
+  appointment Appointment?
 
   @@index([equipmentId])
   @@index([equipmentId, revisionDate])
@@ -293,28 +302,28 @@ model EquipmentRevision {
 // client, service contract, gas meter (contor) + sealing, consumer appliances.
 // Scoped via the client (like Equipment). Filled once, reused across visits.
 model GasInstallation {
-  id              String         @id @default(cuid())
-  clientId        String
-  client          Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientAddressId String?
-  clientAddress   ClientAddress? @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
-  label           String?
-  distributorName String?        // Operator de sistem (OS), ex. "DISTRIGAZ SUD RETELE"
-  codTehnicPOD    String?        // Cod tehnic / POD, ex. "DGSBUSC20000641408"
-  codClient       String?        // Cod client, ex. "191093362488"
-  contractNumber  String?        // Contract prestări servicii, ex. "234 V-R"
-  contractDate    String?        // ex. "18.05.2026"
-  documentatieNr  String?        // Documentația tehnică nr.
-  documentatieData String?       // Documentația tehnică data (or "nu detine")
-  contorTip       String?        // ex. "BK-G4 MT"
-  contorSeria     String?        // ex. "DGSR"
-  contorNr        String?        // ex. "04110636"
-  contorAn        String?        // ex. "2023"
-  contorIndex     String?        // ex. "00717,60 mc"
-  appliancesJson  Json?          // [{ kind: "CT"|"MA", name, debit, count }]
-  appointments    Appointment[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id               String         @id @default(cuid())
+  clientId         String
+  client           Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientAddressId  String?
+  clientAddress    ClientAddress? @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
+  label            String?
+  distributorName  String? // Operator de sistem (OS), ex. "DISTRIGAZ SUD RETELE"
+  codTehnicPOD     String? // Cod tehnic / POD, ex. "DGSBUSC20000641408"
+  codClient        String? // Cod client, ex. "191093362488"
+  contractNumber   String? // Contract prestări servicii, ex. "234 V-R"
+  contractDate     String? // ex. "18.05.2026"
+  documentatieNr   String? // Documentația tehnică nr.
+  documentatieData String? // Documentația tehnică data (or "nu detine")
+  contorTip        String? // ex. "BK-G4 MT"
+  contorSeria      String? // ex. "DGSR"
+  contorNr         String? // ex. "04110636"
+  contorAn         String? // ex. "2023"
+  contorIndex      String? // ex. "00717,60 mc"
+  appliancesJson   Json? // [{ kind: "CT"|"MA", name, debit, count }]
+  appointments     Appointment[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@index([clientId])
   @@index([clientAddressId])
@@ -347,7 +356,6 @@ model ProjectType {
  * Vocabularul repetitiv din formularele de teren (material, furnizor, diametru,
  * tip contor…), îmbogățit cu ce scriu operatorii, ca valoarea introdusă de unul
  * să apară la toți ceilalți din firmă.
- *
  * `normalized` (trim + spații colapsate + lowercase) ține unicitatea, ca „Valrom
  * SRL", „valrom srl" și „ Valrom  SRL " să fie o singură intrare; `useCount`
  * ordonează lista, ca valorile folosite des să urce, iar cele scrise o dată din
@@ -357,9 +365,9 @@ model FieldPreset {
   id         String   @id @default(cuid())
   tenantId   String
   tenant     Tenant   @relation(fields: [tenantId], references: [id])
-  scope      String   // cheia vocabularului: material, furnizor, diamTeava, diamArm, contorTip, certificat, aparat
-  value      String   // forma afișată, așa cum a scris-o operatorul
-  normalized String   // forma de comparație (lowercase)
+  scope      String // cheia vocabularului: material, furnizor, diamTeava, diamArm, contorTip, certificat, aparat
+  value      String // forma afișată, așa cum a scris-o operatorul
+  normalized String // forma de comparație (lowercase)
   useCount   Int      @default(1)
   lastUsedAt DateTime @default(now())
   createdAt  DateTime @default(now())
@@ -372,15 +380,15 @@ model FieldPreset {
 // ─── Distributors ──────────────────────────────────────────────────────────
 
 model Distributor {
-  id           String   @id @default(cuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  code         String
-  name         String
-  contactJson  Json?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  code        String
+  name        String
+  contactJson Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   projects            Project[]
   workflowDefinitions WorkflowDefinition[]
@@ -392,28 +400,28 @@ model Distributor {
 // ─── Projects ───────────────────────────────────────────────────────────────
 
 model Project {
-  id                        String    @id @default(cuid())
+  id                        String            @id @default(cuid())
   tenantId                  String
-  tenant                    Tenant    @relation(fields: [tenantId], references: [id])
+  tenant                    Tenant            @relation(fields: [tenantId], references: [id])
   clientId                  String
-  client                    Client    @relation(fields: [clientId], references: [id])
+  client                    Client            @relation(fields: [clientId], references: [id])
   projectTypeId             String
-  projectType               ProjectType @relation(fields: [projectTypeId], references: [id])
+  projectType               ProjectType       @relation(fields: [projectTypeId], references: [id])
   distributorId             String?
-  distributor               Distributor? @relation(fields: [distributorId], references: [id])
+  distributor               Distributor?      @relation(fields: [distributorId], references: [id])
   name                      String
   address                   String
   city                      String
   county                    String
   observations              String?
-  participareISC            Boolean   @default(false)
-  status                    String    @default("draft")
-  priority                  String    @default("normal")
+  participareISC            Boolean           @default(false)
+  status                    String            @default("draft")
+  priority                  String            @default("normal")
   // "project" = normal full-workflow project (default — every pre-existing row)
   // "quick_dossier" = lightweight client-level generation flow (no workflow, no
   // scheduling); hidden from the regular projects list, surfaced only on the
   // client detail page via the ClientDossiersCard.
-  kind                      String    @default("project")
+  kind                      String            @default("project")
   // For kind = "quick_dossier" — points at the DocumentTemplate group the user
   // picked. Lets the client UI know which template set to render + lets the
   // generate endpoint look up the right category.
@@ -422,14 +430,14 @@ model Project {
   metadata                  Json?
   scheduledDate             DateTime?
   assignedEmployeeId        String?
-  assignedEmployee          Employee? @relation(fields: [assignedEmployeeId], references: [id])
+  assignedEmployee          Employee?         @relation(fields: [assignedEmployeeId], references: [id])
   currentWorkflowInstanceId String?
   drawingS3Key              String?
   drawingJson               Json?
-  openedAt                  DateTime  @default(now())
+  openedAt                  DateTime          @default(now())
   closedAt                  DateTime?
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
 
   documents         ProjectDocument[]
   workflowInstances WorkflowInstance[]
@@ -467,48 +475,48 @@ model ProjectTeamMember {
 // ─── Documents ──────────────────────────────────────────────────────────────
 
 model TemplateCategory {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  name        String
-  description String?
-  icon        String?  // lucide icon name
-  color       String?  // tailwind color (e.g. "blue", "amber")
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
+  id                 String   @id @default(cuid())
+  code               String   @unique
+  name               String
+  description        String?
+  icon               String? // lucide icon name
+  color              String? // tailwind color (e.g. "blue", "amber")
+  isActive           Boolean  @default(true)
+  sortOrder          Int      @default(0)
   // Registry series (RegistrySeries.code) used when auto-numbering documents of
   // this category. Null → falls back to "iesiri". Lets each operation type get
   // its own series (Registratură dinamică).
   registrySeriesCode String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   templates DocumentTemplate[]
 }
 
 model DocumentTemplate {
-  id           String            @id @default(cuid())
+  id           String           @id @default(cuid())
   tenantId     String?
-  tenant       Tenant?           @relation(fields: [tenantId], references: [id])
+  tenant       Tenant?          @relation(fields: [tenantId], references: [id])
   categoryCode String
-  category     TemplateCategory  @relation(fields: [categoryCode], references: [code])
+  category     TemplateCategory @relation(fields: [categoryCode], references: [code])
   name         String
   description  String?
-  content      String?           @db.Text
+  content      String?          @db.Text
   s3Key        String?
-  fileName     String?           // editable display/download filename (DOCX members); falls back to the s3Key segment
-  type         String            @default("single") // "single" (HTML or DOCX) | "group" (bundle of DOCX members)
-  sortOrder    Int               @default(0)
-  isActive     Boolean           @default(true)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  fileName     String? // editable display/download filename (DOCX members); falls back to the s3Key segment
+  type         String           @default("single") // "single" (HTML or DOCX) | "group" (bundle of DOCX members)
+  sortOrder    Int              @default(0)
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   // DOCX Group: a "group" parent owns ordered "single" DOCX members.
-  parentGroupId String?
-  parentGroup   DocumentTemplate?  @relation("GroupMembers", fields: [parentGroupId], references: [id], onDelete: Cascade)
-  groupMembers  DocumentTemplate[] @relation("GroupMembers")
+  parentGroupId        String?
+  parentGroup          DocumentTemplate?  @relation("GroupMembers", fields: [parentGroupId], references: [id], onDelete: Cascade)
+  groupMembers         DocumentTemplate[] @relation("GroupMembers")
   // Quick-dossier projects seeded from this group template (kind="quick_dossier").
-  quickDossierProjects Project[]   @relation("QuickDossierGroup")
-  memberOrder   Int                @default(0)
+  quickDossierProjects Project[]          @relation("QuickDossierGroup")
+  memberOrder          Int                @default(0)
 
   documents Document[]
 
@@ -541,22 +549,22 @@ enum SignatoryStatus {
 }
 
 model Document {
-  id                     String          @id @default(cuid())
+  id                     String                @id @default(cuid())
   tenantId               String
-  tenant                 Tenant          @relation(fields: [tenantId], references: [id])
+  tenant                 Tenant                @relation(fields: [tenantId], references: [id])
   templateId             String?
-  template               DocumentTemplate? @relation(fields: [templateId], references: [id])
+  template               DocumentTemplate?     @relation(fields: [templateId], references: [id])
   generatedById          String?
-  generatedBy            User?           @relation(fields: [generatedById], references: [id])
+  generatedBy            User?                 @relation(fields: [generatedById], references: [id])
   workflowStepInstanceId String?
   workflowStepInstance   WorkflowStepInstance? @relation(fields: [workflowStepInstanceId], references: [id])
   name                   String
   s3Key                  String?
-  status                 DocumentStatus  @default(PENDING)
+  status                 DocumentStatus        @default(PENDING)
   errorMessage           String?
   contextJson            Json?
-  createdAt              DateTime        @default(now())
-  updatedAt              DateTime        @updatedAt
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
 
   projects        ProjectDocument[]
   clients         ClientDocument[]
@@ -606,7 +614,7 @@ model SigningSession {
   createdBy           User          @relation(fields: [createdById], references: [id])
   status              SigningStatus @default(DRAFT)
   message             String?
-  documentHash        String        // SHA-256 hash of the PDF at session creation
+  documentHash        String // SHA-256 hash of the PDF at session creation
   expiresAt           DateTime
   completedAt         DateTime?
   signedDocumentS3Key String?
@@ -652,8 +660,8 @@ model SigningEvent {
   signingSession   SigningSession @relation(fields: [signingSessionId], references: [id], onDelete: Cascade)
   signatoryId      String?
   signatory        Signatory?     @relation(fields: [signatoryId], references: [id], onDelete: Cascade)
-  eventType        String         // SESSION_CREATED, INVITATION_SENT, DOCUMENT_VIEWED, SIGNATURE_SUBMITTED, SIGNATURE_DECLINED, SESSION_COMPLETED, SESSION_CANCELLED, SESSION_EXPIRED, REMINDER_SENT
-  documentHash     String         // SHA-256 hash of the PDF at event time
+  eventType        String // SESSION_CREATED, INVITATION_SENT, DOCUMENT_VIEWED, SIGNATURE_SUBMITTED, SIGNATURE_DECLINED, SESSION_COMPLETED, SESSION_CANCELLED, SESSION_EXPIRED, REMINDER_SENT
+  documentHash     String // SHA-256 hash of the PDF at event time
   ipAddress        String?
   userAgent        String?
   metadata         Json?
@@ -668,28 +676,28 @@ model SigningEvent {
 // ─── Fleet & Staff ──────────────────────────────────────────────────────────
 
 model Vehicle {
-  id                String    @id @default(cuid())
-  tenantId          String
-  tenant            Tenant    @relation(fields: [tenantId], references: [id])
-  licensePlate      String
-  make              String
-  model             String
-  year              Int?
-  vin               String?
-  fuelType          String?
-  avgKmPerMonth     Int?
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  licensePlate    String
+  make            String
+  model           String
+  year            Int?
+  vin             String?
+  fuelType        String?
+  avgKmPerMonth   Int?
   // Expiry dates
-  itpExpiry         DateTime?
-  insuranceExpiry   DateTime?
-  vignetteExpiry    DateTime?
+  itpExpiry       DateTime?
+  insuranceExpiry DateTime?
+  vignetteExpiry  DateTime?
   // Document S3 keys
-  talonS3Key        String?
-  civS3Key          String?
-  rcaS3Key          String?
-  vignetteS3Key     String?
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  talonS3Key      String?
+  civS3Key        String?
+  rcaS3Key        String?
+  vignetteS3Key   String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   revisions     VehicleRevision[]
   notifications Notification[]
@@ -711,26 +719,26 @@ model VehicleRevision {
 }
 
 model Employee {
-  id           String   @id @default(cuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  firstName    String
-  lastName     String
-  employeeType String   @default("intern") // intern | colaborator
-  position     String?  // instalator, proiectant, rte, diriginte, verificator, sudor
-  phone        String?
-  email        String?
-  credentials  Json?
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  firstName      String
+  lastName       String
+  employeeType   String   @default("intern") // intern | colaborator
+  position       String? // instalator, proiectant, rte, diriginte, verificator, sudor
+  phone          String?
+  email          String?
+  credentials    Json?
   signatureS3Key String?
-  isActive     Boolean  @default(true)
+  isActive       Boolean  @default(true)
   // Contul de aplicație al acestei persoane, când există. Legătura stă aici, nu pe
   // User, pentru că Employee are tenantId obligatoriu (User.tenantId e nullable
   // pentru MASTER_ADMIN), iar colaboratorii fără cont rămân natural userId = null.
   // @unique pe coloană nullable permite oricâte NULL-uri, deci impune 1:1 fără backfill.
-  userId       String?  @unique
-  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  userId         String?  @unique
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   projects        Project[]
   teamAssignments ProjectTeamMember[]
@@ -827,31 +835,31 @@ model City {
 // ─── Workflow Definition Layer ──────────────────────────────────────────────
 
 model WorkflowDefinition {
-  id               String    @id @default(cuid())
-  tenantId         String?
-  tenant           Tenant?   @relation(fields: [tenantId], references: [id])
-  baseDefinitionId String?
-  baseDefinition   WorkflowDefinition?  @relation("WorkflowInheritance", fields: [baseDefinitionId], references: [id])
+  id                 String               @id @default(cuid())
+  tenantId           String?
+  tenant             Tenant?              @relation(fields: [tenantId], references: [id])
+  baseDefinitionId   String?
+  baseDefinition     WorkflowDefinition?  @relation("WorkflowInheritance", fields: [baseDefinitionId], references: [id])
   derivedDefinitions WorkflowDefinition[] @relation("WorkflowInheritance")
-  projectTypeId    String?
-  projectType      ProjectType? @relation(fields: [projectTypeId], references: [id])
-  distributorId    String?
-  distributor      Distributor? @relation(fields: [distributorId], references: [id])
-  role             String    @default("primary") // "primary" (attached to projects) | "secondary" (callable as sub-workflow only)
-  code             String
-  name             String
-  entityType       String    @default("project")
-  version          Int       @default(1)
-  status           String    @default("draft") // draft, published, archived
-  description      String?
-  category         String?   // "general", "document_generation", "approval", etc.
-  isActive         Boolean   @default(true)
-  configJson       Json?
-  publishedAt      DateTime?
-  createdById      String?
-  createdBy        User?     @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  projectTypeId      String?
+  projectType        ProjectType?         @relation(fields: [projectTypeId], references: [id])
+  distributorId      String?
+  distributor        Distributor?         @relation(fields: [distributorId], references: [id])
+  role               String               @default("primary") // "primary" (attached to projects) | "secondary" (callable as sub-workflow only)
+  code               String
+  name               String
+  entityType         String               @default("project")
+  version            Int                  @default(1)
+  status             String               @default("draft") // draft, published, archived
+  description        String?
+  category           String? // "general", "document_generation", "approval", etc.
+  isActive           Boolean              @default(true)
+  configJson         Json?
+  publishedAt        DateTime?
+  createdById        String?
+  createdBy          User?                @relation("WorkflowCreatedBy", fields: [createdById], references: [id])
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   steps             WorkflowStep[]
   transitions       WorkflowTransition[]
@@ -881,8 +889,8 @@ model WorkflowStep {
   orderIndex           Int                @default(0)
   isStart              Boolean            @default(false)
   isTerminal           Boolean            @default(false)
-  joinMode             String?            // null (default), "all" (wait for all spawned siblings), "any" (continue on first)
-  nameTemplate         String?            // e.g. "Depune cerere la {{filing.institution}}" — resolved per-instance at runtime
+  joinMode             String? // null (default), "all" (wait for all spawned siblings), "any" (continue on first)
+  nameTemplate         String? // e.g. "Depune cerere la {{filing.institution}}" — resolved per-instance at runtime
   configJson           Json?
   formSchemaJson       Json?
   validationSchemaJson Json?
@@ -890,8 +898,8 @@ model WorkflowStep {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
-  outgoingTransitions WorkflowTransition[] @relation("TransitionFrom")
-  incomingTransitions WorkflowTransition[] @relation("TransitionTo")
+  outgoingTransitions WorkflowTransition[]   @relation("TransitionFrom")
+  incomingTransitions WorkflowTransition[]   @relation("TransitionTo")
   actions             WorkflowStepAction[]
   stepInstances       WorkflowStepInstance[]
 
@@ -919,8 +927,8 @@ model WorkflowTransition {
   conditionJson        Json?
   configJson           Json?
   spawnMode            String             @default("single") // single (default), foreach (create N instances from array in output)
-  foreachPath          String?            // JSON path to array in step output, e.g. "required_filings"
-  itemContextKey       String?            // key name for each item in spawned step context, e.g. "filing"
+  foreachPath          String? // JSON path to array in step output, e.g. "required_filings"
+  itemContextKey       String? // key name for each item in spawned step context, e.g. "filing"
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
@@ -936,9 +944,9 @@ model WorkflowStepAction {
   tenantId         String?
   stepId           String
   step             WorkflowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  triggerEvent     String       // on_enter, on_complete, on_timeout, on_fail, on_field_change, on_file_upload
-  actionType       String       // create_task, schedule_timer, send_notification, ..., call_api
-  targetFieldKey   String?      // For frontend events: which form field triggers this listener
+  triggerEvent     String // on_enter, on_complete, on_timeout, on_fail, on_field_change, on_file_upload
+  actionType       String // create_task, schedule_timer, send_notification, ..., call_api
+  targetFieldKey   String? // For frontend events: which form field triggers this listener
   actionConfigJson Json?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -952,26 +960,26 @@ model WorkflowStepAction {
 // ─── Workflow Runtime Layer ─────────────────────────────────────────────────
 
 model WorkflowInstance {
-  id                   String             @id @default(cuid())
-  tenantId             String
-  tenant               Tenant             @relation(fields: [tenantId], references: [id])
-  workflowDefinitionId String
-  workflowDefinition   WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id])
-  entityType           String             @default("project")
-  entityId             String
-  project              Project?           @relation(fields: [entityId], references: [id])
-  status               String             @default("running") // running, completed, failed, cancelled
-  currentStepCode      String?
-  contextJson          Json?
-  startedAt            DateTime           @default(now())
-  completedAt          DateTime?
-  parentStepInstanceId     String?        @unique
+  id                       String                @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant                @relation(fields: [tenantId], references: [id])
+  workflowDefinitionId     String
+  workflowDefinition       WorkflowDefinition    @relation(fields: [workflowDefinitionId], references: [id])
+  entityType               String                @default("project")
+  entityId                 String
+  project                  Project?              @relation(fields: [entityId], references: [id])
+  status                   String                @default("running") // running, completed, failed, cancelled
+  currentStepCode          String?
+  contextJson              Json?
+  startedAt                DateTime              @default(now())
+  completedAt              DateTime?
+  parentStepInstanceId     String?               @unique
   parentStepInstance       WorkflowStepInstance? @relation("SubWorkflowParent", fields: [parentStepInstanceId], references: [id])
   parentWorkflowInstanceId String?
   parentWorkflowInstance   WorkflowInstance?     @relation("SubWorkflowParentWf", fields: [parentWorkflowInstanceId], references: [id])
   childWorkflowInstances   WorkflowInstance[]    @relation("SubWorkflowParentWf")
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
 
   stepInstances WorkflowStepInstance[]
   executionLogs WorkflowExecutionLog[]
@@ -992,7 +1000,7 @@ model WorkflowStepInstance {
   tenantId           String
   workflowInstanceId String
   workflowInstance   WorkflowInstance @relation(fields: [workflowInstanceId], references: [id], onDelete: Cascade)
-  stepDefinitionId   String?          // null == ad-hoc step, instance-local (not in the definition graph)
+  stepDefinitionId   String? // null == ad-hoc step, instance-local (not in the definition graph)
   stepDefinition     WorkflowStep?    @relation(fields: [stepDefinitionId], references: [id])
   status             String           @default("pending") // pending, active, waiting, completed, failed, cancelled, skipped, overdue
   availableAt        DateTime?
@@ -1004,19 +1012,19 @@ model WorkflowStepInstance {
   outputJson         Json?
   errorJson          Json?
   retryCount         Int              @default(0)
-  displayName        String?          // resolved name template (e.g. "Depune cerere la ANAF") — null means use stepDefinition.name; for ad-hoc steps this IS the name
-  spawnGroupId       String?          // groups instances created by a foreach transition
-  itemContextJson    Json?            // per-item context data from foreach spawn
+  displayName        String? // resolved name template (e.g. "Depune cerere la ANAF") — null means use stepDefinition.name; for ad-hoc steps this IS the name
+  spawnGroupId       String? // groups instances created by a foreach transition
+  itemContextJson    Json? // per-item context data from foreach spawn
   isAdHoc            Boolean          @default(false) // true == manually-added instance-local step (stepDefinitionId is null)
-  adHocStepType      String?          // for ad-hoc steps; always "human_task" in v1
-  formSchemaJson     Json?            // optional inline form for ad-hoc steps (mirrors WorkflowStep.formSchemaJson)
+  adHocStepType      String? // for ad-hoc steps; always "human_task" in v1
+  formSchemaJson     Json? // optional inline form for ad-hoc steps (mirrors WorkflowStep.formSchemaJson)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
   executionLogs         WorkflowExecutionLog[]
   tasks                 Task[]
   documents             Document[]
-  childWorkflowInstance WorkflowInstance?     @relation("SubWorkflowParent")
+  childWorkflowInstance WorkflowInstance?      @relation("SubWorkflowParent")
 
   @@index([tenantId])
   @@index([tenantId, workflowInstanceId])
@@ -1095,7 +1103,7 @@ model NotificationTemplate {
   tenantId        String
   tenant          Tenant   @relation(fields: [tenantId], references: [id])
   code            String
-  channel         String   // in_app, email, sms, webhook
+  channel         String // in_app, email, sms, webhook
   subjectTemplate String?
   bodyTemplate    String
   isActive        Boolean  @default(true)
@@ -1123,8 +1131,8 @@ model Notification {
   workflowInstance     WorkflowInstance? @relation(fields: [workflowInstanceId], references: [id])
   vehicleId            String?
   vehicle              Vehicle?          @relation(fields: [vehicleId], references: [id])
-  category             String?           // projects, fleet, tasks, system
-  channel              String            // in_app, email, web_push, expo_push
+  category             String? // projects, fleet, tasks, system
+  channel              String // in_app, email, web_push, expo_push
   subject              String?
   body                 String
   status               String            @default("pending") // pending, scheduled, sent, failed, cancelled
@@ -1159,8 +1167,8 @@ model NotificationPreference {
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  category  String   // projects, fleet, tasks, system
-  channel   String   // in_app, email, web_push, expo_push
+  category  String // projects, fleet, tasks, system
+  channel   String // in_app, email, web_push, expo_push
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1195,11 +1203,38 @@ model PushDevice {
   userId     String
   user       User     @relation(fields: [userId], references: [id])
   expoToken  String   @unique
-  platform   String?  // ios | android
+  platform   String? // ios | android
   deviceName String?
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 
+  @@index([tenantId, userId])
+}
+
+/**
+ * A phone that logged into the technician app. `deviceId` is the OS-level
+ * app-scoped identifier (Android ID / iOS IDFV) sent at login; the first login
+ * registers the device automatically, admins can revoke it afterwards.
+ */
+model MobileDevice {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId    String
+  platform    String? // android | ios
+  model       String? // e.g. "Samsung SM-A546B"
+  name        String? // user-visible device name
+  appVersion  String?
+  status      String    @default("active") // active | revoked
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  revokedAt   DateTime?
+  revokedById String?
+  revokedBy   User?     @relation("MobileDeviceRevokedBy", fields: [revokedById], references: [id])
+
+  @@unique([userId, deviceId])
   @@index([tenantId, userId])
 }
 
@@ -1213,19 +1248,19 @@ model PushDevice {
 // can render "Amânat de X" without joining User on every read and surviving
 // user deletions.
 model ActionFeedState {
-  id             String    @id @default(cuid())
-  tenantId       String
-  tenant         Tenant    @relation(fields: [tenantId], references: [id])
-  actionKey      String // == feed item.id (e.g. "fleet-<vehicleId>", "task-<id>")
-  kind           String // revision | fleet | task | project
-  conditionRef   String // snapshot of the underlying condition at action time
-  snoozedUntil   DateTime?
-  dismissedAt    DateTime?
-  reason         String?
-  snoozedById    String?
-  snoozedByName  String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  actionKey     String // == feed item.id (e.g. "fleet-<vehicleId>", "task-<id>")
+  kind          String // revision | fleet | task | project
+  conditionRef  String // snapshot of the underlying condition at action time
+  snoozedUntil  DateTime?
+  dismissedAt   DateTime?
+  reason        String?
+  snoozedById   String?
+  snoozedByName String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@unique([tenantId, actionKey])
   @@index([tenantId])
@@ -1236,17 +1271,17 @@ model ActionFeedState {
 // person who picks up the task can see the full call history ("am sunat la
 // Raja, revin în 3 zile") plus who reactivated it and why.
 model ActionFeedSnoozeNote {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
   actionKey  String
   kind       String
-  eventType  String   @default("snooze") // "snooze" | "unsnooze" | "dismiss"
+  eventType  String    @default("snooze") // "snooze" | "unsnooze" | "dismiss"
   until      DateTime?
   note       String?
   authorId   String
   authorName String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([tenantId, actionKey])
 }
@@ -1257,7 +1292,7 @@ model ScheduledJob {
   id                String    @id @default(cuid())
   tenantId          String
   tenant            Tenant    @relation(fields: [tenantId], references: [id])
-  jobType           String    // activate_step, mark_step_overdue, send_notification, create_followup_project, generate_document, escalate_issue, recalculate_deadline
+  jobType           String // activate_step, mark_step_overdue, send_notification, create_followup_project, generate_document, escalate_issue, recalculate_deadline
   relatedEntityType String?
   relatedEntityId   String?
   runAt             DateTime
@@ -1339,35 +1374,35 @@ model DrawingTemplate {
 // ─── Appointments ──────────────────────────────────────────────────────
 
 model Appointment {
-  id                  String              @id @default(cuid())
+  id                  String             @id @default(cuid())
   tenantId            String
-  tenant              Tenant              @relation(fields: [tenantId], references: [id])
+  tenant              Tenant             @relation(fields: [tenantId], references: [id])
   projectId           String?
-  project             Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project             Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   clientId            String?
-  client              Client?             @relation(fields: [clientId], references: [id])
+  client              Client?            @relation(fields: [clientId], references: [id])
   clientAddressId     String?
-  clientAddress       ClientAddress?      @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
+  clientAddress       ClientAddress?     @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
   employeeId          String?
-  employee            Employee?           @relation(fields: [employeeId], references: [id])
+  employee            Employee?          @relation(fields: [employeeId], references: [id])
   equipmentId         String?
-  equipment           Equipment?          @relation(fields: [equipmentId], references: [id])
-  equipmentRevisionId String?             @unique
-  equipmentRevision   EquipmentRevision?  @relation(fields: [equipmentRevisionId], references: [id])
+  equipment           Equipment?         @relation(fields: [equipmentId], references: [id])
+  equipmentRevisionId String?            @unique
+  equipmentRevision   EquipmentRevision? @relation(fields: [equipmentRevisionId], references: [id])
   installationId      String?
-  installation        GasInstallation?    @relation(fields: [installationId], references: [id])
+  installation        GasInstallation?   @relation(fields: [installationId], references: [id])
   vehicleId           String?
-  vehicle             Vehicle?            @relation(fields: [vehicleId], references: [id])
-  type                String              @default("general") // general, revizie, ridicare_documente, revizie_instalatie, verificare_instalatie, itp, rca
+  vehicle             Vehicle?           @relation(fields: [vehicleId], references: [id])
+  type                String             @default("general") // general, revizie, ridicare_documente, revizie_instalatie, verificare_instalatie, itp, rca
   title               String
   notes               String?
   date                DateTime
   duration            Int?
-  status              String              @default("scheduled") // scheduled, in_progress, awaiting_report, completed, cancelled, rescheduled
+  status              String             @default("scheduled") // scheduled, in_progress, awaiting_report, completed, cancelled, rescheduled
   completionDataJson  Json?
   deletedAt           DateTime?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([tenantId])
   @@index([projectId])
@@ -1421,45 +1456,45 @@ model RegistrySeries {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  entries   RegistryEntry[]
+  entries RegistryEntry[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
 }
 
 model RegistryEntry {
-  id               String         @id @default(cuid())
-  tenantId         String
-  tenant           Tenant         @relation(fields: [tenantId], references: [id])
-  seriesId         String
-  series           RegistrySeries @relation(fields: [seriesId], references: [id])
+  id       String         @id @default(cuid())
+  tenantId String
+  tenant   Tenant         @relation(fields: [tenantId], references: [id])
+  seriesId String
+  series   RegistrySeries @relation(fields: [seriesId], references: [id])
 
-  number           Int
-  year             Int
-  displayNumber    String
+  number        Int
+  year          Int
+  displayNumber String
 
-  subject          String
-  description      String?
-  counterpartName  String?
-  fileS3Key        String?
+  subject         String
+  description     String?
+  counterpartName String?
+  fileS3Key       String?
 
-  documentId       String?
-  document         Document?      @relation(fields: [documentId], references: [id])
-  projectId        String?
-  project          Project?       @relation(fields: [projectId], references: [id])
-  clientId         String?
-  client           Client?        @relation(fields: [clientId], references: [id])
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id])
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id])
+  clientId   String?
+  client     Client?   @relation(fields: [clientId], references: [id])
 
-  status           String         @default("active") // active, voided
-  voidedAt         DateTime?
-  voidedById       String?
-  voidedBy         User?          @relation("RegistryVoider", fields: [voidedById], references: [id])
-  voidReason       String?
+  status     String    @default("active") // active, voided
+  voidedAt   DateTime?
+  voidedById String?
+  voidedBy   User?     @relation("RegistryVoider", fields: [voidedById], references: [id])
+  voidReason String?
 
-  createdAt        DateTime       @default(now())
+  createdAt        DateTime @default(now())
   createdById      String
-  createdBy        User           @relation("RegistryCreator", fields: [createdById], references: [id])
-  isManualOverride Boolean        @default(false)
+  createdBy        User     @relation("RegistryCreator", fields: [createdById], references: [id])
+  isManualOverride Boolean  @default(false)
   overrideReason   String?
 
   @@unique([tenantId, seriesId, year, number])
@@ -1471,18 +1506,18 @@ model RegistryEntry {
 // ─── Email Ingest Logs (reconciliere PDF-uri) ─────────────────────────────
 
 model EmailIngestLog {
-  id                    String    @id @default(cuid())
-  tenantId              String
-  tenant                Tenant    @relation(fields: [tenantId], references: [id])
-  inboxId               String
-  emailMessageId        String
-  emailFrom             String?
-  emailSubject          String?
-  emailDate             DateTime?
-  fileName              String?
-  s3Key                 String?
+  id             String    @id @default(cuid())
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  inboxId        String
+  emailMessageId String
+  emailFrom      String?
+  emailSubject   String?
+  emailDate      DateTime?
+  fileName       String?
+  s3Key          String?
 
-  status                String    @default("pending") // pending, processing, completed, failed, needs_review
+  status String @default("pending") // pending, processing, completed, failed, needs_review
 
   parsedClientName      String?
   parsedClientSurname   String?
@@ -1492,21 +1527,21 @@ model EmailIngestLog {
   parsedEquipmentSerial String?
   parsedData            Json?
 
-  matchedClientId       String?
-  matchedEquipmentId    String?
-  matchedRevisionId     String?
-  matchedAppointmentId  String?
+  matchedClientId      String?
+  matchedEquipmentId   String?
+  matchedRevisionId    String?
+  matchedAppointmentId String?
 
-  resolvedClientId      String?
-  resolvedById          String?
-  resolvedAt            DateTime?
-  resolvedNotes         String?
+  resolvedClientId String?
+  resolvedById     String?
+  resolvedAt       DateTime?
+  resolvedNotes    String?
 
-  errorMessage          String?
-  errorStep             String?
+  errorMessage String?
+  errorStep    String?
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId, status])
   @@index([emailMessageId])

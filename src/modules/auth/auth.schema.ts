@@ -33,10 +33,29 @@ export const registerSchema = z.object({
   lastName: z.string().min(1).max(50),
 });
 
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
+/** Identity of the phone, sent by the mobile app at login (Android ID / iOS IDFV + model). */
+export const mobileDeviceSchema = z.object({
+  deviceId: z.string().min(8).max(128),
+  platform: z.enum(["android", "ios"]).optional(),
+  model: z.string().max(120).optional(),
+  name: z.string().max(120).optional(),
+  appVersion: z.string().max(40).optional(),
 });
+export type MobileDeviceInput = z.infer<typeof mobileDeviceSchema>;
+
+export const loginSchema = z
+  .object({
+    email: z.string().email(),
+    password: z.string(),
+    // Omitted by the web app → "web". The mobile app sends "mobile" + device;
+    // the server then checks User.mobileAccess and registers/validates the device.
+    client: z.enum(["web", "mobile"]).default("web"),
+    device: mobileDeviceSchema.optional(),
+  })
+  .refine((v) => v.client !== "mobile" || !!v.device, {
+    message: "Aplicația mobilă trebuie să trimită identitatea dispozitivului",
+    path: ["device"],
+  });
 
 export const refreshSchema = z.object({
   refreshToken: z.string(),

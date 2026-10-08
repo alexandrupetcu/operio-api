@@ -47,6 +47,7 @@
     "fastify": "^5.0.0",
     "fastify-plugin": "^5.0.0",
     "googleapis": "^171.4.0",
+    "ioredis": "^5.11.1",
     "nodemailer": "^8.0.5",
     "openai": "^6.27.0",
     "pdf-lib": "^1.17.1",
