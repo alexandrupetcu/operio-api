@@ -39,6 +39,7 @@ import adminRoutes from "./modules/admin/admin.routes.js";
 import equipmentRevisionsRoutes from "./modules/equipment-revisions/equipment-revisions.routes.js";
 import signingRoutes from "./modules/signing/signing.routes.js";
 import signingPublicRoutes from "./modules/signing/signing.public.routes.js";
+import contactRoutes from "./modules/public/contact.routes.js";
 import appointmentsRoutes from "./modules/appointments/appointments.routes.js";
 import emailInboxesRoutes from "./modules/email-inboxes/email-inboxes.routes.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
@@ -86,8 +87,9 @@ export async function buildServer() {
   });
 
   // CORS — dev-only patterns (Expo tunneling, ngrok, localhost) are gated by
-  // NODE_ENV. Production only allows the configured FRONTEND_URL.
-  const corsOrigins: (string | RegExp)[] = [env.FRONTEND_URL];
+  // NODE_ENV. Production allows the configured FRONTEND_URL plus the marketing
+  // site (its contact form posts to /api/public/contact).
+  const corsOrigins: (string | RegExp)[] = [env.FRONTEND_URL, "https://operio.ro", "https://www.operio.ro"];
   if (isDev) {
     corsOrigins.push(
       "http://localhost:8081",
@@ -202,6 +204,7 @@ export async function buildServer() {
   await fastify.register(equipmentRevisionsRoutes, { prefix: "/api/clients" });
   await fastify.register(signingRoutes, { prefix: "/api/signing" });
   await fastify.register(signingPublicRoutes, { prefix: "/api/public/sign" });
+  await fastify.register(contactRoutes, { prefix: "/api/public/contact" });
 
   // ── Bull Board (queue monitoring UI) ──
   const serverAdapter = new FastifyAdapter();

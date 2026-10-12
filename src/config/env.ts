@@ -31,6 +31,8 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().default("noreply@operio.app"),
+  // Where demo requests from the marketing site land.
+  CONTACT_EMAIL: z.string().email().default("alexandru.petcu@outlook.com"),
 
   // Gmail OAuth2 (optional — email ingestion)
   GMAIL_CLIENT_ID: z.string().optional(),

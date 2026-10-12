@@ -219,3 +219,33 @@ export async function sendPasswordResetEmail(opts: {
     throw err;
   }
 }
+
+/** Demo request from the marketing site → the founder's inbox, reply-to the lead. */
+export async function sendContactRequest(req: {
+  name: string; company: string; phone: string; email: string; message: string;
+  lang: "ro" | "en"; page?: string; ip?: string; userAgent?: string;
+}): Promise<void> {
+  const t = getTransporter();
+  if (!t) {
+    console.warn("[email] SMTP not configured — contact request NOT delivered:", req);
+    return;
+  }
+  const esc = (v: string) => v.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
+  const rows: Array<[string, string]> = [
+    ["Nume", req.name], ["Firmă", req.company], ["Telefon", req.phone], ["Email", req.email],
+    ["Limba", req.lang], ["Pagina", req.page ?? ""], ["IP", req.ip ?? ""], ["Browser", req.userAgent ?? ""],
+  ];
+  const html = `<h2 style="font-family:sans-serif">Cerere demo Operio</h2>
+<table style="font-family:sans-serif;border-collapse:collapse">${rows.map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#666">${k}</td><td style="padding:4px 0"><b>${esc(v)}</b></td></tr>`).join("")}</table>
+${req.message ? `<p style="font-family:sans-serif;white-space:pre-wrap;border-left:3px solid #F5E60D;padding-left:12px">${esc(req.message)}</p>` : ""}
+<p style="font-family:sans-serif"><a href="https://wa.me/${req.phone.replace(/\D/g, "").replace(/^0/, "40")}">Răspunde pe WhatsApp</a></p>`;
+  await t.sendMail({
+    from: env.SMTP_FROM,
+    to: env.CONTACT_EMAIL,
+    replyTo: `${req.name} <${req.email}>`,
+    subject: `Cerere demo: ${req.company} (${req.name})`,
+    html,
+    text: rows.map(([k, v]) => `${k}: ${v}`).join("\n") + (req.message ? `\n\n${req.message}` : ""),
+  });
+  console.log(`[email] contact request from ${req.email} forwarded to ${env.CONTACT_EMAIL}`);
+}
