@@ -81,7 +81,8 @@ export const createClientSchema = z.discriminatedUnion("type", [
     status: clientStatusSchema.optional(),
     companyName: z.string().min(1).max(200),
     cui: z.string().optional(),
-    phone: z.string().optional(),
+    // Required on create: technicians call clients from the app and documents print it.
+    phone: z.string().trim().min(6, "Telefonul este obligatoriu"),
     email: z.string().email().optional(),
     contactPersons: z.array(contactPersonSchema).optional(),
     equipment: z.array(equipmentSchema).optional(),
@@ -92,7 +93,8 @@ export const createClientSchema = z.discriminatedUnion("type", [
     status: clientStatusSchema.optional(),
     firstName: z.string().min(1).max(100),
     lastName: z.string().min(1).max(100),
-    phone: z.string().optional(),
+    // Required on create: technicians call clients from the app and documents print it.
+    phone: z.string().trim().min(6, "Telefonul este obligatoriu"),
     email: z.string().email().optional(),
     equipment: z.array(equipmentSchema).optional(),
     addresses: z.array(clientAddressSchema).min(1),
