@@ -22,11 +22,18 @@ export const passwordPolicySchema = z
 
 export const registerSchema = z.object({
   tenantName: z.string().min(2).max(100),
+  // Optional: derived from tenantName (and made unique) when omitted.
   tenantSlug: z
     .string()
     .min(2)
     .max(50)
-    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
+    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens")
+    .optional(),
+  // Company details prefilled from ANAF on the register form (all optional).
+  cui: z.string().trim().max(20).optional(),
+  regCom: z.string().trim().max(40).optional(),
+  address: z.string().trim().max(300).optional(),
+  phone: z.string().trim().max(40).optional(),
   email: z.string().email(),
   password: passwordPolicySchema,
   firstName: z.string().min(1).max(50),

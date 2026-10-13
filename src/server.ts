@@ -40,6 +40,7 @@ import equipmentRevisionsRoutes from "./modules/equipment-revisions/equipment-re
 import signingRoutes from "./modules/signing/signing.routes.js";
 import signingPublicRoutes from "./modules/signing/signing.public.routes.js";
 import contactRoutes from "./modules/public/contact.routes.js";
+import publicAnafRoutes from "./modules/public/anaf.routes.js";
 import appointmentsRoutes from "./modules/appointments/appointments.routes.js";
 import emailInboxesRoutes from "./modules/email-inboxes/email-inboxes.routes.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
@@ -205,6 +206,7 @@ export async function buildServer() {
   await fastify.register(signingRoutes, { prefix: "/api/signing" });
   await fastify.register(signingPublicRoutes, { prefix: "/api/public/sign" });
   await fastify.register(contactRoutes, { prefix: "/api/public/contact" });
+  await fastify.register(publicAnafRoutes, { prefix: "/api/public/anaf" });
 
   // ── Bull Board (queue monitoring UI) ──
   const serverAdapter = new FastifyAdapter();

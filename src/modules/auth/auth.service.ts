@@ -108,19 +108,54 @@ function parseExpiry(expiry: string): Date {
   return new Date(Date.now() + value * ms);
 }
 
-export async function register(fastify: FastifyInstance, input: RegisterInput) {
-  const existingTenant = await fastify.prisma.tenant.findUnique({
-    where: { slug: input.tenantSlug },
-  });
-  if (existingTenant) {
-    throw fastify.httpErrors.conflict("Tenant slug already taken");
+/** "Gaz Instal Prahova S.R.L." → "gaz-instal-prahova-srl" */
+function slugify(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50) || "firma";
+}
+
+/** Pick a free slug: the requested/derived one, else with -2, -3, … */
+async function uniqueTenantSlug(fastify: FastifyInstance, base: string): Promise<string> {
+  const taken = new Set(
+    (await fastify.prisma.tenant.findMany({ where: { slug: { startsWith: base } }, select: { slug: true } })).map((t) => t.slug),
+  );
+  if (!taken.has(base)) return base;
+  for (let i = 2; i < 1000; i++) {
+    const candidate = `${base.slice(0, 50 - String(i).length - 1)}-${i}`;
+    if (!taken.has(candidate)) return candidate;
   }
+  throw fastify.httpErrors.conflict("Tenant slug already taken");
+}
+
+export async function register(fastify: FastifyInstance, input: RegisterInput) {
+  const existingUser = await fastify.prisma.user.findFirst({ where: { email: input.email } });
+  if (existingUser) {
+    throw fastify.httpErrors.conflict("Există deja un cont cu acest email");
+  }
+  if (input.tenantSlug) {
+    const existingTenant = await fastify.prisma.tenant.findUnique({ where: { slug: input.tenantSlug } });
+    if (existingTenant) throw fastify.httpErrors.conflict("Tenant slug already taken");
+  }
+  const tenantSlug = input.tenantSlug ?? (await uniqueTenantSlug(fastify, slugify(input.tenantName)));
 
   const passwordHash = await hashPassword(input.password);
 
   const result = await fastify.prisma.$transaction(async (tx) => {
     const tenant = await tx.tenant.create({
-      data: { name: input.tenantName, slug: input.tenantSlug },
+      data: {
+        name: input.tenantName,
+        slug: tenantSlug,
+        cui: input.cui || null,
+        regCom: input.regCom || null,
+        address: input.address || null,
+        phone: input.phone || null,
+        adminName: `${input.firstName} ${input.lastName}`.trim(),
+      },
     });
 
     const user = await tx.user.create({
