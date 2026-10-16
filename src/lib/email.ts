@@ -4,6 +4,9 @@ import { env } from "../config/env.js";
 
 let transporter: Transporter | null = null;
 
+/** Default Reply-To for automated mail: replies to noreply@ land in the firm's real inbox. */
+const replyTo = () => (env.SMTP_REPLY_TO ? { replyTo: env.SMTP_REPLY_TO } : {});
+
 function getTransporter(): Transporter | null {
   if (!env.SMTP_HOST) return null;
   if (!transporter) {
@@ -79,6 +82,7 @@ export async function sendNotificationEmail(opts: {
 
   const info = await t.sendMail({
     from: env.SMTP_FROM,
+    ...replyTo(),
     to: opts.to,
     subject: opts.subject,
     html,
@@ -123,6 +127,7 @@ export async function sendSigningInvitation(opts: {
   try {
     const info = await t.sendMail({
       from: env.SMTP_FROM,
+      ...replyTo(),
       to: opts.to,
       subject: `Semnare document: ${opts.documentName}`,
       html,
@@ -162,6 +167,7 @@ export async function sendSigningComplete(opts: {
   try {
     const info = await t.sendMail({
       from: env.SMTP_FROM,
+      ...replyTo(),
       to: opts.to,
       subject: `Document semnat: ${opts.documentName}`,
       html,
@@ -209,6 +215,7 @@ export async function sendPasswordResetEmail(opts: {
   try {
     const info = await t.sendMail({
       from: env.SMTP_FROM,
+      ...replyTo(),
       to: opts.to,
       subject: "Resetare parolă Operio",
       html,
