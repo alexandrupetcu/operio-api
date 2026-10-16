@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { lookupCui } from "../anaf/anaf.service.js";
+import { matchAnafLocation } from "../anaf/anaf-geo.js";
 
 /**
  * CUI lookup for the registration form (no session yet). Returns only what the
@@ -14,7 +15,9 @@ export default async function publicAnafRoutes(fastify: FastifyInstance) {
       if (digits.length < 2 || digits.length > 10) return reply.badRequest("CUI invalid");
       const data = await lookupCui(digits);
       if (!data) return reply.notFound("Nu am găsit nicio firmă cu acest CUI");
+      const location = await matchAnafLocation(fastify.prisma, data.sediu);
       return {
+        location,
         cui: data.cui,
         name: data.denumire,
         regCom: data.nrRegCom,

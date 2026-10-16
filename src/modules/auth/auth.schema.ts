@@ -34,6 +34,10 @@ export const registerSchema = z.object({
   regCom: z.string().trim().max(40).optional(),
   address: z.string().trim().max(300).optional(),
   phone: z.string().trim().max(40).optional(),
+  // Registered-office location matched against our geography (from the ANAF lookup).
+  countryId: z.number().int().positive().optional(),
+  stateId: z.number().int().positive().optional(),
+  cityId: z.number().int().positive().optional(),
   email: z.string().email(),
   password: passwordPolicySchema,
   firstName: z.string().min(1).max(50),

@@ -143,6 +143,19 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
   }
   const tenantSlug = input.tenantSlug ?? (await uniqueTenantSlug(fastify, slugify(input.tenantName)));
 
+  // Geo ids come from the client; keep only a consistent country → county → city chain that exists.
+  let geo: { countryId?: number; stateId?: number; cityId?: number } = {};
+  if (input.cityId) {
+    const city = await fastify.prisma.city.findUnique({ where: { id: input.cityId }, select: { id: true, stateId: true, countryId: true } });
+    if (city) geo = { countryId: city.countryId, stateId: city.stateId, cityId: city.id };
+  } else if (input.stateId) {
+    const state = await fastify.prisma.state.findUnique({ where: { id: input.stateId }, select: { id: true, countryId: true } });
+    if (state) geo = { countryId: state.countryId, stateId: state.id };
+  } else if (input.countryId) {
+    const country = await fastify.prisma.country.findUnique({ where: { id: input.countryId }, select: { id: true } });
+    if (country) geo = { countryId: country.id };
+  }
+
   const passwordHash = await hashPassword(input.password);
 
   const result = await fastify.prisma.$transaction(async (tx) => {
@@ -155,6 +168,7 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
         address: input.address || null,
         phone: input.phone || null,
         adminName: `${input.firstName} ${input.lastName}`.trim(),
+        ...geo,
       },
     });
 
