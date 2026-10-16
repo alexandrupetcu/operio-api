@@ -14,6 +14,7 @@ export interface AnafCompanyData {
   sediu: {
     strada: string;
     numar: string;
+    detalii: string;
     localitate: string;
     judet: string;
     codJudet: string;
@@ -58,6 +59,7 @@ export async function lookupCui(cui: string): Promise<AnafCompanyData | null> {
     sediu: {
       strada: sediu.sdenumire_Strada ?? "",
       numar: sediu.snumar_Strada ?? "",
+      detalii: sediu.sdetalii_Adresa ?? "",
       localitate: sediu.sdenumire_Localitate ?? "",
       judet: sediu.sdenumire_Judet ?? "",
       codJudet: sediu.scod_Judet ?? "",

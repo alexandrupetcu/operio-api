@@ -63,3 +63,48 @@ export async function matchAnafLocation(
   }
   return result;
 }
+
+/** "ŞOS. BUCUREŞTI NORD" → "Șos. București Nord"; unit tokens (nr./bl./sc./ap.) stay lower-case mid-segment, codes like P3/O11 upper. */
+export function titleCaseRo(v: string): string {
+  let t = v
+    .toLowerCase()
+    .replace(/ş/g, "ș").replace(/ţ/g, "ț")
+    .replace(/\b(nr|bl|sc|et|ap|cam)(?:\.|\s+|(?=\d))\s*(?=[a-z0-9])/g, "$1. ") // "NR.2" → "nr. 2", "BL.P3" → "bl. P3" (not "bld", "etajele")
+    .replace(/(^|[\s.,/(-])([a-zăâîșț])/g, (_, pre, ch) => pre + ch.toUpperCase())
+    .replace(/\b(Nr|Bl|Sc|Et|Ap|Cam)\.(?=\s)/g, (m) => m.toLowerCase())
+    .replace(/\b([a-zA-Z])(\d+)\b/g, (_, l, d) => l.toUpperCase() + d)        // P3, O11
+    .replace(/\s+/g, " ")
+    .trim();
+  // Each comma-separated segment starts with a capital ("Str.", "Parter")
+  return t.split(",").map((seg) => seg.trim().replace(/^([a-zăâîșț])/, (c) => c.toUpperCase())).join(", ");
+}
+
+/**
+ * Street-level address only (no county / locality): "Str. Moțoc nr. 2, Parter, bl. P3, sc. 3, ap. 56".
+ * Works on ANAF's one-line `adresa` (its structured fields drop building details) by removing the
+ * leading county / locality / sector segments.
+ */
+export function streetAddress(adresa: string): string {
+  const segs = adresa.split(",").map((s) => s.trim()).filter(Boolean);
+  const isPlace = (s: string) => {
+    const n = normalizePlace(s);
+    return /^sector \d$/.test(n) || /^(jud\.?|judetul|municipiul|mun\.?|ors\.?|orasul|oras|com\.?|comuna|sat)\b/i.test(s.toLowerCase().replace(/[şș]/g, "s").replace(/[ţț]/g, "t"));
+  };
+  while (segs.length > 1 && isPlace(segs[0])) segs.shift();
+  return titleCaseRo(segs.join(", "));
+}
+
+/**
+ * Romanian CUI check digit (weights 7 5 3 2 1 7 5 3 2 over the leading digits, ×10 mod 11, 10→0).
+ * Catches most typos before we ask ANAF — a truncated/typo'd number can still be *someone else's* valid CUI.
+ */
+export function isValidCui(raw: string): boolean {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 2 || digits.length > 10) return false;
+  const d = digits.split("").map(Number);
+  const weights = [7, 5, 3, 2, 1, 7, 5, 3, 2].slice(-(d.length - 1));
+  const sum = weights.reduce((acc, w, i) => acc + w * d[i], 0);
+  let control = (sum * 10) % 11;
+  if (control === 10) control = 0;
+  return control === d[d.length - 1];
+}
