@@ -141,6 +141,20 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
     const existingTenant = await fastify.prisma.tenant.findUnique({ where: { slug: input.tenantSlug } });
     if (existingTenant) throw fastify.httpErrors.conflict("Tenant slug already taken");
   }
+  // One firm = one tenant. A second account on the same CUI is almost always an
+  // employee who should be invited by the firm's administrator instead.
+  const cuiDigits = input.cui?.replace(/\D/g, "");
+  if (cuiDigits) {
+    const sameFirm = await fastify.prisma.tenant.findFirst({
+      where: { OR: [{ cui: cuiDigits }, { cui: `RO${cuiDigits}` }] },
+      select: { id: true },
+    });
+    if (sameFirm) {
+      throw fastify.httpErrors.conflict(
+        "Există deja un cont Operio pentru această firmă. Cere administratorului firmei să te invite din Setări → Utilizatori sau folosește „Ai uitat parola?”.",
+      );
+    }
+  }
   const tenantSlug = input.tenantSlug ?? (await uniqueTenantSlug(fastify, slugify(input.tenantName)));
 
   // Geo ids come from the client; keep only a consistent country → county → city chain that exists.
@@ -163,7 +177,7 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
       data: {
         name: input.tenantName,
         slug: tenantSlug,
-        cui: input.cui || null,
+        cui: cuiDigits ? `RO${cuiDigits}` : null,
         regCom: input.regCom || null,
         address: input.address || null,
         phone: input.phone || null,

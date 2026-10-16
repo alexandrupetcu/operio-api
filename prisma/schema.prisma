@@ -16,7 +16,7 @@ model Tenant {
   address        String?
   phone          String?
   email          String?
-  cui            String?
+  cui            String?  @unique // one firm = one tenant (NULLs stay distinct)
   regCom         String?
   isVatPayer     Boolean  @default(false)
   adminName      String?
