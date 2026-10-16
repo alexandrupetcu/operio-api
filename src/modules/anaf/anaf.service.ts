@@ -8,6 +8,7 @@ export interface AnafCompanyData {
   telefon: string;
   codPostal: string;
   stare_inregistrare: string;
+  data_inregistrare: string;
   cod_CAEN: string;
   scpTVA: boolean;
   statusInactivi: boolean;
@@ -53,6 +54,7 @@ export async function lookupCui(cui: string): Promise<AnafCompanyData | null> {
     telefon: gen.telefon ?? "",
     codPostal: gen.codPostal ?? "",
     stare_inregistrare: gen.stare_inregistrare ?? "",
+    data_inregistrare: gen.data_inregistrare ?? "",
     cod_CAEN: gen.cod_CAEN ?? "",
     scpTVA: tva.scpTVA === true,
     statusInactivi: inactiv.statusInactivi === true,

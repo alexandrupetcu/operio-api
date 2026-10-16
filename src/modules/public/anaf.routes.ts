@@ -26,7 +26,10 @@ export default async function publicAnafRoutes(fastify: FastifyInstance) {
         fullAddress: data.adresa,
         phone: data.telefon,
         vatPayer: data.scpTVA,
-        inactive: data.statusInactivi,
+        // "Radiat"/inactive firms can't register — the form shows why; the year makes a wrong-but-valid CUI obvious.
+        inactive: data.statusInactivi || /radiat/i.test(data.stare_inregistrare),
+        status: data.stare_inregistrare,
+        registeredYear: data.data_inregistrare ? data.data_inregistrare.slice(0, 4) : null,
       };
     },
   );
