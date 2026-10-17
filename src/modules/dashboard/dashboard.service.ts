@@ -525,7 +525,12 @@ export async function getActionFeed(
       }),
     ]);
 
-  const relTime = (days: number) => (days < 0 ? `ÎNT. ${-days}Z` : days === 0 ? "AZI" : `+${days}Z`);
+  // Stub text for the feed: "123 zile" (overdue — the chip says „Întârziat"),
+  // "azi", "în 3 zile". The UI splits number/unit for the big-number stub.
+  const zile = (n: number) => `${n} ${n === 1 ? "zi" : "zile"}`;
+  const relTime = (days: number) => (days < 0 ? zile(-days) : days === 0 ? "azi" : `în ${zile(days)}`);
+  // One chip vocabulary for every deadline-bearing item.
+  const relTag = (days: number) => (days < 0 ? "Întârziat" : days === 0 ? "Expiră azi" : `Expiră în ${days} z`);
 
   type ActionItem = {
     id: string;
@@ -586,7 +591,7 @@ export async function getActionFeed(
       meta: `Finalizată ${p.completedAt.toLocaleDateString("ro-RO")} · termen ${p.deadline.toLocaleDateString("ro-RO")}${
         p.clientAddress?.address ? ` · ${p.clientAddress.address}` : ""
       }`,
-      tag: overdue ? "Termen depășit" : urgent ? "Urgent" : "De înregistrat",
+      tag: relTag(d),
       tone: overdue ? "danger" : urgent ? "warn" : "yellow",
       action: "Înregistrează",
       actionPrimary: overdue || urgent,
@@ -608,7 +613,7 @@ export async function getActionFeed(
       time: relTime(d),
       title: `${r.clientName} — revizie centrală`,
       meta: [r.equipmentName, r.clientPhone].filter(Boolean).join(" · "),
-      tag: d < 0 ? "EXPIRAT" : d === 0 ? "EXPIRĂ AZI" : "CURÂND",
+      tag: relTag(d),
       tone: d <= w.revisionDangerDays ? "danger" : "warn",
       action: "PROGRAMEAZĂ",
       actionPrimary: true,
@@ -646,7 +651,7 @@ export async function getActionFeed(
       meta: a.noHistory
         ? `${a.make} ${a.model} — adaugă ultima revizie din pagina Flotă`
         : `${a.make} ${a.model}`,
-      tag: a.noHistory ? "LIPSĂ ISTORIC" : d < 0 ? "CRITIC" : "ÎN CURÂND",
+      tag: a.noHistory ? "Lipsă istoric" : relTag(d),
       tone: d < 0 && !a.noHistory ? "danger" : "warn",
       action: isService ? "VEZI FLOTA" : `PROGRAMEAZĂ ${TYPE_LABEL[a.alertType].toUpperCase()}`,
       actionPrimary: !isService && d < 0,
@@ -673,7 +678,7 @@ export async function getActionFeed(
       time: relTime(t.daysRemaining),
       title: t.title,
       meta: t.projectName ?? "",
-      tag: overdue ? "OVERDUE" : urgent ? "URGENT" : "TERMEN",
+      tag: relTag(t.daysRemaining),
       tone: overdue || urgent ? "danger" : "warn",
       action: "DESCHIDE",
       href: t.projectId ? `/projects/${t.projectId}` : null,
@@ -694,7 +699,7 @@ export async function getActionFeed(
       title: p.name,
       meta: [p.projectType?.name, clientName].filter(Boolean).join(" · "),
       status: p.status,
-      tag: "DEADLINE",
+      tag: relTag(d),
       tone: d < 0 ? "danger" : "warn",
       action: "VEZI PROIECT",
       href: `/projects/${p.id}`,
