@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
+import { assertAddressOfClient } from "../../lib/tenant-guard.js";
 import type {
   CreateClientInput,
   UpdateClientInput,
@@ -207,10 +208,14 @@ export async function update(
 
       for (const cp of contactPersons) {
         if (cp.id) {
-          await tx.contactPerson.update({
-            where: { id: cp.id },
+          // updateMany cu clientId în where: un id străin nu atinge rândul altui client
+          const res = await tx.contactPerson.updateMany({
+            where: { id: cp.id, clientId: id },
             data: { firstName: cp.firstName, lastName: cp.lastName, phone: cp.phone, email: cp.email },
           });
+          if (res.count === 0) {
+            throw fastify.httpErrors.badRequest("Persoana de contact nu aparține clientului");
+          }
         } else {
           await tx.contactPerson.create({
             data: { clientId: id, firstName: cp.firstName, lastName: cp.lastName, phone: cp.phone, email: cp.email },
@@ -233,10 +238,13 @@ export async function update(
       for (const addr of addressesWithPrimary) {
         const { id: addrId, ...data } = addr;
         if (addrId) {
-          await tx.clientAddress.update({
-            where: { id: addrId },
+          const res = await tx.clientAddress.updateMany({
+            where: { id: addrId, clientId: id },
             data,
           });
+          if (res.count === 0) {
+            throw fastify.httpErrors.badRequest("Adresa nu aparține clientului");
+          }
         } else {
           await tx.clientAddress.create({
             data: { clientId: id, ...data },
@@ -255,10 +263,21 @@ export async function update(
         where: { clientId: id, id: { notIn: keepIds } },
       });
 
+      // Adresele valide se citesc o singură dată, DUPĂ ce blocul de adrese de mai
+      // sus a creat/șters — altfel o adresă nouă din același payload ar fi respinsă.
+      const ownAddressIds = new Set(
+        (await tx.clientAddress.findMany({ where: { clientId: id }, select: { id: true } })).map((a) => a.id)
+      );
+      for (const eq of equipment) {
+        if (eq.clientAddressId && !ownAddressIds.has(eq.clientAddressId)) {
+          throw fastify.httpErrors.badRequest("Adresa echipamentului nu aparține clientului");
+        }
+      }
+
       for (const eq of equipment) {
         if (eq.id) {
-          await tx.equipment.update({
-            where: { id: eq.id },
+          const res = await tx.equipment.updateMany({
+            where: { id: eq.id, clientId: id },
             data: {
               type: eq.type ?? "CENTRALA",
               internalName: eq.internalName,
@@ -267,6 +286,9 @@ export async function update(
               clientAddressId: eq.clientAddressId ?? null,
             },
           });
+          if (res.count === 0) {
+            throw fastify.httpErrors.badRequest("Echipamentul nu aparține clientului");
+          }
         } else {
           await tx.equipment.create({
             data: {
@@ -408,6 +430,7 @@ export async function addEquipment(
   input: { type?: string; internalName: string; fuel?: string; serial?: string; clientAddressId?: string | null }
 ) {
   await getById(fastify, tenantId, clientId);
+  await assertAddressOfClient(fastify, clientId, input.clientAddressId);
   return fastify.prisma.equipment.create({
     data: {
       clientId,
@@ -435,6 +458,7 @@ export async function updateEquipment(
     where: { id: equipmentId, clientId },
   });
   if (!eq) throw fastify.httpErrors.notFound("Equipment not found");
+  await assertAddressOfClient(fastify, clientId, input.clientAddressId);
   return fastify.prisma.equipment.update({
     where: { id: equipmentId },
     data: {

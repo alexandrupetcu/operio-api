@@ -19,7 +19,8 @@ const createSessionSchema = z.object({
         role: z.string().min(1),
       })
     )
-    .min(1),
+    .min(1)
+    .max(10), // un document are câțiva semnatari, nu o listă de distribuție
 });
 
 async function streamToBuffer(stream: any): Promise<Buffer> {
@@ -152,6 +153,8 @@ export default async function signingRoutes(fastify: FastifyInstance) {
     "/:sessionId/send",
     {
       onRequest: [requireRole("ADMIN", "MANAGER")],
+      // Invitațiile pleacă de pe SMTP-ul Operio — plafon per IP contra abuzului.
+      config: { rateLimit: { max: 30, timeWindow: "1 hour" } },
       handler: async (request) => {
         const session = await fastify.prisma.signingSession.findFirst({
           where: { id: request.params.sessionId, tenantId: request.tenantId },

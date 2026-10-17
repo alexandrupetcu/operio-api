@@ -3,11 +3,12 @@ import { z } from "zod";
 import { Queue } from "bullmq";
 import { requireRole } from "../../lib/rbac.js";
 import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
 import {
   matchOrCreateEquipment,
 } from "../equipment-revisions/revision-matching.js";
 
-const documentQueue = new Queue("document-generation", { connection: redisConnection });
+const documentQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
 
 export default async function emailLogsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);

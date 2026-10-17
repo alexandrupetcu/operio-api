@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
 
-const docQueue = new Queue("document-generation", { connection: redisConnection });
-const workflowQueue = new Queue("workflow-engine", { connection: redisConnection });
+const docQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
+const workflowQueue = new Queue("workflow-engine", { connection: redisConnection, defaultJobOptions });
 
 export async function getQueueStats() {
   const [docCounts, workflowCounts] = await Promise.all([

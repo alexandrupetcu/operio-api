@@ -1,6 +1,7 @@
 import { Worker, Queue } from "bullmq";
 import { PrismaClient } from "@prisma/client";
 import { redisConnection } from "../config/redis.js";
+import { defaultJobOptions } from "../config/queue.js";
 import { uploadFile } from "../lib/s3.js";
 import {
   refreshAccessTokenIfNeeded,
@@ -15,7 +16,7 @@ import {
 } from "../modules/equipment-revisions/revision-matching.js";
 
 const prisma = new PrismaClient();
-const documentQueue = new Queue("document-generation", { connection: redisConnection });
+const documentQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
 
 const POLL_INTERVAL_MS = parseInt(process.env.GMAIL_POLL_INTERVAL_MS ?? "1200000"); // 20 min
 
@@ -317,7 +318,7 @@ async function processEmail(tenantId: string, email: IncomingEmail, inboxId: str
 }
 
 async function main() {
-  const emailQueue = new Queue("email-ingestion", { connection: redisConnection });
+  const emailQueue = new Queue("email-ingestion", { connection: redisConnection, defaultJobOptions });
 
   // Add repeatable job (idempotent — BullMQ deduplicates by repeat key)
   await emailQueue.add(

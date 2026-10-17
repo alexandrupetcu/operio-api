@@ -1,6 +1,7 @@
 import { Worker, Queue, type Job } from "bullmq";
 import { PrismaClient } from "@prisma/client";
 import { redisConnection } from "../config/redis.js";
+import { defaultJobOptions } from "../config/queue.js";
 import { dispatch } from "../modules/notifications/dispatch.js";
 import { getTenantEventMap } from "../modules/notifications/tenant-settings.js";
 import { env } from "../config/env.js";
@@ -201,7 +202,7 @@ async function main() {
     console.warn("[notif-scanner] VAPID keys not set — web push disabled (email + in-app still work).");
   }
 
-  const queue = new Queue(QUEUE_NAME, { connection: redisConnection });
+  const queue = new Queue(QUEUE_NAME, { connection: redisConnection, defaultJobOptions });
   // Idempotent repeatable registration (same jobId replaces the schedule).
   await queue.add(
     "scan",

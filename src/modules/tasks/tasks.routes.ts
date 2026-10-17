@@ -42,13 +42,16 @@ export default async function tasksRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // PATCH / complete: fără requireRole — serviciul lasă ADMIN/MANAGER pe orice
+  // task, iar OPERATOR doar pe task-urile asignate lui.
   fastify.patch<{ Params: { id: string } }>("/:id", async (request) => {
     const body = updateTaskSchema.parse(request.body);
     return tasksService.update(
       fastify,
       request.tenantId,
       request.params.id,
-      body
+      body,
+      { id: request.user.sub, role: request.user.role }
     );
   });
 
@@ -58,7 +61,8 @@ export default async function tasksRoutes(fastify: FastifyInstance) {
       return tasksService.complete(
         fastify,
         request.tenantId,
-        request.params.id
+        request.params.id,
+        { id: request.user.sub, role: request.user.role }
       );
     }
   );

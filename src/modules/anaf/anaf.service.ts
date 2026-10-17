@@ -1,3 +1,8 @@
+/** Serviciul ANAF nu răspunde (mentenanță, HTML în loc de JSON, eroare HTTP). */
+export class AnafUnavailableError extends Error {
+  constructor(message: string) { super(message); this.name = "AnafUnavailableError"; }
+}
+
 const ANAF_URL = "https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva";
 
 export interface AnafCompanyData {
@@ -35,9 +40,16 @@ export async function lookupCui(cui: string): Promise<AnafCompanyData | null> {
     body: JSON.stringify([{ cui: cuiNum, data: today }]),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) throw new AnafUnavailableError(`ANAF HTTP ${res.status}`);
 
-  const data = await res.json();
+  // ANAF răspunde uneori cu o pagină HTML de mentenanță (200 OK) — nu e „CUI inexistent”.
+  const text = await res.text();
+  let data: { found?: any[] };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new AnafUnavailableError("ANAF a răspuns cu conținut non-JSON");
+  }
   if (!data.found || data.found.length === 0) return null;
 
   const record = data.found[0];

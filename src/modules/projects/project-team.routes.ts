@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { requireRole } from "../../lib/rbac.js";
+import { assertEmployeeInTenant } from "../../lib/tenant-guard.js";
 import { z } from "zod";
 
 const upsertSchema = z.object({
@@ -50,6 +51,9 @@ export default async function projectTeamRoutes(fastify: FastifyInstance) {
         where: { id: request.params.id, tenantId: request.tenantId },
       });
       if (!project) throw fastify.httpErrors.notFound("Project not found");
+
+      // Angajatul legat trebuie să fie al firmei (same check as quick-dossier create).
+      await assertEmployeeInTenant(fastify, request.tenantId, body.employeeId);
 
       const credentialsValue = body.credentials === null
         ? Prisma.JsonNull

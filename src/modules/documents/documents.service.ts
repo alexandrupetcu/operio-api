@@ -3,12 +3,11 @@ import type { MultipartFile } from "@fastify/multipart";
 import { Prisma } from "@prisma/client";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
 import { uploadFile, getPresignedUrl, deleteFile } from "../../lib/s3.js";
 import { safeS3Filename } from "../../lib/safe-filename.js";
 
-const documentQueue = new Queue("document-generation", {
-  connection: redisConnection,
-});
+const documentQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
 
 const documentInclude = {
   template: { include: { category: true } },

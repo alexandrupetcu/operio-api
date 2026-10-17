@@ -115,9 +115,12 @@ export default async function vehiclesRoutes(fastify: FastifyInstance) {
       onRequest: [requireRole("ADMIN", "MANAGER")],
       handler: async (request) => {
         await vehiclesService.getById(fastify, request.tenantId, request.params.id);
-        return fastify.prisma.vehicleRevision.delete({
-          where: { id: request.params.revisionId },
+        // vehicleId în where: revizia altui vehicul (sau a altei firme) nu se atinge
+        const res = await fastify.prisma.vehicleRevision.deleteMany({
+          where: { id: request.params.revisionId, vehicleId: request.params.id },
         });
+        if (res.count === 0) throw fastify.httpErrors.notFound("Revision not found");
+        return { success: true };
       },
     }
   );

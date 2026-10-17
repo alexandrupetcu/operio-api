@@ -117,6 +117,16 @@ export const ALERT_WINDOWS = [
     max: 30,
     unit: "zile",
   },
+  {
+    key: "osRegistrationWarningDays",
+    label: "Avertizare înregistrare fișă la OS",
+    description: "Cu câte zile înainte de termenul legal (5 zile lucrătoare de la finalizarea reviziei/verificării, Ord. ANRE 179/2015 art. 9) alerta devine urgentă. Fișele neînregistrate apar în panou de la finalizare.",
+    group: "Fișe ANRE",
+    default: 2,
+    min: 0,
+    max: 10,
+    unit: "zile",
+  },
 ] as const;
 
 export type AlertWindowKey = (typeof ALERT_WINDOWS)[number]["key"];

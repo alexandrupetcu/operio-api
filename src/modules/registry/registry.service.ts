@@ -1,5 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { Prisma, PrismaClient } from "@prisma/client";
+import {
+  assertClientInTenant,
+  assertDocumentInTenant,
+  assertProjectInTenant,
+} from "../../lib/tenant-guard.js";
 import type {
   CreateSeriesInput,
   UpdateSeriesInput,
@@ -243,6 +248,11 @@ export async function createEntry(
   });
   if (!series) throw fastify.httpErrors.notFound("Series not found or inactive");
 
+  // Legăturile opționale din body trebuie să fie ale firmei.
+  await assertDocumentInTenant(fastify, tenantId, input.documentId);
+  await assertProjectInTenant(fastify, tenantId, input.projectId);
+  await assertClientInTenant(fastify, tenantId, input.clientId);
+
   const year = new Date().getFullYear();
 
   // Retry loop: @@unique constraint may conflict under concurrent requests
@@ -312,6 +322,16 @@ export async function allocateEntryForDocument(
     where: { tenantId, code: seriesCode, isActive: true },
   });
   if (!series) return null;
+
+  // Regenerarea unui document (ex. fișa RT cu numărul de la OS) păstrează numărul
+  // deja alocat — un document oficial nu-și schimbă numărul de registratură.
+  if (documentId) {
+    const existing = await prisma.registryEntry.findFirst({
+      where: { tenantId, documentId, seriesId: series.id, status: "active" },
+      orderBy: { createdAt: "asc" },
+    });
+    if (existing) return existing;
+  }
 
   const year = new Date().getFullYear();
 

@@ -1,6 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { requireRole } from "../../lib/rbac.js";
-import { createTemplateSchema, updateTemplateSchema } from "./templates.schema.js";
+import { z } from "zod";
+import { requireRole, requireMasterAdmin } from "../../lib/rbac.js";
+import {
+  createTemplateSchema,
+  updateTemplateSchema,
+  createCategorySchema,
+  updateCategorySchema,
+} from "./templates.schema.js";
 import * as templatesService from "./templates.service.js";
 import { generateTemplateContent } from "./templates.ai.js";
 
@@ -12,7 +18,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
   // List ALL templates (admin view, no tenant filter)
   fastify.get(
     "/admin",
-    { onRequest: [requireRole("ADMIN")] },
+    { onRequest: [requireMasterAdmin()] },
     async (request) => {
       const { category, search, scope, type, page, limit } = request.query as {
         category?: string;
@@ -36,7 +42,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
   // Download template file (presigned URL)
   fastify.get<{ Params: { id: string } }>(
     "/:id/download",
-    { onRequest: [requireRole("ADMIN")] },
+    { onRequest: [requireMasterAdmin()] },
     async (request) => {
       return templatesService.getDownloadUrl(fastify, request.params.id);
     }
@@ -45,7 +51,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
   // Raw DOCX bytes (for the in-app editor — same-origin fetch, avoids S3 CORS)
   fastify.get<{ Params: { id: string } }>(
     "/:id/content",
-    { onRequest: [requireRole("ADMIN")] },
+    { onRequest: [requireMasterAdmin()] },
     async (request, reply) => {
       const { buffer } = await templatesService.getFileContent(fastify, request.params.id);
       reply.header("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
@@ -56,7 +62,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
   // Replace DOCX file on an existing template
   fastify.patch<{ Params: { id: string } }>(
     "/:id/file",
-    { onRequest: [requireRole("ADMIN")] },
+    { onRequest: [requireMasterAdmin()] },
     async (request) => {
       const file = await request.file();
       if (!file) throw fastify.httpErrors.badRequest("File is required");
@@ -69,9 +75,8 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     "/bulk-delete",
     { onRequest: [requireRole("ADMIN")] },
     async (request) => {
-      const { ids } = request.body as { ids: string[] };
-      if (!ids?.length) throw fastify.httpErrors.badRequest("ids required");
-      return templatesService.bulkRemove(fastify, request.tenantId, ids);
+      const { ids } = z.object({ ids: z.array(z.string().min(1)).min(1).max(500) }).parse(request.body);
+      return templatesService.bulkRemove(fastify, request.tenantId, ids, request.user.role);
     }
   );
 
@@ -154,42 +159,36 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // Create category (admin only)
+  // Categories are platform-global (no tenantId) → master admin only.
+
+  // Create category (master admin only)
   fastify.post(
     "/categories",
-    { onRequest: [requireRole("ADMIN")] },
+    { onRequest: [requireMasterAdmin()] },
     async (request, reply) => {
-      const { code, name, description, icon, color } = request.body as {
-        code: string;
-        name: string;
-        description?: string;
-        icon?: string;
-        color?: string;
-      };
-      if (!code || !name) {
-        throw fastify.httpErrors.badRequest("Code and name are required");
-      }
+      const body = createCategorySchema.parse(request.body);
       const category = await fastify.prisma.templateCategory.create({
-        data: { code: code.toUpperCase(), name, description, icon, color },
+        data: {
+          code: body.code.toUpperCase(),
+          name: body.name,
+          description: body.description,
+          icon: body.icon,
+          color: body.color,
+          sortOrder: body.sortOrder,
+          registrySeriesCode: body.registrySeriesCode || null,
+        },
       });
       return reply.status(201).send(category);
     }
   );
 
-  // Update category (admin only)
+  // Update category (master admin only)
   fastify.patch<{ Params: { id: string } }>(
     "/categories/:id",
-    { onRequest: [requireRole("ADMIN")] },
+    { onRequest: [requireMasterAdmin()] },
     async (request) => {
-      const { name, description, icon, color, isActive, sortOrder, registrySeriesCode } = request.body as {
-        name?: string;
-        description?: string;
-        icon?: string;
-        color?: string;
-        isActive?: boolean;
-        sortOrder?: number;
-        registrySeriesCode?: string | null;
-      };
+      const { name, description, icon, color, isActive, sortOrder, registrySeriesCode } =
+        updateCategorySchema.parse(request.body);
       return fastify.prisma.templateCategory.update({
         where: { id: request.params.id },
         data: {
@@ -208,10 +207,10 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Delete category (admin only)
+  // Delete category (master admin only)
   fastify.delete<{ Params: { id: string } }>(
     "/categories/:id",
-    { onRequest: [requireRole("ADMIN")] },
+    { onRequest: [requireMasterAdmin()] },
     async (request) => {
       // Check if any templates use this category
       const category = await fastify.prisma.templateCategory.findUnique({
@@ -327,7 +326,8 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
         fastify,
         request.tenantId,
         request.params.id,
-        body
+        body,
+        request.user.role
       );
     }
   );
@@ -340,7 +340,8 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
       return templatesService.remove(
         fastify,
         request.tenantId,
-        request.params.id
+        request.params.id,
+        request.user.role
       );
     }
   );

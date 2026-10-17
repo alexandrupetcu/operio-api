@@ -1,11 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { requireRole } from "../../lib/rbac.js";
+import { requireMasterAdmin } from "../../lib/rbac.js";
 import * as adminService from "./admin.service.js";
 import emailLogsRoutes from "./email-logs.routes.js";
 
 export default async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
-  fastify.addHook("onRequest", requireRole("ADMIN"));
+  // Vedere peste toți tenanții — strict pentru administratorul platformei.
+  fastify.addHook("onRequest", requireMasterAdmin());
 
   // Queue statistics
   fastify.get("/queue-stats", async () => {

@@ -2,11 +2,13 @@ import { Worker, type Job } from "bullmq";
 import { PrismaClient } from "@prisma/client";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import crypto from "crypto";
-import puppeteer from "puppeteer";
 import { redisConnection } from "../config/redis.js";
 import { getFileStream, uploadFile, ensureBucket } from "../lib/s3.js";
 import { sendSigningComplete } from "../lib/email.js";
 import { extractPdfMarkers } from "../lib/pdf-footer.js";
+import { withPage, closeBrowser } from "../lib/browser.js";
+import { escapeHtml } from "../lib/html-escape.js";
+import { assertTenantKey, isTenantKey } from "../lib/s3-guard.js";
 
 interface SigningCompleteJobData {
   signingSessionId: string;
@@ -26,17 +28,15 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-/** Convert HTML to PDF using Puppeteer (same as document-generation worker) */
+/**
+ * Convert HTML to PDF using the shared hardened browser (lib/browser.ts — same
+ * JS-off / network-blocked / timeout setup as the document-generation worker).
+ */
 async function htmlToPdf(html: string): Promise<Buffer> {
   // Reproduce the per-page header/footer embedded in the saved HTML markers.
   const { body, headerHtml, footerHtml } = extractPdfMarkers(html);
   html = body;
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  try {
-    const page = await browser.newPage();
+  return withPage(async (page) => {
     const styledHtml = `
       <!DOCTYPE html>
       <html>
@@ -85,7 +85,8 @@ async function htmlToPdf(html: string): Promise<Buffer> {
       <body>${html}</body>
       </html>
     `;
-    await page.setContent(styledHtml, { waitUntil: "networkidle0" });
+    // JS is off and only S3 images may load → `load` already covers them.
+    await page.setContent(styledHtml, { waitUntil: "load" });
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
@@ -106,9 +107,7 @@ async function htmlToPdf(html: string): Promise<Buffer> {
           }),
     });
     return Buffer.from(pdf);
-  } finally {
-    await browser.close();
-  }
+  });
 }
 
 /**
@@ -123,12 +122,14 @@ function injectSignaturesIntoHtml(
   let result = html;
 
   for (const sig of signatories) {
+    // Signatory name is user input → escaped; the data URL is built by us but
+    // escaped too (cheap, and keeps the attribute well-formed).
     const sigHtml = [
       `<span style="display:inline-block;text-align:center">`,
-      `<img src="${sig.signatureBase64}" style="height:80px;display:block" />`,
+      `<img src="${escapeHtml(sig.signatureBase64)}" style="height:80px;display:block" />`,
       `<span style="font-size:8px;color:#666">`,
-      `Semnat electronic: ${sig.name}`,
-      sig.signedAt ? ` | ${sig.signedAt.toLocaleDateString("ro-RO")} ${sig.signedAt.toLocaleTimeString("ro-RO")}` : "",
+      `Semnat electronic: ${escapeHtml(sig.name)}`,
+      sig.signedAt ? escapeHtml(` | ${sig.signedAt.toLocaleDateString("ro-RO")} ${sig.signedAt.toLocaleTimeString("ro-RO")}`) : "",
       `</span>`,
       `</span>`,
     ].join("");
@@ -146,8 +147,9 @@ function injectSignaturesIntoHtml(
 async function processJob(job: Job<SigningCompleteJobData>) {
   const { signingSessionId, tenantId } = job.data;
 
-  const session = await prisma.signingSession.findUniqueOrThrow({
-    where: { id: signingSessionId },
+  // Scoped to the job's tenant — the session id alone is not trusted.
+  const session = await prisma.signingSession.findFirstOrThrow({
+    where: { id: signingSessionId, tenantId },
     include: {
       document: true,
       signatories: { orderBy: { signOrder: "asc" } },
@@ -163,6 +165,11 @@ async function processJob(job: Job<SigningCompleteJobData>) {
 
   if (!session.document.s3Key) {
     throw new Error("Document has no S3 file");
+  }
+  // The document itself is not an optional asset — a key outside the tenant's
+  // prefix is a hard failure, not something to render without.
+  if (!isTenantKey(tenantId, session.document.s3Key)) {
+    throw new Error(`Document key ${session.document.s3Key} is outside tenant ${tenantId}`);
   }
 
   // Download original PDF and verify integrity
@@ -191,7 +198,11 @@ async function processJob(job: Job<SigningCompleteJobData>) {
     // Load signature images as base64
     const signatoryData: { name: string; signatureBase64: string; signedAt: Date | null; ipAddress: string | null }[] = [];
     for (const signatory of session.signatories) {
-      if (signatory.signatureS3Key && signatory.status === "SIGNED") {
+      if (
+        signatory.signatureS3Key &&
+        signatory.status === "SIGNED" &&
+        assertTenantKey(tenantId, signatory.signatureS3Key, `signature of ${signatory.id}`)
+      ) {
         const sigStream = await getFileStream(signatory.signatureS3Key);
         if (sigStream) {
           const sigBuffer = await streamToBuffer(sigStream);
@@ -211,7 +222,7 @@ async function processJob(job: Job<SigningCompleteJobData>) {
   } else {
     // Fallback: use original PDF + add signature page with pdf-lib
     console.log("[signing-worker] No saved HTML found, using pdf-lib fallback");
-    signedDocPdfBuffer = await buildFallbackSignedPdf(pdfBuffer, session);
+    signedDocPdfBuffer = await buildFallbackSignedPdf(pdfBuffer, session, tenantId);
   }
 
   // --- Append Audit Trail page with pdf-lib ---
@@ -381,7 +392,8 @@ async function processJob(job: Job<SigningCompleteJobData>) {
 async function buildFallbackSignedPdf(
   pdfBuffer: Buffer,
   session: Awaited<ReturnType<typeof prisma.signingSession.findUniqueOrThrow>>
-    & { signatories: any[]; events: any[]; document: { name: string } }
+    & { signatories: any[]; events: any[]; document: { name: string } },
+  tenantId: string,
 ): Promise<Buffer> {
   const pdfDoc = await PDFDocument.load(pdfBuffer);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -429,7 +441,7 @@ async function buildFallbackSignedPdf(
     });
     y -= 14;
 
-    if (signatory.signatureS3Key) {
+    if (signatory.signatureS3Key && assertTenantKey(tenantId, signatory.signatureS3Key, `signature of ${signatory.id}`)) {
       try {
         const sigStream = await getFileStream(signatory.signatureS3Key);
         if (sigStream) {
@@ -494,6 +506,7 @@ async function main() {
 
   process.on("SIGTERM", async () => {
     await worker.close();
+    await closeBrowser();
     await prisma.$disconnect();
     process.exit(0);
   });

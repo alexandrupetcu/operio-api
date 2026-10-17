@@ -30,13 +30,13 @@ export default async function drawingTemplatesRoutes(fastify: FastifyInstance) {
     return drawingTemplatesService.getById(fastify, request.tenantId, request.params.id);
   });
 
-  // Create template
+  // Create template — tenant ADMIN/MANAGER create tenant rows; global rows are master-only.
   fastify.post("/", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request, reply) => {
       const body = createSchema.parse(request.body);
-      // Only ADMIN/MANAGER can create global templates
-      if (body.isGlobal && !["MASTER_ADMIN", "ADMIN"].includes(request.user.role)) {
-        throw fastify.httpErrors.forbidden("Only admins can create global templates");
+      if (body.isGlobal && request.user.role !== "MASTER_ADMIN") {
+        throw fastify.httpErrors.forbidden("Doar administratorul platformei poate crea șabloane globale");
       }
       const template = await drawingTemplatesService.create(
         fastify,
@@ -47,18 +47,26 @@ export default async function drawingTemplatesRoutes(fastify: FastifyInstance) {
     },
   });
 
-  // Update template
+  // Update template — own tenant rows only (global rows: master admin).
   fastify.patch<{ Params: { id: string } }>("/:id", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request) => {
       const body = updateSchema.parse(request.body);
-      return drawingTemplatesService.update(fastify, request.tenantId, request.params.id, body);
+      return drawingTemplatesService.update(
+        fastify,
+        request.tenantId,
+        request.user.role,
+        request.params.id,
+        body
+      );
     },
   });
 
-  // Delete template
+  // Delete template — own tenant rows only (global rows: master admin).
   fastify.delete<{ Params: { id: string } }>("/:id", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request) => {
-      return drawingTemplatesService.remove(fastify, request.tenantId, request.params.id);
+      return drawingTemplatesService.remove(fastify, request.tenantId, request.user.role, request.params.id);
     },
   });
 }

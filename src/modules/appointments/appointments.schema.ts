@@ -286,3 +286,13 @@ export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 export type FinalizeAppointmentInput = z.infer<typeof finalizeAppointmentSchema>;
 export type ReportData = z.infer<typeof reportDataSchema>;
 export type InstalatieReportData = z.infer<typeof instalatieReportSchema>;
+
+// Înregistrarea Fișei de evidență la operatorul de sistem (nr. primit de la OS).
+// `number: null` șterge o înregistrare introdusă greșit.
+export const osRegistrationSchema = z.object({
+  number: z.string().trim().min(1).max(60).nullable(),
+  registeredAt: z.string().datetime().optional(),
+  /** Implicit se trimite clientului exemplarul cu numărul OS (art. 9 alin. 7). */
+  notifyClient: z.boolean().optional(),
+});
+export type OsRegistrationInput = z.infer<typeof osRegistrationSchema>;

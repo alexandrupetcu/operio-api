@@ -61,6 +61,7 @@ export default async function scheduledJobsRoutes(fastify: FastifyInstance) {
     async (request) => {
       const job = await scheduledJobsService.lock(
         fastify,
+        request.tenantId,
         request.params.id
       );
       return job;

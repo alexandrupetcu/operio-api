@@ -20,6 +20,7 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
   // POST /project/:projectId/start — start workflow for a project
   fastify.post<{ Params: { projectId: string } }>(
     "/project/:projectId/start",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
     async (request, reply) => {
       const body = startWorkflowSchema.parse({
         ...(request.body as object),
@@ -91,10 +92,14 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
 
   // POST /step-instances/:stepInstanceId/complete — complete step
   // Accepts application/json or multipart/form-data (files are uploaded to S3)
+  // Allowed: ADMIN/MANAGER or the user the step is assigned to.
   fastify.post<{ Params: { stepInstanceId: string } }>(
     "/step-instances/:stepInstanceId/complete",
     async (request) => {
       const stepInstanceId = request.params.stepInstanceId;
+      // Early check so an unauthorised caller cannot push files to S3 first
+      // (the service re-checks before completing).
+      await workflowInstancesService.assertStepActor(fastify, request.tenantId, request.user, stepInstanceId);
       const contentType = request.headers["content-type"] ?? "";
       let output: unknown;
 
@@ -160,7 +165,7 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
       return workflowInstancesService.completeStep(
         fastify,
         request.tenantId,
-        request.user.sub,
+        request.user,
         stepInstanceId,
         output
       );
@@ -169,10 +174,12 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
 
   // PATCH /step-instances/:stepInstanceId/output — edit submitted output (data
   // correction, no workflow advancement). Accepts json or multipart (files).
+  // Allowed: ADMIN/MANAGER or the user the step is assigned to.
   fastify.patch<{ Params: { stepInstanceId: string } }>(
     "/step-instances/:stepInstanceId/output",
     async (request) => {
       const stepInstanceId = request.params.stepInstanceId;
+      await workflowInstancesService.assertStepActor(fastify, request.tenantId, request.user, stepInstanceId);
       const contentType = request.headers["content-type"] ?? "";
       let payload: Record<string, unknown> = {};
       const fileRefs: Record<string, { s3Key: string; filename: string; mimetype: string }> = {};
@@ -223,6 +230,7 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
       return workflowInstancesService.updateStepOutput(
         fastify,
         request.tenantId,
+        request.user,
         stepInstanceId,
         payload,
         fileRefs
@@ -239,6 +247,7 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
   // POST /step-instances/:stepInstanceId/fail — fail step
   fastify.post<{ Params: { stepInstanceId: string } }>(
     "/step-instances/:stepInstanceId/fail",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
     async (request) => {
       const body = failStepSchema.parse(request.body);
       return workflowInstancesService.failStep(
@@ -254,6 +263,7 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
   // POST /step-instances/:stepInstanceId/retry — retry a failed step
   fastify.post<{ Params: { stepInstanceId: string } }>(
     "/step-instances/:stepInstanceId/retry",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
     async (request) => {
       await workflowInstancesService.retryStep(
         fastify,
@@ -317,6 +327,7 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
   // POST /:id/cancel — cancel workflow
   fastify.post<{ Params: { id: string } }>(
     "/:id/cancel",
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
     async (request) => {
       return workflowInstancesService.cancel(
         fastify,

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { lookupCui } from "../anaf/anaf.service.js";
+import { lookupCui, AnafUnavailableError } from "../anaf/anaf.service.js";
 import { matchAnafLocation, streetAddress, isValidCui } from "../anaf/anaf-geo.js";
 
 /**
@@ -13,7 +13,13 @@ export default async function publicAnafRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const digits = request.params.cui.replace(/\D/g, "");
       if (!isValidCui(digits)) return reply.badRequest("CUI invalid — verifică cifrele (cifra de control nu corespunde)");
-      const data = await lookupCui(digits);
+      let data: Awaited<ReturnType<typeof lookupCui>>;
+      try {
+        data = await lookupCui(digits);
+      } catch (err) {
+        if (err instanceof AnafUnavailableError) throw fastify.httpErrors.serviceUnavailable("ANAF nu răspunde momentan — completează datele manual și reîncearcă mai târziu");
+        throw err;
+      }
       if (!data) return reply.notFound("Nu am găsit nicio firmă cu acest CUI");
       const location = await matchAnafLocation(fastify.prisma, data.sediu);
       return {

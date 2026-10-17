@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
 import { evaluateCondition } from "./condition-evaluator.js";
 import { calculateDeadlines } from "./deadline-calculator.js";
 import { logEvent } from "./execution-logger.js";
@@ -14,7 +15,7 @@ import { triggerDocumentGeneration } from "./document-trigger.js";
 import { applyStepProjectStatus } from "./project-status-sync.js";
 
 /** Shared BullMQ queue for engine-level delayed jobs (reminders, activations, etc.) */
-const workflowQueue = new Queue("workflow-engine", { connection: redisConnection });
+const workflowQueue = new Queue("workflow-engine", { connection: redisConnection, defaultJobOptions });
 
 /**
  * Schedule the `mark_step_overdue` delayed job for a step instance with a future

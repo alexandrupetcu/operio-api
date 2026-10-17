@@ -4,6 +4,8 @@ import {
   apptVisibilityWhere,
 } from "../appointments/scope.js";
 import { getAlertWindows, type AlertWindows } from "../tenant/alert-settings.js";
+import { listPendingOsRegistrations, clientDisplayName, WORK_LABEL } from "../appointments/os-registration.js";
+import { daysUntil } from "../../lib/working-days.js";
 
 // Warning windows are tenant-configurable (settingsJson.alertWindows); the
 // registry defaults in ../tenant/alert-settings.ts carry the historical values
@@ -509,7 +511,7 @@ export async function getActionFeed(
 
   type ActionItem = {
     id: string;
-    kind: "revision" | "fleet" | "task" | "project";
+    kind: "revision" | "fleet" | "task" | "project" | "os_registration";
     time: string;
     title: string;
     meta: string;
@@ -549,6 +551,35 @@ export async function getActionFeed(
   };
 
   const items: ActionItem[] = [];
+
+  // Fișe de evidență finalizate, neînregistrate încă la operatorul de sistem.
+  // Termen legal: 5 zile lucrătoare de la întocmire (Ord. ANRE 179/2015, art. 9 alin. 6).
+  const pendingOs = await listPendingOsRegistrations(fastify, tenantId);
+  for (const p of pendingOs) {
+    const d = daysUntil(p.deadline, now);
+    const overdue = d < 0;
+    const urgent = d <= w.osRegistrationWarningDays;
+    const os = p.installation?.distributorName || "OS";
+    items.push({
+      id: `os-registration-${p.id}`,
+      kind: "os_registration",
+      time: relTime(d),
+      title: `${clientDisplayName(p.client)} — fișă ${WORK_LABEL[p.type] ?? p.type} de înregistrat la ${os}`,
+      meta: `Finalizată ${p.completedAt.toLocaleDateString("ro-RO")} · termen ${p.deadline.toLocaleDateString("ro-RO")}${
+        p.clientAddress?.address ? ` · ${p.clientAddress.address}` : ""
+      }`,
+      tag: overdue ? "Termen depășit" : urgent ? "Urgent" : "De înregistrat",
+      tone: overdue ? "danger" : urgent ? "warn" : "yellow",
+      action: "Înregistrează",
+      actionPrimary: overdue || urgent,
+      href: p.client ? `/clients/${p.client.id}?tab=inst` : null,
+      phone: p.client?.phone ?? null,
+      priority: overdue ? 0 : urgent ? 1 : 3,
+      conditionRef: p.completedAt.toISOString(),
+      clientId: p.client?.id,
+      clientName: clientDisplayName(p.client),
+    });
+  }
 
   // Revizii care expiră
   for (const r of revisions) {

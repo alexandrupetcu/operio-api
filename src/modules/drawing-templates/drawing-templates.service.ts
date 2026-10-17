@@ -53,17 +53,34 @@ export async function create(
   });
 }
 
+/**
+ * Load a template for mutation. Tenant ADMIN/MANAGER may only touch rows with
+ * `tenantId === tenantId`; global rows (`tenantId: null` / `isGlobal`) are
+ * MASTER_ADMIN only.
+ */
+async function findMutable(fastify: FastifyInstance, tenantId: string, role: string, id: string) {
+  const existing = await fastify.prisma.drawingTemplate.findFirst({
+    where: { id, OR: [{ tenantId }, { isGlobal: true }, { tenantId: null }] },
+  });
+  if (!existing) throw fastify.httpErrors.notFound("Drawing template not found");
+  const isGlobalRow = existing.tenantId === null || existing.isGlobal;
+  if (isGlobalRow && role !== "MASTER_ADMIN") {
+    throw fastify.httpErrors.forbidden("Doar administratorul platformei poate modifica șabloanele globale");
+  }
+  if (!isGlobalRow && existing.tenantId !== tenantId) {
+    throw fastify.httpErrors.notFound("Drawing template not found");
+  }
+  return existing;
+}
+
 export async function update(
   fastify: FastifyInstance,
   tenantId: string,
+  role: string,
   id: string,
   input: UpdateDrawingTemplateInput
 ) {
-  // Ensure the template belongs to this tenant (can't edit global templates unless admin)
-  const existing = await fastify.prisma.drawingTemplate.findFirst({
-    where: { id, OR: [{ tenantId }, { isGlobal: true }] },
-  });
-  if (!existing) throw fastify.httpErrors.notFound("Drawing template not found");
+  await findMutable(fastify, tenantId, role, id);
 
   const data: Prisma.DrawingTemplateUpdateInput = {};
   if (input.name !== undefined) data.name = input.name;
@@ -78,12 +95,9 @@ export async function update(
 export async function remove(
   fastify: FastifyInstance,
   tenantId: string,
+  role: string,
   id: string
 ) {
-  const existing = await fastify.prisma.drawingTemplate.findFirst({
-    where: { id, OR: [{ tenantId }, { isGlobal: true }] },
-  });
-  if (!existing) throw fastify.httpErrors.notFound("Drawing template not found");
-
+  await findMutable(fastify, tenantId, role, id);
   return fastify.prisma.drawingTemplate.delete({ where: { id } });
 }

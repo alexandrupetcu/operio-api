@@ -6,7 +6,9 @@ import {
   finalizeAppointmentSchema,
   calendarQuerySchema,
   overlapQuerySchema,
+  osRegistrationSchema,
 } from "./appointments.schema.js";
+import { setOsRegistration } from "./os-registration.js";
 import * as appointmentsService from "./appointments.service.js";
 import { resolveApptScope, canSeeEmployee } from "./scope.js";
 import { NO_OVERLAP } from "./overlap.js";
@@ -86,12 +88,17 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     async (request) => {
       const body = finalizeAppointmentSchema.parse(request.body);
       const scope = await resolveApptScope(fastify, request);
+      // Retrimiterea aceleiași cereri (cu același Idempotency-Key) întoarce 200 cu
+      // programarea deja finalizată; altfel o a doua finalizare dă 409.
+      const rawKey = request.headers["idempotency-key"];
+      const idempotencyKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       return appointmentsService.finalize(
         fastify,
         request.tenantId,
         request.params.id,
         body,
-        scope
+        scope,
+        idempotencyKey?.trim() || null
       );
     }
   );
@@ -145,6 +152,17 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
         request.params.id
       );
       return reply.status(202).send(result);
+    }
+  );
+
+  // Numărul de înregistrare al Fișei de evidență la OS (Ord. ANRE 179/2015, art. 9).
+  // Trimite automat clientului exemplarul cu numărul, dacă are e-mail.
+  fastify.patch<{ Params: { id: string } }>(
+    "/:id/os-registration",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request) => {
+      const body = osRegistrationSchema.parse(request.body);
+      return setOsRegistration(fastify, request.tenantId, request.params.id, body);
     }
   );
 

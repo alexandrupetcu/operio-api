@@ -3,9 +3,10 @@ import { z } from "zod";
 import crypto from "crypto";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
 import { getFileStream, getPresignedUrl, uploadFile } from "../../lib/s3.js";
 
-const signingCompleteQueue = new Queue("signing-complete", { connection: redisConnection });
+const signingCompleteQueue = new Queue("signing-complete", { connection: redisConnection, defaultJobOptions });
 
 async function streamToBuffer(stream: any): Promise<Buffer> {
   const chunks: Uint8Array[] = [];
@@ -20,11 +21,17 @@ async function computeDocumentHash(s3Key: string): Promise<string> {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
+/** Per-route rate limits (public, token-addressed routes). */
+const READ_RATE_LIMIT = { rateLimit: { max: 60, timeWindow: "1 minute" } };
+const SIGN_RATE_LIMIT = { rateLimit: { max: 10, timeWindow: "1 minute" } };
+
+const VIEW_EVENT_DEDUP_MS = 60 * 60 * 1000;
+
 export default async function signingPublicRoutes(fastify: FastifyInstance) {
   // NO authentication hook — these are public routes
 
   // Get signing page data
-  fastify.get<{ Params: { token: string } }>("/:token", async (request) => {
+  fastify.get<{ Params: { token: string } }>("/:token", { config: READ_RATE_LIMIT }, async (request) => {
     const signatory = await fastify.prisma.signatory.findUnique({
       where: { token: request.params.token },
       include: {
@@ -46,17 +53,25 @@ export default async function signingPublicRoutes(fastify: FastifyInstance) {
 
     const session = signatory.signingSession;
 
-    // Log document viewed event
-    await fastify.prisma.signingEvent.create({
-      data: {
-        signingSessionId: session.id,
-        signatoryId: signatory.id,
-        eventType: "DOCUMENT_VIEWED",
-        documentHash: session.documentHash,
-        ipAddress: request.ip,
-        userAgent: request.headers["user-agent"] || null,
-      },
+    // Log document viewed event — at most once per signatory per hour, so a
+    // reload loop (or a scraper) cannot flood the audit trail.
+    const lastView = await fastify.prisma.signingEvent.findFirst({
+      where: { signatoryId: signatory.id, eventType: "DOCUMENT_VIEWED" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
     });
+    if (!lastView || Date.now() - lastView.createdAt.getTime() > VIEW_EVENT_DEDUP_MS) {
+      await fastify.prisma.signingEvent.create({
+        data: {
+          signingSessionId: session.id,
+          signatoryId: signatory.id,
+          eventType: "DOCUMENT_VIEWED",
+          documentHash: session.documentHash,
+          ipAddress: request.ip,
+          userAgent: request.headers["user-agent"] || null,
+        },
+      });
+    }
 
     // Check session state
     const now = new Date();
@@ -106,7 +121,7 @@ export default async function signingPublicRoutes(fastify: FastifyInstance) {
   });
 
   // Get document preview URL
-  fastify.get<{ Params: { token: string } }>("/:token/document", async (request) => {
+  fastify.get<{ Params: { token: string } }>("/:token/document", { config: READ_RATE_LIMIT }, async (request) => {
     const signatory = await fastify.prisma.signatory.findUnique({
       where: { token: request.params.token },
       include: {
@@ -118,7 +133,19 @@ export default async function signingPublicRoutes(fastify: FastifyInstance) {
 
     if (!signatory) throw fastify.httpErrors.notFound("Invalid signing link");
 
-    const s3Key = signatory.signingSession.document.s3Key;
+    // Only live sessions get a presigned URL.
+    const session = signatory.signingSession;
+    if (session.status === "CANCELLED") {
+      throw fastify.httpErrors.gone("Signing session has been cancelled");
+    }
+    if (session.status === "EXPIRED" || session.expiresAt < new Date()) {
+      throw fastify.httpErrors.gone("Signing session has expired");
+    }
+    if (signatory.status === "DECLINED") {
+      throw fastify.httpErrors.gone("Signing was declined");
+    }
+
+    const s3Key = session.document.s3Key;
     if (!s3Key) throw fastify.httpErrors.notFound("Document file not available");
 
     const url = await getPresignedUrl(s3Key, 1800); // 30 min
@@ -126,7 +153,7 @@ export default async function signingPublicRoutes(fastify: FastifyInstance) {
   });
 
   // Submit signature
-  fastify.post<{ Params: { token: string } }>("/:token/sign", async (request) => {
+  fastify.post<{ Params: { token: string } }>("/:token/sign", { config: SIGN_RATE_LIMIT }, async (request) => {
     const body = z.object({ signatureDataUrl: z.string().min(1) }).parse(request.body);
 
     const signatory = await fastify.prisma.signatory.findUnique({
@@ -218,7 +245,7 @@ export default async function signingPublicRoutes(fastify: FastifyInstance) {
   });
 
   // Decline to sign
-  fastify.post<{ Params: { token: string } }>("/:token/decline", async (request) => {
+  fastify.post<{ Params: { token: string } }>("/:token/decline", { config: SIGN_RATE_LIMIT }, async (request) => {
     const body = z.object({ reason: z.string().optional() }).parse(request.body);
 
     const signatory = await fastify.prisma.signatory.findUnique({

@@ -2,14 +2,16 @@ import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
 import { isTenantEventEnabled } from "../../modules/notifications/tenant-settings.js";
 import { dispatchWorkflowEvent } from "../../modules/notifications/dispatch.js";
+import { safeFetch, truncateForLog } from "../safe-fetch.js";
 
 /** Frontend-only triggers that should not be auto-executed by the engine */
 const FRONTEND_TRIGGERS = new Set(["on_field_change", "on_file_upload"]);
 
 /** Shared BullMQ queue for engine-level delayed jobs */
-const workflowQueue = new Queue("workflow-engine", { connection: redisConnection });
+const workflowQueue = new Queue("workflow-engine", { connection: redisConnection, defaultJobOptions });
 
 interface ActionConfig {
   // create_task
@@ -342,13 +344,14 @@ async function callApi(
   let error: string | null = null;
 
   try {
-    const response = await fetch(url, fetchOptions);
+    // SSRF guard: DNS-resolved public hosts only, 10 s timeout, 1 MB body cap,
+    // redirects re-validated per hop.
+    const response = await safeFetch(url, fetchOptions, { timeoutMs: 10_000 });
     responseStatus = response.status;
-    const text = await response.text();
     try {
-      responseBody = JSON.parse(text);
+      responseBody = JSON.parse(response.body);
     } catch {
-      responseBody = text;
+      responseBody = response.body;
     }
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
@@ -368,6 +371,8 @@ async function callApi(
         method,
         responseStatus,
         durationMs,
+        // Short snippet only (4 KB) — never the full raw body.
+        responseSnippet: truncateForLog(responseBody),
         ...(error ? { error } : {}),
       } as Prisma.InputJsonValue,
     },

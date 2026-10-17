@@ -45,17 +45,23 @@ import appointmentsRoutes from "./modules/appointments/appointments.routes.js";
 import emailInboxesRoutes from "./modules/email-inboxes/email-inboxes.routes.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
 import registryRoutes from "./modules/registry/registry.routes.js";
+import anreReportsRoutes from "./modules/anre-reports/anre-reports.routes.js";
 import { verifySmtp } from "./lib/email.js";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { FastifyAdapter } from "@bull-board/fastify";
 import { Queue } from "bullmq";
 import { redisConnection } from "./config/redis.js";
+import { defaultJobOptions } from "./config/queue.js";
 
 export async function buildServer() {
   const isDev = env.NODE_ENV !== "production";
 
   const fastify = Fastify({
+    // În producție API-ul stă în spatele Caddy (reverse_proxy api:3000): fără
+    // trustProxy, request.ip ar fi IP-ul proxy-ului pentru toată lumea — rate-limit
+    // global comun și IP greșit în jurnalul de audit al semnăturilor.
+    trustProxy: true,
     // Honor an inbound X-Request-Id (from upstream proxy/load-balancer), else
     // generate a UUID. Both the per-request log and the response header
     // carry the same value, so support can correlate user-reported errors
@@ -135,9 +141,11 @@ export async function buildServer() {
 
   // Global error handler — sanitizes Zod errors so the response carries
   // only top-level field names (not the full Zod tree, which leaks
-  // discriminated-union internals + custom error messages). Other errors
-  // pass through Fastify's default handling.
-  fastify.setErrorHandler((err, _request, reply) => {
+  // discriminated-union internals + custom error messages). Known Prisma
+  // errors map to 409/404/400; every other 5xx is logged with the request id
+  // and answered with a generic body (no internal message leaks). 4xx
+  // (httpErrors from @fastify/sensible, validation) pass through unchanged.
+  fastify.setErrorHandler((err, request, reply) => {
     if (err instanceof ZodError) {
       const fields = Array.from(
         new Set(
@@ -155,8 +163,42 @@ export async function buildServer() {
         fields,
       });
     }
-    // Let Fastify's default handler take care of httpErrors + unknown errors.
-    reply.send(err);
+    // Prisma known request errors (duck-typed: `code` P#### + `clientVersion`,
+    // so this block needs no @prisma/client import).
+    const prismaCode =
+      typeof (err as { code?: unknown }).code === "string" &&
+      "clientVersion" in (err as object) &&
+      /^P\d{4}$/.test((err as { code: string }).code)
+        ? (err as { code: string }).code
+        : null;
+    if (prismaCode === "P2002") {
+      return reply.status(409).send({ statusCode: 409, error: "Conflict", message: "Înregistrare duplicată" });
+    }
+    if (prismaCode === "P2025") {
+      return reply.status(404).send({ statusCode: 404, error: "Not Found", message: "Înregistrarea nu există" });
+    }
+    if (prismaCode === "P2003") {
+      return reply.status(400).send({ statusCode: 400, error: "Bad Request", message: "Referință invalidă" });
+    }
+
+    // 4xx (httpErrors, rate-limit, body-parser, ...) keep Fastify's default shape.
+    const rawStatus = (err as { statusCode?: unknown }).statusCode;
+    const statusCode = typeof rawStatus === "number" ? rawStatus : 500;
+    // 4xx și erorile explicite de upstream (502/503/504 ridicate de noi, ex. „ANAF nu răspunde”)
+    // păstrează mesajul; orice altceva e o eroare internă și nu iese din server.
+    const explicitUpstream = [502, 503, 504].includes(statusCode) && /^(BadGateway|ServiceUnavailable|GatewayTimeout)Error$/.test((err as { name?: string }).name ?? "");
+    if ((statusCode >= 400 && statusCode < 500) || explicitUpstream) {
+      return reply.send(err);
+    }
+
+    // 5xx / unknown: log the real error, answer generically.
+    request.log.error({ err, requestId: request.id }, "Unhandled error");
+    return reply.status(500).send({
+      statusCode: 500,
+      error: "Internal Server Error",
+      message: "Eroare internă",
+      requestId: request.id,
+    });
   });
 
   await fastify.register(rateLimit, {
@@ -195,6 +237,7 @@ export async function buildServer() {
   await fastify.register(emailInboxesRoutes, { prefix: "/api/email-inboxes" });
   await fastify.register(dashboardRoutes, { prefix: "/api/dashboard" });
   await fastify.register(registryRoutes, { prefix: "/api/registry" });
+  await fastify.register(anreReportsRoutes, { prefix: "/api/anre-reports" });
   await fastify.register(notificationsRoutes, { prefix: "/api/notifications" });
   await fastify.register(scheduledJobsRoutes, { prefix: "/api/scheduled-jobs" });
   await fastify.register(auditRoutes, { prefix: "/api/audit-logs" });
@@ -212,11 +255,11 @@ export async function buildServer() {
   const serverAdapter = new FastifyAdapter();
   serverAdapter.setBasePath("/admin/queues");
 
-  const docQueue = new Queue("document-generation", { connection: redisConnection });
-  const workflowQueue = new Queue("workflow-engine", { connection: redisConnection });
-  const revisionQueue = new Queue("revision-processing", { connection: redisConnection });
-  const signingQueue = new Queue("signing-complete", { connection: redisConnection });
-  const emailIngestionQueue = new Queue("email-ingestion", { connection: redisConnection });
+  const docQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
+  const workflowQueue = new Queue("workflow-engine", { connection: redisConnection, defaultJobOptions });
+  const revisionQueue = new Queue("revision-processing", { connection: redisConnection, defaultJobOptions });
+  const signingQueue = new Queue("signing-complete", { connection: redisConnection, defaultJobOptions });
+  const emailIngestionQueue = new Queue("email-ingestion", { connection: redisConnection, defaultJobOptions });
 
   createBullBoard({
     queues: [

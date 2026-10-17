@@ -61,11 +61,13 @@ export async function listPending(fastify: FastifyInstance) {
   });
 }
 
-export async function lock(fastify: FastifyInstance, jobId: string) {
-  // Optimistic locking: only update if status is still "pending"
+export async function lock(fastify: FastifyInstance, tenantId: string, jobId: string) {
+  // Optimistic locking: only update if status is still "pending" — and only
+  // within the caller's tenant.
   const result = await fastify.prisma.scheduledJob.updateMany({
     where: {
       id: jobId,
+      tenantId,
       status: "pending",
     },
     data: {
@@ -80,7 +82,7 @@ export async function lock(fastify: FastifyInstance, jobId: string) {
     );
   }
 
-  return fastify.prisma.scheduledJob.findUnique({ where: { id: jobId } });
+  return fastify.prisma.scheduledJob.findFirst({ where: { id: jobId, tenantId } });
 }
 
 export async function complete(

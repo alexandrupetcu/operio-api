@@ -1,3 +1,4 @@
+import { escapeHtml } from "./html-escape.js";
 /**
  * Per-page PDF footer support for the faithful gas-installation documents (RT/PV).
  *
@@ -14,7 +15,7 @@ const FOOTER_MARKER = /<template id="pdf-footer">([\s\S]*?)<\/template>/;
  * is inline here.
  */
 export function buildInstalatieFooterHtml(data: Record<string, string>): string {
-  const g = (k: string) => (data[k] || "").trim();
+  const g = (k: string) => escapeHtml((data[k] || "").trim()); // datele firmei intră în HTML doar escapate
   // Client-form footer layout: page number on top, then the bold-italic
   // company/sediu line, the CUI/reg/tel/email line, and the IBAN line.
   const line1 = [
@@ -82,7 +83,7 @@ export function buildContractHeaderHtml(
   data: Record<string, string>,
   logoDataUrl: string | null,
 ): string {
-  const g = (k: string) => (data[k] || "").trim();
+  const g = (k: string) => escapeHtml((data[k] || "").trim()); // datele firmei intră în HTML doar escapate
   const logo = logoDataUrl
     ? `<img src="${logoDataUrl}" style="height:58px;max-width:150px;object-fit:contain">`
     : "";
@@ -104,7 +105,7 @@ export function buildContractHeaderHtml(
 
 /** Repeating contract footer: "pg. N" + Reg. Comerțului + IBAN lines. */
 export function buildContractFooterHtml(data: Record<string, string>): string {
-  const g = (k: string) => (data[k] || "").trim();
+  const g = (k: string) => escapeHtml((data[k] || "").trim()); // datele firmei intră în HTML doar escapate
   return (
     `<div style="width:100%;padding:0 12mm;text-align:center;font-family:'Times New Roman',serif;color:#000;line-height:1.4">` +
     `<div style="font-size:8.5px">pg. <span class="pageNumber"></span></div>` +

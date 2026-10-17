@@ -2,13 +2,39 @@ import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
 import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateTaskInput, UpdateTaskInput } from "./tasks.schema.js";
+import {
+  assertClientInTenant,
+  assertProjectInTenant,
+  assertUserInTenant,
+  assertWorkflowInstanceInTenant,
+  assertWorkflowStepInstanceInTenant,
+} from "../../lib/tenant-guard.js";
+
+/** Cine face modificarea — din JWT (`sub` + `role`). */
+export type TaskActor = { id: string; role: string };
+
+/**
+ * PATCH și /complete: coordonatorii (ADMIN/MANAGER) pe orice task, ceilalți
+ * doar pe task-urile care le sunt asignate. Task-ul nu reține cine l-a creat,
+ * deci „creatorul” nu poate fi verificat separat.
+ */
+function assertCanModify(
+  fastify: FastifyInstance,
+  actor: TaskActor,
+  task: { assignedUserId: string | null }
+) {
+  if (actor.role === "MASTER_ADMIN" || actor.role === "ADMIN" || actor.role === "MANAGER") return;
+  if (task.assignedUserId && task.assignedUserId === actor.id) return;
+  throw fastify.httpErrors.forbidden("Doar coordonatorii sau persoana asignată pot modifica task-ul");
+}
 
 // Shared BullMQ queue for engine-level jobs (activate_step, mark_step_overdue,
 // send_notification, send_reminder, mark_task_overdue, send_task_reminder)
-const workflowQueue = new Queue("workflow-engine", { connection: redisConnection });
+const workflowQueue = new Queue("workflow-engine", { connection: redisConnection, defaultJobOptions });
 
 // Reminder is fired this many ms before dueAt
 const TASK_REMINDER_LEAD_MS = 24 * 3600 * 1000;
@@ -191,6 +217,13 @@ export async function create(
   tenantId: string,
   input: CreateTaskInput
 ) {
+  // Toate legăturile din body trebuie să fie ale firmei.
+  await assertProjectInTenant(fastify, tenantId, input.projectId);
+  await assertClientInTenant(fastify, tenantId, input.clientId);
+  await assertWorkflowInstanceInTenant(fastify, tenantId, input.workflowInstanceId);
+  await assertWorkflowStepInstanceInTenant(fastify, tenantId, input.workflowStepInstanceId);
+  await assertUserInTenant(fastify, tenantId, input.assignedUserId);
+
   const task = await fastify.prisma.task.create({
     data: {
       tenantId,
@@ -229,12 +262,15 @@ export async function update(
   fastify: FastifyInstance,
   tenantId: string,
   id: string,
-  input: UpdateTaskInput
+  input: UpdateTaskInput,
+  actor: TaskActor
 ) {
   const task = await fastify.prisma.task.findFirst({
     where: { id, tenantId, deletedAt: null },
   });
   if (!task) throw fastify.httpErrors.notFound("Task not found");
+  assertCanModify(fastify, actor, task);
+  await assertUserInTenant(fastify, tenantId, input.assignedUserId);
 
   // Auto-set completedAt when status transitions to "done", unless explicitly provided
   let completedAt: Date | null | undefined = undefined;
@@ -292,12 +328,14 @@ export async function update(
 export async function complete(
   fastify: FastifyInstance,
   tenantId: string,
-  id: string
+  id: string,
+  actor: TaskActor
 ) {
   const task = await fastify.prisma.task.findFirst({
     where: { id, tenantId, deletedAt: null },
   });
   if (!task) throw fastify.httpErrors.notFound("Task not found");
+  assertCanModify(fastify, actor, task);
 
   return fastify.prisma.task.update({
     where: { id },

@@ -2,10 +2,9 @@ import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
 
-const documentQueue = new Queue("document-generation", {
-  connection: redisConnection,
-});
+const documentQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
 
 /**
  * Trigger document generation when a document_generation step is activated.

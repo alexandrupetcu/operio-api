@@ -4,6 +4,10 @@ import { env } from "../config/env.js";
 
 let transporter: Transporter | null = null;
 
+/** Orice valoare venită din date (nume, mesaje, titluri) intră în HTML doar escapată. */
+const escapeHtml = (v: unknown) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
 /** Default Reply-To for automated mail: replies to noreply@ land in the firm's real inbox. */
 const replyTo = () => (env.SMTP_REPLY_TO ? { replyTo: env.SMTP_REPLY_TO } : {});
 
@@ -62,8 +66,8 @@ export async function sendNotificationEmail(opts: {
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
-      <h2 style="color:#1a1a1a;margin-bottom:16px">${opts.subject}</h2>
-      <p style="color:#333;white-space:pre-line">${opts.body}</p>
+      <h2 style="color:#1a1a1a;margin-bottom:16px">${escapeHtml(opts.subject)}</h2>
+      <p style="color:#333;white-space:pre-line">${escapeHtml(opts.body)}</p>
       ${
         opts.url
           ? `<p style="margin-top:20px">
@@ -107,10 +111,10 @@ export async function sendSigningInvitation(opts: {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
       <h2 style="color:#1a1a1a;margin-bottom:16px">Invitație de semnare document</h2>
-      <p>Bună ziua, <strong>${opts.signatoryName}</strong>,</p>
-      <p>Compania <strong>${opts.tenantName}</strong> vă invită să semnați documentul:</p>
-      <p style="background:#f5f5f5;padding:12px;border-radius:6px;font-weight:600">${opts.documentName}</p>
-      ${opts.message ? `<p style="color:#555"><em>${opts.message}</em></p>` : ""}
+      <p>Bună ziua, <strong>${escapeHtml(opts.signatoryName)}</strong>,</p>
+      <p>Compania <strong>${escapeHtml(opts.tenantName)}</strong> vă invită să semnați documentul:</p>
+      <p style="background:#f5f5f5;padding:12px;border-radius:6px;font-weight:600">${escapeHtml(opts.documentName)}</p>
+      ${opts.message ? `<p style="color:#555"><em>${escapeHtml(opts.message)}</em></p>` : ""}
       <p>
         <a href="${opts.signingUrl}"
            style="display:inline-block;background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
@@ -155,11 +159,11 @@ export async function sendSigningComplete(opts: {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
       <h2 style="color:#1a1a1a;margin-bottom:16px">Document semnat cu succes</h2>
-      <p>Bună ziua, <strong>${opts.signatoryName}</strong>,</p>
-      <p>Documentul <strong>${opts.documentName}</strong> a fost semnat de toate părțile.</p>
+      <p>Bună ziua, <strong>${escapeHtml(opts.signatoryName)}</strong>,</p>
+      <p>Documentul <strong>${escapeHtml(opts.documentName)}</strong> a fost semnat de toate părțile.</p>
       ${opts.pdfBuffer ? `<p>Găsiți documentul semnat atașat acestui email.</p>` : ""}
       <p style="color:#888;font-size:12px;margin-top:24px">
-        Acest email a fost trimis automat de ${opts.tenantName}.
+        Acest email a fost trimis automat de ${escapeHtml(opts.tenantName)}.
       </p>
     </div>
   `;
@@ -180,6 +184,56 @@ export async function sendSigningComplete(opts: {
     console.error(`[email] Failed to send completion email to ${opts.to}:`, err);
     throw err;
   }
+}
+
+/**
+ * Exemplarul clientului din Fișa de evidență, completat cu numărul de înregistrare
+ * de la operatorul de sistem — obligația OE de la art. 9 alin. (7) din Ord. ANRE 179/2015
+ * (în max. 2 zile lucrătoare de la înregistrare, inclusiv prin e-mail).
+ */
+export async function sendFisaRegisteredEmail(opts: {
+  to: string;
+  clientName: string;
+  tenantName: string;
+  /** „revizie tehnică” / „verificare tehnică” */
+  workLabel: string;
+  distributorName: string | null;
+  registrationNumber: string;
+  registeredAt: Date;
+  address: string | null;
+  pdf?: { filename: string; buffer: Buffer } | null;
+}): Promise<void> {
+  const t = getTransporter();
+  if (!t) {
+    console.warn("[email] SMTP not configured — skipping OS-registration email to", opts.to);
+    return;
+  }
+  const os = opts.distributorName || "operatorul de distribuție";
+  const dateRo = opts.registeredAt.toLocaleDateString("ro-RO");
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:16px">Fișa de ${escapeHtml(opts.workLabel)} a fost înregistrată</h2>
+      <p>Bună ziua, <strong>${escapeHtml(opts.clientName)}</strong>,</p>
+      <p>Fișa de evidență a lucrărilor de ${escapeHtml(opts.workLabel)} a instalației de utilizare a gazelor naturale${
+        opts.address ? ` de la adresa <strong>${escapeHtml(opts.address)}</strong>` : ""
+      } a fost înregistrată la <strong>${escapeHtml(os)}</strong> cu numărul <strong>${escapeHtml(opts.registrationNumber)}</strong> din ${dateRo}.</p>
+      ${opts.pdf ? `<p>Găsiți atașat exemplarul dumneavoastră. Vă recomandăm să îl păstrați împreună cu documentele instalației.</p>` : ""}
+      <p style="color:#888;font-size:12px;margin-top:24px">
+        Acest email a fost trimis automat de ${escapeHtml(opts.tenantName)}, conform art. 9 alin. (7) din Procedura aprobată prin Ordinul ANRE nr. 179/2015.
+      </p>
+    </div>
+  `;
+  const info = await t.sendMail({
+    from: env.SMTP_FROM,
+    ...replyTo(),
+    to: opts.to,
+    subject: `Fișa de ${opts.workLabel} — înregistrată la ${os} nr. ${opts.registrationNumber}`,
+    html,
+    attachments: opts.pdf
+      ? [{ filename: opts.pdf.filename, content: opts.pdf.buffer, contentType: "application/pdf" }]
+      : undefined,
+  });
+  console.log(`[email] OS-registration email sent to ${opts.to} — messageId: ${info.messageId}`);
 }
 
 export async function sendPasswordResetEmail(opts: {

@@ -6,7 +6,10 @@ import { getFileStream, uploadFile, getPresignedUrl } from "../lib/s3.js";
 import { renderDocx, type ImageRenderOptions } from "../lib/docx-engine.js";
 import PizZip from "pizzip";
 import { ensureBucket } from "../lib/s3.js";
-import puppeteer from "puppeteer";
+import { withPage, closeBrowser } from "../lib/browser.js";
+import { escapeHtml } from "../lib/html-escape.js";
+import { assertTenantKey } from "../lib/s3-guard.js";
+import { sanitizeTemplateInput } from "../lib/template-input.js";
 import { allocateEntryForDocument } from "../modules/registry/registry.service.js";
 import { completeStep, failStep } from "../lib/workflow-engine/step-completion.js";
 import { OPERATIUNI_LABELS, MAT_KINDS, materialClass } from "../modules/appointments/instalatie-constants.js";
@@ -202,7 +205,12 @@ function buildTenantData(tenant: TenantInput) {
   return data;
 }
 
-/** Build contract-specific data from context (services, price, payment method) */
+/**
+ * Build contract-specific data from context (services, price, payment method).
+ * `services` and `modifications` carry HTML built here (table / <br>), so the
+ * user-typed pieces are escaped at this point and the keys are allowlisted in
+ * `renderHtml`.
+ */
 function buildContractData(ctx: ContractContext): Record<string, string> {
   const result: Record<string, string> = {};
 
@@ -214,8 +222,8 @@ function buildContractData(ctx: ContractContext): Record<string, string> {
       .map(
         (s, i) =>
           `<tr><td style="border:1px solid #ccc;padding:6px;text-align:center">${i + 1}</td>` +
-          `<td style="border:1px solid #ccc;padding:6px">${s.name}</td>` +
-          `<td style="border:1px solid #ccc;padding:6px;text-align:center">${s.unit || "-"}</td>` +
+          `<td style="border:1px solid #ccc;padding:6px">${escapeHtml(s.name)}</td>` +
+          `<td style="border:1px solid #ccc;padding:6px;text-align:center">${escapeHtml(s.unit || "-")}</td>` +
           `<td style="border:1px solid #ccc;padding:6px;text-align:right">${s.price != null ? s.price.toLocaleString("ro-RO", { minimumFractionDigits: 2 }) : "-"} RON</td></tr>`
       )
       .join("");
@@ -230,7 +238,7 @@ function buildContractData(ctx: ContractContext): Record<string, string> {
   }
 
   if (ctx.customServices) {
-    parts.push(`<p style="margin:8px 0">${ctx.customServices.replace(/\n/g, "<br>")}</p>`);
+    parts.push(`<p style="margin:8px 0">${escapeHtml(ctx.customServices).replace(/\n/g, "<br>")}</p>`);
   }
 
   result.services = parts.join("");
@@ -247,13 +255,16 @@ function buildContractData(ctx: ContractContext): Record<string, string> {
   result.parent_contract_name = ctx.parentContractName || "";
   result.parent_contract_date = ctx.parentContractDate || "";
   result.addendum_number = ctx.addendumNumber != null ? String(ctx.addendumNumber) : "";
-  result.modifications = ctx.modifications ? ctx.modifications.replace(/\n/g, "<br>") : "";
+  result.modifications = ctx.modifications ? escapeHtml(ctx.modifications).replace(/\n/g, "<br>") : "";
 
   return result;
 }
 
-/** Build template data from appointment completion report (manual ISCIR fields) */
-async function buildAppointmentReportData(report: unknown): Promise<Record<string, string>> {
+/**
+ * Build template data from appointment completion report (manual ISCIR fields).
+ * `tenantId` scopes the client-signature S3 read (key comes from JSON data).
+ */
+async function buildAppointmentReportData(report: unknown, tenantId: string): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   if (!report || typeof report !== "object") return result;
 
@@ -323,8 +334,9 @@ async function buildAppointmentReportData(report: unknown): Promise<Record<strin
     result.verif_draft_type = f.draftType === "fortat" ? "forțat" : f.draftType || "";
     result.verif_draft_value = f.draftValue || "";
     // "Tiraj: ..... natural / forțat ..... (mbar)" — the value fills the dots next to the chosen type.
+    // These `*_fill` keys carry HTML (allowlisted in renderHtml) → escape the value here.
     const draftFill = (type: string) =>
-      f.draftType === type && f.draftValue ? `<span class="f">${f.draftValue}</span>` : ".....";
+      f.draftType === type && f.draftValue ? `<span class="f">${escapeHtml(f.draftValue)}</span>` : ".....";
     result.verif_draft_natural = draftFill("natural");
     result.verif_draft_fortat = draftFill("fortat");
     result.verif_gas_pressure_ramp = f.gasPressureRamp || "";
@@ -335,7 +347,7 @@ async function buildAppointmentReportData(report: unknown): Promise<Record<strin
     result.verif_water_pressure = f.waterPressure || "";
     result.verif_water_temp_flow = f.waterTempFlow || "";
     // "Apă ..... / Apă tur/retur ....." — value in place of the dots when recorded.
-    const dotFill = (v: unknown) => (v ? `<span class="f">${v}</span>` : ".....");
+    const dotFill = (v: unknown) => (v ? `<span class="f">${escapeHtml(v)}</span>` : ".....");
     result.verif_water_pressure_fill = dotFill(f.waterPressure);
     result.verif_water_temp_flow_fill = dotFill(f.waterTempFlow);
     result.verif_comfort_limits = f.comfortLimits || "";
@@ -353,10 +365,11 @@ async function buildAppointmentReportData(report: unknown): Promise<Record<strin
     result.observations = c.observations || "";
   }
 
-  // Client signature from S3
-  if (r.clientSignature?.signatureS3Key) {
+  // Client signature from S3 (key from JSON → must live under the job's tenant)
+  const reportSigKey = r.clientSignature?.signatureS3Key;
+  if (reportSigKey && assertTenantKey(tenantId, reportSigKey, "report client signature")) {
     try {
-      const stream = await getFileStream(r.clientSignature.signatureS3Key);
+      const stream = await getFileStream(reportSigKey);
       const chunks: Uint8Array[] = [];
       for await (const chunk of stream as AsyncIterable<Uint8Array>) {
         chunks.push(chunk);
@@ -464,16 +477,18 @@ export async function buildInstalatieReportData(
   reportRaw: unknown,
   installation: Record<string, any> | null,
   instalator: Record<string, any> | null,
+  // Scopes the client-signature S3 read; without it the signature is not loaded.
+  tenantId?: string | null,
 ): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   if (!reportRaw || typeof reportRaw !== "object") return out;
   const r = reportRaw as Record<string, any>;
   const X = (b: unknown) => (b ? "X" : " ");
   const s = (v: unknown) => (v == null ? "" : String(v));
-  // Operator-typed values (material, supplier, certificate) go straight into the
-  // rendered HTML — escape them so a stray "<" can't break a table.
-  const esc = (v: unknown) =>
-    s(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+  // Plain keys are escaped by `renderHtml`; the `*_table` / `*_scale_*` /
+  // proba-grid fragments built HERE are allowlisted as raw HTML, so every
+  // operator-typed value spliced into them must be escaped at this point.
+  const esc = (v: unknown) => escapeHtml(s(v));
   const cell = (v: string, align = "left") =>
     `<td style="border:1px solid #ccc;padding:5px;text-align:${align}">${v}</td>`;
 
@@ -520,8 +535,8 @@ export async function buildInstalatieReportData(
     out.inst_aparate_table = apps
       .map((a: any, i: number) =>
         `<tr>${cell(String(i + 1), "center")}` +
-        cell(`${a.count ? a.count + " x " : ""}${s(a.kind)}${a.name ? " — " + s(a.name) : ""}`) +
-        `${cell(s(a.debit), "center")}</tr>`
+        cell(`${a.count ? esc(a.count) + " x " : ""}${esc(a.kind)}${a.name ? " — " + esc(a.name) : ""}`) +
+        `${cell(esc(a.debit), "center")}</tr>`
       )
       .join("");
 
@@ -535,8 +550,8 @@ export async function buildInstalatieReportData(
     const dualRows: string[] = [];
     for (let i = 0; i < nDual; i++) {
       const a = apps[i];
-      const tip = a ? `<span class="f">${a.count ? a.count + " x " : ""}${s(a.kind)}</span>` : "";
-      const deb = a ? `<span class="f">${s(a.debit)}</span>` : "";
+      const tip = a ? `<span class="f">${a.count ? esc(a.count) + " x " : ""}${esc(a.kind)}</span>` : "";
+      const deb = a ? `<span class="f">${esc(a.debit)}</span>` : "";
       dualRows.push(
         `<tr><td></td><td></td><td></td><td></td><td class="c">${tip}</td><td class="c">${deb}</td><td></td><td></td></tr>`
       );
@@ -561,12 +576,12 @@ export async function buildInstalatieReportData(
     for (let i = 0; i < Math.max(3, apps.length); i++) {
       const a = apps[i];
       const den = a
-        ? `<span class="f">${a.count ? a.count + " x " : ""}${esc(a.name || s(a.kind))}</span>`
+        ? `<span class="f">${a.count ? esc(a.count) + " x " : ""}${esc(a.name || s(a.kind))}</span>`
         : "";
-      const unit = a ? `<span class="f">${s(a.debit)}</span>` : "";
-      const buc = a ? `<span class="f">${s(a.count ?? 1)}</span>` : "";
+      const unit = a ? `<span class="f">${esc(a.debit)}</span>` : "";
+      const buc = a ? `<span class="f">${esc(a.count ?? 1)}</span>` : "";
       const totNum = a ? Number(String(a.debit ?? "").replace(",", ".")) * (Number(a.count) || 1) : NaN;
-      const tot = a ? `<span class="f">${Number.isFinite(totNum) ? String(totNum) : s(a.debit)}</span>` : "";
+      const tot = a ? `<span class="f">${Number.isFinite(totNum) ? String(totNum) : esc(a.debit)}</span>` : "";
       pcRows.push(
         `<tr><td class="c b">${a ? i + 1 : "&nbsp;"}</td><td>${den}</td><td></td><td class="c">${unit}</td><td class="c">${buc}</td><td class="c">${tot}</td><td></td></tr>`
       );
@@ -634,7 +649,7 @@ export async function buildInstalatieReportData(
   };
 
   const proba = (p: any, prefix: string) => {
-    out[`${prefix}_material`] = esc(probeMaterial(p));
+    out[`${prefix}_material`] = probeMaterial(p); // plain key — escaped by renderHtml
     out[`${prefix}_amplasare`] = s(p?.amplasare);
     out[`${prefix}_regim`] = s(p?.regim);
     out[`${prefix}_presiune`] = probaBar(p);
@@ -673,7 +688,8 @@ export async function buildInstalatieReportData(
     const col = colOf(probeMaterial(p), p.amplasare);
     const reg = String(p.regim ?? "").toLowerCase();
     if (col && (PROBA_REGIMS as readonly string[]).includes(reg)) {
-      out[`${prefix}_${col}_${reg}`] = `<span class="f">${probaBar(p)}</span>`;
+      // Raw-HTML key (proba grid allowlist in renderHtml) → escape the value.
+      out[`${prefix}_${col}_${reg}`] = `<span class="f">${esc(probaBar(p))}</span>`;
     }
     if (col) {
       out[`${prefix}_${col}_admis`] = X(p.admis === true);
@@ -689,7 +705,7 @@ export async function buildInstalatieReportData(
   while (defRows.length < 2) defRows.push({});
   out.defecte_table = defRows
     .map((d: any, i: number) =>
-      `<tr style="height:28px">${cell(String(i + 1) + ".", "center")}${cell(s(d.descriere) || "&nbsp;")}${cell(s(d.remediere) || "&nbsp;")}` +
+      `<tr style="height:28px">${cell(String(i + 1) + ".", "center")}${cell(esc(d.descriere) || "&nbsp;")}${cell(esc(d.remediere) || "&nbsp;")}` +
       `${cell(X(d.remediat === true), "center")}${cell(X(d.remediat === false), "center")}</tr>`
     )
     .join("");
@@ -718,9 +734,9 @@ export async function buildInstalatieReportData(
     const debit = s(d.debit) || (a ? a.debit : "");
     t7Rows.push(
       `<tr style="height:24px">${cell(aparat || debit ? String(i + 1) : "&nbsp;", "center")}` +
-      `${fcell(aparat, "left")}${fcell(debit)}` +
-      `${fcell(s(d.curatareNr))}${fcell(s(d.curatareData))}` +
-      `${fcell(s(d.verificareNr))}${fcell(s(d.verificareData))}</tr>`
+      `${fcell(esc(aparat), "left")}${fcell(esc(debit))}` +
+      `${fcell(esc(d.curatareNr))}${fcell(esc(d.curatareData))}` +
+      `${fcell(esc(d.verificareNr))}${fcell(esc(d.verificareData))}</tr>`
     );
   }
   out.documente_aparate_table = t7Rows.join("");
@@ -808,9 +824,9 @@ export async function buildInstalatieReportData(
   const rezultatTxt = verdicts.length === 0 ? "" : verdicts.every(Boolean) ? "ADMIS" : "RESPINS";
   // Pipe material comes from the PV positions (see probeMaterial above); several
   // materials in the same report are printed together.
-  const pipeMaterial = esc(
-    pipeMaterials.join(" + ") || s(r.probaRezistenta?.material ?? r.probaEtanseitate?.material),
-  );
+  // Plain `pv_*_material` keys — escaped by renderHtml, not here.
+  const pipeMaterial =
+    pipeMaterials.join(" + ") || s(r.probaRezistenta?.material ?? r.probaEtanseitate?.material);
   for (const key of ["sup", "sub"]) {
     const active = (key === "sup") === (loc !== "subteran"); // default to supraterană
     out[`pv_${key}_material`] = active ? pipeMaterial : "";
@@ -855,9 +871,9 @@ export async function buildInstalatieReportData(
   out.notif_ultima_revizie = roDate(r.notifUltimaRevizie);
   out.notif_scadenta = roDate(r.notifScadenta) || roDate(r.nextDate);
 
-  // ── Client signature (from stored report S3 key) ──
+  // ── Client signature (from stored report S3 key — must belong to the tenant) ──
   const sigKey = r.clientSignature?.signatureS3Key;
-  if (sigKey) {
+  if (sigKey && tenantId && assertTenantKey(tenantId, sigKey, "report client signature")) {
     try {
       const stream = await getFileStream(sigKey);
       if (stream) {
@@ -873,10 +889,11 @@ export async function buildInstalatieReportData(
 }
 
 /** Build dot-notation data for HTML templates (e.g. client.fullName, tenant.address) */
-async function buildHtmlTemplateData(
+export async function buildHtmlTemplateData(
   client: ClientInput | null,
   tenant: TenantInput,
   documentId: string,
+  tenantId: string,
 ): Promise<Record<string, string>> {
   const data: Record<string, string> = {
     // Document
@@ -923,8 +940,11 @@ async function buildHtmlTemplateData(
   };
 
   // Company logo for the HTML path (DOCX path handles it separately in buildTenantData).
-  if (tenant.logoS3Key) {
-    const logoUrl = await getPresignedUrl(tenant.logoS3Key);
+  // Presigned URLs are http(s) → the puppeteer request allowlist (lib/browser.ts)
+  // lets IMAGE requests through to the S3 host only. Every key is checked
+  // against the tenant prefix; a foreign key is skipped, not fatal.
+  if (tenant.logoS3Key && assertTenantKey(tenantId, tenant.logoS3Key, "tenant logo")) {
+    const logoUrl = escapeHtml(await getPresignedUrl(tenant.logoS3Key));
     data["tenant_logo"] = `<img src="${logoUrl}" alt="Logo" style="max-height:60px;max-width:180px;object-fit:contain">`;
   }
 
@@ -932,13 +952,15 @@ async function buildHtmlTemplateData(
   let stampUrl: string | null = null;
   let signatureUrl: string | null = null;
 
-  if (tenant.stampS3Key) {
-    stampUrl = await getPresignedUrl(tenant.stampS3Key);
-    data["tenant.stampUrl"] = stampUrl;
+  // `tenant.stampUrl` / `tenant.signatureUrl` stay RAW in data (renderHtml
+  // escapes them); the local copies are pre-escaped for the <img> fragments.
+  if (tenant.stampS3Key && assertTenantKey(tenantId, tenant.stampS3Key, "tenant stamp")) {
+    data["tenant.stampUrl"] = await getPresignedUrl(tenant.stampS3Key);
+    stampUrl = escapeHtml(data["tenant.stampUrl"]);
   }
-  if (tenant.signatureS3Key) {
-    signatureUrl = await getPresignedUrl(tenant.signatureS3Key);
-    data["tenant.signatureUrl"] = signatureUrl;
+  if (tenant.signatureS3Key && assertTenantKey(tenantId, tenant.signatureS3Key, "tenant signature")) {
+    data["tenant.signatureUrl"] = await getPresignedUrl(tenant.signatureS3Key);
+    signatureUrl = escapeHtml(data["tenant.signatureUrl"]);
   }
 
   // Compose stamp & signature: signature centered on top of stamp, slightly right.
@@ -961,8 +983,9 @@ async function buildHtmlTemplateData(
   // Stamp slots 2-4 → overlaid ink for the HTML render path.
   for (const s of resolveStampSlots(tenant)) {
     if (s.slot === 1 || !s.s3Key) continue;
-    const url = await getPresignedUrl(s.s3Key);
-    data[stampVarName(s.slot)] = inkOverlay(`<img src="${url}" alt="${s.label}" style="height:100px">`);
+    if (!assertTenantKey(tenantId, s.s3Key, `tenant stamp slot ${s.slot}`)) continue;
+    const url = escapeHtml(await getPresignedUrl(s.s3Key));
+    data[stampVarName(s.slot)] = inkOverlay(`<img src="${url}" alt="${escapeHtml(s.label)}" style="height:100px">`);
   }
 
   // Client signature placeholder — will be replaced at signing time
@@ -1029,25 +1052,64 @@ function inkOverlay(inner: string): string {
   );
 }
 
-/** Substitute {{variable}} placeholders in HTML content */
-function renderHtml(html: string, data: Record<string, string>): string {
+/**
+ * Template keys whose values are HTML BUILT BY THIS WORKER (tables, precomputed
+ * cells, <img> stamps/signatures, ink overlays). Everything else substituted by
+ * `renderHtml` is treated as text and HTML-escaped.
+ *
+ * Any user-typed text that ends up inside one of these fragments is escaped at
+ * the point where the fragment is built (see `esc` in the builders).
+ */
+const RAW_HTML_KEYS = new Set<string>([
+  // images / overlays (buildHtmlTemplateData, client signature embeds)
+  "tenant_logo",
+  "tenant_signature",
+  ...STAMP_VARS,
+  "client_signature",
+  // buildContractData — services table + <br>-joined text
+  "services",
+  "modifications",
+  // buildAppointmentReportData — "<span class=f>" dot fills
+  "verif_draft_natural",
+  "verif_draft_fortat",
+  "verif_water_pressure_fill",
+  "verif_water_temp_flow_fill",
+]);
+const RAW_HTML_KEY_PATTERNS: RegExp[] = [
+  /_table$/, // *_table fragments (buildInstalatieReportData, …)
+  /_html$/, // convention for future precomputed fragments
+  /^apreciere_scale_i\d+$/, // 1..10 scale <td> runs
+  /^proba_(rez|et)_(ol_sub|ol_supra|pe100_sub|pe80_sub)_(medie|redusa|joasa)$/, // Tabel 4 grid cells
+];
+
+/** True when `{{key}}` is allowed to inject raw HTML. Exported for tests. */
+export function isRawHtmlKey(key: string): boolean {
+  return RAW_HTML_KEYS.has(key) || RAW_HTML_KEY_PATTERNS.some((re) => re.test(key));
+}
+
+/**
+ * Substitute {{variable}} placeholders in HTML content. Values are HTML-escaped
+ * unless the key is on the raw-HTML allowlist (`isRawHtmlKey`); a missing key
+ * renders as "" (unchanged behaviour).
+ */
+export function renderHtml(html: string, data: Record<string, string>): string {
   return html.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
     const trimmed = key.trim();
-    return data[trimmed] ?? "";
+    const value = data[trimmed];
+    if (value == null) return "";
+    return isRawHtmlKey(trimmed) ? value : escapeHtml(value);
   });
 }
 
-/** Convert HTML to PDF using puppeteer */
-async function htmlToPdf(html: string): Promise<Buffer> {
+/**
+ * Convert HTML to PDF using the shared hardened browser (lib/browser.ts: JS
+ * off, network blocked except S3 images, 30 s timeouts, page closed per job).
+ */
+export async function htmlToPdf(html: string): Promise<Buffer> {
   // `<template id="pdf-header/pdf-footer">` markers → per-page puppeteer bands.
   const { body, headerHtml, footerHtml } = extractPdfMarkers(html);
   html = body;
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  try {
-    const page = await browser.newPage();
+  return withPage(async (page) => {
     const styledHtml = `
       <!DOCTYPE html>
       <html>
@@ -1106,7 +1168,9 @@ async function htmlToPdf(html: string): Promise<Buffer> {
       <body>${html}</body>
       </html>
     `;
-    await page.setContent(styledHtml, { waitUntil: "networkidle0" });
+    // With JS off and requests intercepted, `load` already waits for the
+    // (allowed) S3 images — no idle-network heuristic needed.
+    await page.setContent(styledHtml, { waitUntil: "load" });
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
@@ -1127,13 +1191,16 @@ async function htmlToPdf(html: string): Promise<Buffer> {
           }),
     });
     return Buffer.from(pdf);
-  } finally {
-    await browser.close();
-  }
+  });
 }
 
 async function processJob(job: Job<DocumentJobData>) {
   const { documentId, tenantId, projectId, clientId, templateId } = job.data;
+
+  // Every by-id lookup below is scoped to the job's tenant — the ids come from
+  // queue data, never trust them alone.
+  const owned = await prisma.document.findFirst({ where: { id: documentId, tenantId }, select: { id: true } });
+  if (!owned) throw new Error(`Document ${documentId} not found for tenant ${tenantId}`);
 
   const documentRecord = await prisma.document.update({
     where: { id: documentId },
@@ -1141,8 +1208,9 @@ async function processJob(job: Job<DocumentJobData>) {
   });
 
   try {
-    const template = await prisma.documentTemplate.findUniqueOrThrow({
-      where: { id: templateId },
+    // Templates are either the tenant's own or system/master ones (tenantId null).
+    const template = await prisma.documentTemplate.findFirstOrThrow({
+      where: { id: templateId, OR: [{ tenantId }, { tenantId: null }] },
     });
 
     const isHtmlTemplate = !!template.content && !template.s3Key;
@@ -1171,8 +1239,8 @@ async function processJob(job: Job<DocumentJobData>) {
 
     if (projectId) {
       // === Project document flow ===
-      const project = await prisma.project.findUniqueOrThrow({
-        where: { id: projectId },
+      const project = await prisma.project.findFirstOrThrow({
+        where: { id: projectId, tenantId },
         include: {
           client: {
             include: {
@@ -1195,7 +1263,9 @@ async function processJob(job: Job<DocumentJobData>) {
 
       clientRecord = project.client;
       Object.assign(data, buildClientData(project.client));
-      const meta = (project.metadata as Record<string, unknown>) || {};
+      // User JSON: reserved keys (tenant_*, *_signature, registry nr…) and
+      // `{s3Key}` image refs are stripped before it reaches the template data.
+      const meta = sanitizeTemplateInput(project.metadata);
       Object.assign(data, {
         project_name: project.name,
         project_type: project.projectType.name,
@@ -1292,8 +1362,9 @@ async function processJob(job: Job<DocumentJobData>) {
 
       if (workflowInstance) {
         for (const step of workflowInstance.stepInstances) {
-          const output = step.outputJson as Record<string, unknown> | null;
-          if (!output) continue;
+          if (!step.outputJson) continue;
+          // Step outputs are user-submitted JSON → same sanitizing as metadata.
+          const output = sanitizeTemplateInput(step.outputJson);
           for (const [key, value] of Object.entries(output)) {
             if (step.stepDefinition) {
               data[`${step.stepDefinition.code}.${key}`] = value;
@@ -1309,8 +1380,8 @@ async function processJob(job: Job<DocumentJobData>) {
       s3Key = `${tenantId}/projects/${projectId}/documents/${documentId}.${ext}`;
     } else if (clientId) {
       // === Client document flow (e.g. GDPR) ===
-      const client = await prisma.client.findUniqueOrThrow({
-        where: { id: clientId },
+      const client = await prisma.client.findFirstOrThrow({
+        where: { id: clientId, tenantId },
         include: {
           addresses: {
             where: { isPrimary: true },
@@ -1333,8 +1404,9 @@ async function processJob(job: Job<DocumentJobData>) {
 
       // Merge revision data if this is a revision document
       if (job.data.revisionId) {
-        const revision = await prisma.equipmentRevision.findUnique({
-          where: { id: job.data.revisionId },
+        // EquipmentRevision has no tenantId → scope through equipment.client.
+        const revision = await prisma.equipmentRevision.findFirst({
+          where: { id: job.data.revisionId, equipment: { client: { tenantId } } },
           include: {
             equipment: { select: { name: true, serial: true, fuel: true, deviceType: true, power: true, airSupply: true, feeding: true, location: true, fuelIscir: true, deviceAge: true } },
             appointment: { select: { completionDataJson: true } },
@@ -1364,7 +1436,7 @@ async function processJob(job: Job<DocumentJobData>) {
           }
 
           if (completionData) {
-            Object.assign(data, await buildAppointmentReportData(completionData));
+            Object.assign(data, await buildAppointmentReportData(completionData, tenantId));
           }
         }
       }
@@ -1380,7 +1452,7 @@ async function processJob(job: Job<DocumentJobData>) {
 
     if (isHtmlTemplate) {
       // HTML template → substitute variables → PDF
-      const htmlData = await buildHtmlTemplateData(clientRecord, tenant, documentId);
+      const htmlData = await buildHtmlTemplateData(clientRecord, tenant, documentId, tenantId);
 
       // Merge contract context into HTML data
       if (job.data.context) {
@@ -1389,8 +1461,8 @@ async function processJob(job: Job<DocumentJobData>) {
 
       // Merge revision data into HTML data
       if (job.data.revisionId) {
-        const revision = await prisma.equipmentRevision.findUnique({
-          where: { id: job.data.revisionId },
+        const revision = await prisma.equipmentRevision.findFirst({
+          where: { id: job.data.revisionId, equipment: { client: { tenantId } } },
           include: {
             equipment: { select: { name: true, serial: true, fuel: true, deviceType: true, power: true, airSupply: true, feeding: true, location: true, fuelIscir: true, deviceAge: true } },
             appointment: { select: { completionDataJson: true } },
@@ -1416,15 +1488,15 @@ async function processJob(job: Job<DocumentJobData>) {
           }
 
           if (completionData) {
-            Object.assign(htmlData, await buildAppointmentReportData(completionData));
+            Object.assign(htmlData, await buildAppointmentReportData(completionData, tenantId));
           }
         }
       }
 
       // Merge gas-installation FISA report (revizie/verificare instalație)
       if (docCtx?.appointmentId) {
-        const appt = await prisma.appointment.findUnique({
-          where: { id: docCtx.appointmentId as string },
+        const appt = await prisma.appointment.findFirst({
+          where: { id: docCtx.appointmentId as string, tenantId },
           include: {
             installation: {
               include: {
@@ -1435,10 +1507,16 @@ async function processJob(job: Job<DocumentJobData>) {
             },
           },
         });
+        // Caseta „Înregistrare la OS” de pe fișă: completată după ce operatorul
+        // introduce numărul primit de la distribuitor; până atunci rămâne linie.
+        htmlData.os_nr_inregistrare = appt?.osRegistrationNumber || "______________";
+        htmlData.os_data_inregistrare = appt?.osRegisteredAt
+          ? appt.osRegisteredAt.toLocaleDateString("ro-RO")
+          : "______________";
         if (appt?.completionDataJson) {
           const empId = (docCtx.instalatorEmployeeId as string | null) ?? null;
           const instalator = empId
-            ? await prisma.employee.findUnique({ where: { id: empId } })
+            ? await prisma.employee.findFirst({ where: { id: empId, tenantId } })
             : null;
           // Preserve the client's own (domicile) address before the installation
           // consumption address overrides client_address/* — the contract shows both.
@@ -1451,6 +1529,7 @@ async function processJob(job: Job<DocumentJobData>) {
               appt.completionDataJson,
               appt.installation as Record<string, any> | null,
               instalator as Record<string, any> | null,
+              tenantId,
             ),
           );
         }
@@ -1465,10 +1544,12 @@ async function processJob(job: Job<DocumentJobData>) {
       console.log("[doc-worker] htmlData tenant_stamp present:", !!htmlData["tenant_stamp"]);
       console.log("[doc-worker] htmlData tenant_signature present:", !!htmlData["tenant_signature"]);
 
-      // Embed client signature from document.contextJson (for auto-generated GDPR docs)
-      if (docCtx?.clientSignatureS3Key) {
+      // Embed client signature from document.contextJson (for auto-generated GDPR docs).
+      // Key comes from JSON → must be under the tenant prefix, else skipped.
+      const ctxSigKey = docCtx?.clientSignatureS3Key;
+      if (ctxSigKey && assertTenantKey(tenantId, ctxSigKey, "context client signature")) {
         try {
-          const stream = await getFileStream(docCtx.clientSignatureS3Key as string);
+          const stream = await getFileStream(ctxSigKey);
           const chunks: Uint8Array[] = [];
           for await (const chunk of stream as AsyncIterable<Uint8Array>) {
             chunks.push(chunk);
@@ -1537,7 +1618,13 @@ async function processJob(job: Job<DocumentJobData>) {
           "mimetype" in (value as any)
         ) {
           const ref = value as { s3Key: string; mimetype: string };
-          if (ref.mimetype.startsWith("image/")) {
+          if (typeof ref.mimetype === "string" && ref.mimetype.startsWith("image/")) {
+            // Image refs may originate from JSON data → tenant-prefix check;
+            // a foreign key leaves the placeholder empty instead of failing.
+            if (!assertTenantKey(tenantId, ref.s3Key, `image ref ${key}`)) {
+              data[key] = "";
+              continue;
+            }
             const imgStream = await getFileStream(ref.s3Key);
             if (imgStream) {
               images[key] = await streamToBuffer(imgStream);
@@ -1566,7 +1653,12 @@ async function processJob(job: Job<DocumentJobData>) {
         // Render every active member with the same project context, then bundle
         // them into a single ZIP — the project then shows ONE document.
         const members = await prisma.documentTemplate.findMany({
-          where: { parentGroupId: template.id, isActive: true, s3Key: { not: null } },
+          where: {
+            parentGroupId: template.id,
+            isActive: true,
+            s3Key: { not: null },
+            OR: [{ tenantId }, { tenantId: null }],
+          },
           orderBy: { memberOrder: "asc" },
         });
         if (members.length === 0) throw new Error("Group has no documents to generate");
@@ -1621,8 +1713,8 @@ async function processJob(job: Job<DocumentJobData>) {
     const shouldSendEmail = contentType === "application/pdf" && (sendToEmail || docCtx?.gdprAutoGenerated);
     if (shouldSendEmail && clientId) {
       try {
-        const client = await prisma.client.findUnique({
-          where: { id: clientId },
+        const client = await prisma.client.findFirst({
+          where: { id: clientId, tenantId },
           select: { email: true, firstName: true, lastName: true, companyName: true },
         });
         const recipientEmail = (sendToEmail as string) || client?.email;
@@ -1641,6 +1733,21 @@ async function processJob(job: Job<DocumentJobData>) {
         }
       } catch (emailErr) {
         console.error("[doc-worker] Failed to send document email:", emailErr);
+      }
+    }
+
+    // Fișa regenerată cu numărul de la OS → exemplarul clientului (Ord. ANRE 179/2015,
+    // art. 9 alin. 7). Flag-ul e pus de setOsRegistration; îl consumăm o singură dată.
+    if (docCtx?.osRegistrationNotify && docCtx?.appointmentId && contentType === "application/pdf") {
+      try {
+        await notifyClientOsRegistration(tenantId, docCtx.appointmentId as string, template.name || "Fișă de evidență", outputBuffer);
+      } catch (err) {
+        console.error("[doc-worker] OS-registration client email failed:", err);
+      } finally {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: { contextJson: { ...(docCtx as Record<string, unknown>), osRegistrationNotify: false } as Prisma.InputJsonValue },
+        }).catch(() => {});
       }
     }
 
@@ -1695,8 +1802,8 @@ const engineFastify = {
  * siblings are still in progress.
  */
 async function maybeResolveWorkflowStep(documentId: string, tenantId: string) {
-  const doc = await prisma.document.findUnique({
-    where: { id: documentId },
+  const doc = await prisma.document.findFirst({
+    where: { id: documentId, tenantId },
     select: { workflowStepInstanceId: true },
   });
   if (!doc?.workflowStepInstanceId) return; // not linked to a workflow step
@@ -1705,8 +1812,8 @@ async function maybeResolveWorkflowStep(documentId: string, tenantId: string) {
 
   // Load step + all sibling documents (linked to the same step)
   const [stepInstance, siblings] = await Promise.all([
-    prisma.workflowStepInstance.findUnique({
-      where: { id: stepInstanceId },
+    prisma.workflowStepInstance.findFirst({
+      where: { id: stepInstanceId, tenantId },
       select: { id: true, status: true },
     }),
     prisma.document.findMany({
@@ -1791,6 +1898,7 @@ async function main() {
   // Graceful shutdown
   process.on("SIGTERM", async () => {
     await worker.close();
+    await closeBrowser();
     await prisma.$disconnect();
     process.exit(0);
   });
@@ -1800,4 +1908,33 @@ async function main() {
 // exercise buildInstalatieReportData) must not open Redis/Prisma connections.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch(console.error);
+}
+
+
+/** Trimite clientului fișa cu numărul de înregistrare de la OS și reține momentul. */
+async function notifyClientOsRegistration(tenantId: string, appointmentId: string, docName: string, pdf: Buffer) {
+  const appt = await prisma.appointment.findFirst({
+    where: { id: appointmentId, tenantId },
+    include: {
+      client: { select: { email: true, companyName: true, firstName: true, lastName: true } },
+      clientAddress: { select: { address: true } },
+      installation: { select: { distributorName: true } },
+      tenant: { select: { name: true } },
+    },
+  });
+  if (!appt?.osRegistrationNumber || !appt.client?.email) return;
+  const { sendFisaRegisteredEmail } = await import("../lib/email.js");
+  const { WORK_LABEL, clientDisplayName } = await import("../modules/appointments/os-registration.js");
+  await sendFisaRegisteredEmail({
+    to: appt.client.email,
+    clientName: clientDisplayName(appt.client),
+    tenantName: appt.tenant.name,
+    workLabel: WORK_LABEL[appt.type] ?? "verificare/revizie",
+    distributorName: appt.installation?.distributorName ?? null,
+    registrationNumber: appt.osRegistrationNumber,
+    registeredAt: appt.osRegisteredAt ?? new Date(),
+    address: appt.clientAddress?.address ?? null,
+    pdf: { filename: `${docName} - nr. OS ${appt.osRegistrationNumber}.pdf`, buffer: pdf },
+  });
+  await prisma.appointment.update({ where: { id: appointmentId }, data: { osClientNotifiedAt: new Date() } });
 }

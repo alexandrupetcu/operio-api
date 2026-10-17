@@ -1400,6 +1400,13 @@ model Appointment {
   duration            Int?
   status              String             @default("scheduled") // scheduled, in_progress, awaiting_report, completed, cancelled, rescheduled
   completionDataJson  Json?
+  completedAt         DateTime?
+  // Înregistrarea Fișei de evidență la operatorul de sistem (Ord. ANRE 179/2015,
+  // art. 9 alin. 6–7): nr. primit de la OS, data, și când a plecat către client
+  // exemplarul cu numărul de înregistrare. Doar pentru revizie/verificare instalație.
+  osRegistrationNumber String?
+  osRegisteredAt       DateTime?
+  osClientNotifiedAt   DateTime?
   deletedAt           DateTime?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
@@ -1414,6 +1421,8 @@ model Appointment {
   @@index([installationId])
   @@index([vehicleId])
   @@index([deletedAt])
+  // Fișe finalizate încă neînregistrate la OS (panou) și registrul anual Anexa 6.
+  @@index([tenantId, type, status, completedAt])
 }
 
 // ─── Email Inboxes (OAuth2 config for email ingestion) ─────────────────────

@@ -6,6 +6,11 @@ import { TEMPLATE_HTML as ISCIR_TEMPLATE_HTML } from "../scripts/update-iscir-te
 const prisma = new PrismaClient();
 
 async function main() {
+  // Seed-ul de dezvoltare creează conturi cu parole cunoscute (master/admin/operator).
+  // Pe producție se folosește doar scripts/seed-production.ts (șabloane, fără utilizatori).
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("prisma/seed.ts este doar pentru dezvoltare — pe producție rulează scripts/seed-production.ts");
+  }
   // Create demo tenant
   const tenant = await prisma.tenant.upsert({
     where: { slug: "demo" },

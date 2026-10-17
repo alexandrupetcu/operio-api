@@ -11,6 +11,7 @@ import {
 import { applyStepProjectStatus } from "../../lib/workflow-engine/project-status-sync.js";
 import { env } from "../../config/env.js";
 import { getPresignedUrl } from "../../lib/s3.js";
+import { safeFetch, SafeFetchError, truncateForLog } from "../../lib/safe-fetch.js";
 import * as documentParseService from "../documents/documents-parse.service.js";
 
 interface StepFileRef {
@@ -384,14 +385,44 @@ export async function getLogs(
 /**
  * Complete a step instance using the workflow engine.
  */
+/** The caller acting on a step: JWT subject + role. */
+export interface StepActor {
+  sub: string;
+  role: string;
+}
+
+/**
+ * Who may complete / edit a step: ADMIN, MANAGER (and MASTER_ADMIN), or the
+ * user the step instance is assigned to (`assignedUserId`). Steps are assigned
+ * to users, not employees — the Employee↔User link is 1:1 via `Employee.userId`,
+ * so the user id is the only thing to compare.
+ */
+export async function assertStepActor(
+  fastify: FastifyInstance,
+  tenantId: string,
+  actor: StepActor,
+  stepInstanceId: string
+) {
+  if (["MASTER_ADMIN", "ADMIN", "MANAGER"].includes(actor.role)) return;
+  const si = await fastify.prisma.workflowStepInstance.findFirst({
+    where: { id: stepInstanceId, tenantId },
+    select: { assignedUserId: true },
+  });
+  if (!si) throw fastify.httpErrors.notFound("Step instance not found");
+  if (si.assignedUserId !== actor.sub) {
+    throw fastify.httpErrors.forbidden("Pasul nu vă este alocat");
+  }
+}
+
 export async function completeStep(
   fastify: FastifyInstance,
   tenantId: string,
-  userId: string,
+  actor: StepActor,
   stepInstanceId: string,
   output?: unknown
 ) {
-  return engineCompleteStep(fastify, tenantId, stepInstanceId, userId, output);
+  await assertStepActor(fastify, tenantId, actor, stepInstanceId);
+  return engineCompleteStep(fastify, tenantId, stepInstanceId, actor.sub, output);
 }
 
 /**
@@ -427,10 +458,12 @@ export async function retryStep(
 export async function updateStepOutput(
   fastify: FastifyInstance,
   tenantId: string,
+  actor: StepActor,
   stepInstanceId: string,
   payload: Record<string, unknown>,
   fileRefs: Record<string, StepFileRef>
 ) {
+  await assertStepActor(fastify, tenantId, actor, stepInstanceId);
   const si = await fastify.prisma.workflowStepInstance.findFirst({
     where: { id: stepInstanceId, tenantId },
     include: { stepDefinition: { select: { code: true, name: true } } },
@@ -641,9 +674,11 @@ export async function executeEvent(
   // Resolve URL — internal paths get the local base URL prepended
   const isInternal = config.apiType === "internal";
   const resolvedPath = resolveTemplate(config.url, context);
-  const url = isInternal
-    ? `http://127.0.0.1:${env.PORT}${resolvedPath}`
-    : resolvedPath;
+  const internalOrigin = `http://127.0.0.1:${env.PORT}`;
+  if (isInternal && (!resolvedPath.startsWith("/") || resolvedPath.startsWith("//"))) {
+    throw fastify.httpErrors.badRequest("Internal action URL must be an absolute path");
+  }
+  const url = isInternal ? `${internalOrigin}${resolvedPath}` : resolvedPath;
 
   const method = (config.method ?? "POST").toUpperCase();
 
@@ -687,12 +722,18 @@ export async function executeEvent(
     }
 
     try {
-      const response = await fetch(url, fetchOptions);
-      const text = await response.text();
+      // SSRF guard: external URLs are DNS-resolved and must be public; internal
+      // calls are pinned to our own origin. Timeout + 1 MB body cap + manual
+      // redirects on both.
+      const response = await safeFetch(
+        url,
+        fetchOptions,
+        isInternal ? { pinnedOrigin: internalOrigin, timeoutMs: 30_000 } : { timeoutMs: 10_000 }
+      );
       try {
-        responseBody = JSON.parse(text);
+        responseBody = JSON.parse(response.body);
       } catch {
-        responseBody = text;
+        responseBody = response.body;
       }
 
       if (!response.ok) {
@@ -702,6 +743,9 @@ export async function executeEvent(
       }
     } catch (err) {
       if ((err as { statusCode?: number }).statusCode) throw err;
+      if (err instanceof SafeFetchError) {
+        throw fastify.httpErrors.badRequest(`External API call rejected: ${err.message}`);
+      }
       throw fastify.httpErrors.badGateway(
         `Failed to call external API: ${err instanceof Error ? err.message : String(err)}`
       );
@@ -777,12 +821,15 @@ export async function executeEvent(
         url,
         method,
         fieldUpdatesCount: fieldUpdates.length,
-        responseBody: responseBody ?? null,
+        // Only a short snippet of the raw body is persisted (4 KB).
+        responseSnippet: truncateForLog(responseBody),
       } as Prisma.InputJsonValue,
     },
   });
 
-  return { success: true, fieldUpdates, responseBody };
+  // The raw body is NOT returned: callers get only the mapped field updates
+  // (or `_response` when no mapping is configured — see above).
+  return { success: true, fieldUpdates };
 }
 
 /** Resolve {{placeholder}} values in a string */

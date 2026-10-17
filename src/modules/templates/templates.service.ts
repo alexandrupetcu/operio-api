@@ -104,11 +104,19 @@ export async function createFromFile(
   });
 }
 
+/** Global (platform-wide, `tenantId: null`) rows may only be changed by MASTER_ADMIN. */
+function assertCanMutateGlobal(fastify: FastifyInstance, role: string | undefined) {
+  if (role !== "MASTER_ADMIN") {
+    throw fastify.httpErrors.forbidden("Doar administratorul platformei poate modifica template-urile globale");
+  }
+}
+
 export async function update(
   fastify: FastifyInstance,
   tenantId: string,
   id: string,
-  input: UpdateTemplateInput
+  input: UpdateTemplateInput,
+  role?: string
 ) {
   const template = await fastify.prisma.documentTemplate.findFirst({
     where: { id, OR: [{ tenantId }, { tenantId: null }] },
@@ -116,6 +124,10 @@ export async function update(
   if (!template) throw fastify.httpErrors.notFound("Template not found");
 
   const { category, source, ...rest } = input;
+  // Touching a global row, or moving a row to/from global scope, is master-only.
+  if (template.tenantId === null || (source && source !== "tenant")) {
+    assertCanMutateGlobal(fastify, role);
+  }
   return fastify.prisma.documentTemplate.update({
     where: { id },
     data: {
@@ -130,13 +142,15 @@ export async function update(
 export async function remove(
   fastify: FastifyInstance,
   tenantId: string,
-  id: string
+  id: string,
+  role?: string
 ) {
   const template = await fastify.prisma.documentTemplate.findFirst({
     where: { id, OR: [{ tenantId }, { tenantId: null }] },
   });
   if (!template)
     throw fastify.httpErrors.notFound("Template not found");
+  if (template.tenantId === null) assertCanMutateGlobal(fastify, role);
 
   return fastify.prisma.documentTemplate.delete({ where: { id } });
 }
@@ -144,12 +158,14 @@ export async function remove(
 export async function bulkRemove(
   fastify: FastifyInstance,
   tenantId: string,
-  ids: string[]
+  ids: string[],
+  role?: string
 ) {
   const result = await fastify.prisma.documentTemplate.deleteMany({
     where: {
       id: { in: ids },
-      OR: [{ tenantId }, { tenantId: null }],
+      // Tenant admins delete only their own rows; global rows are master-only.
+      ...(role === "MASTER_ADMIN" ? { OR: [{ tenantId }, { tenantId: null }] } : { tenantId }),
     },
   });
   return { deleted: result.count };

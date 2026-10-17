@@ -2,19 +2,16 @@ import type { FastifyInstance } from "fastify";
 import { Queue } from "bullmq";
 import { requireRole } from "../../lib/rbac.js";
 import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
 import { createRevisionSchema, updateRevisionSchema } from "./equipment-revisions.schema.js";
 import * as revisionService from "./equipment-revisions.service.js";
 import { uploadFile, getPresignedUrl } from "../../lib/s3.js";
 import { safeS3Filename } from "../../lib/safe-filename.js";
 import { parseRevisionPdf } from "./revision-pdf-parser.js";
 
-const revisionQueue = new Queue("revision-processing", {
-  connection: redisConnection,
-});
+const revisionQueue = new Queue("revision-processing", { connection: redisConnection, defaultJobOptions });
 
-const documentQueue = new Queue("document-generation", {
-  connection: redisConnection,
-});
+const documentQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
 
 type RevisionParams = {
   Params: { id: string; equipmentId: string };

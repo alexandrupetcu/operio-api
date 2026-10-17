@@ -124,10 +124,13 @@ export async function create(
   tenantId: string,
   input: CreateUserInput
 ) {
+  // `User.email` is globally unique (not per tenant). Check globally and keep
+  // the message generic so we don't reveal that the address exists elsewhere.
   const existing = await fastify.prisma.user.findUnique({
-    where: { tenantId_email: { tenantId, email: input.email } },
+    where: { email: input.email },
+    select: { id: true },
   });
-  if (existing) throw fastify.httpErrors.conflict("Email already in use");
+  if (existing) throw fastify.httpErrors.conflict("Adresa de e-mail nu poate fi folosită");
 
   const passwordHash = await hashPassword(input.password);
   return fastify.prisma.user.create({
