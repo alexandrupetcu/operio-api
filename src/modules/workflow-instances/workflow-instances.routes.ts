@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import {
   startWorkflowSchema,
@@ -16,6 +17,8 @@ import {
 
 export default async function workflowInstancesRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
+  // Abonament: modulul cere „projects.workflows” (citirile trec, creările nu).
+  fastify.addHook("preHandler", requireFeature("projects.workflows"));
 
   // POST /project/:projectId/start — start workflow for a project
   fastify.post<{ Params: { projectId: string } }>(

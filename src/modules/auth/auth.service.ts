@@ -1,3 +1,4 @@
+import { resolveEntitlements, serializeEntitlements } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { createHash, randomBytes } from "crypto";
 import { hashPassword, verifyPassword } from "../../lib/hash.js";
@@ -481,7 +482,9 @@ export async function me(fastify: FastifyInstance, userId: string) {
     throw fastify.httpErrors.unauthorized("Account inactive");
   }
   const tenant = user.tenant;
+  const entitlements = tenant ? serializeEntitlements(resolveEntitlements(tenant)) : null;
   return {
+    entitlements,
     user: {
       id: user.id,
       email: user.email,

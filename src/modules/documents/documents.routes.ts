@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
 import {
@@ -64,7 +65,7 @@ export default async function documentsRoutes(fastify: FastifyInstance) {
   // Batch generate all documents for a category
   fastify.post<{ Params: { projectId: string } }>(
     "/project/:projectId/generate-batch",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER")], preHandler: [requireFeature("documents.dossiers")] },
     async (request, reply) => {
       const body = generateBatchSchema.parse(request.body);
       const docs = await documentsService.generateBatch(
@@ -131,7 +132,7 @@ export default async function documentsRoutes(fastify: FastifyInstance) {
   // Parse permits from an uploaded document using GPT-4.1
   fastify.post(
     "/parse-permits",
-    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")], preHandler: [requireFeature("projects.permits")] },
     async (request, reply) => {
       const file = await request.file();
       if (!file) throw fastify.httpErrors.badRequest("Fișierul este obligatoriu.");
@@ -145,7 +146,7 @@ export default async function documentsRoutes(fastify: FastifyInstance) {
   // extracted nr/data/emitent onto the project's metadata.
   fastify.post<{ Params: { projectId: string } }>(
     "/project/:projectId/parse-authorization",
-    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")], preHandler: [requireFeature("projects.permits")] },
     async (request, reply) => {
       const file = await request.file();
       if (!file) throw fastify.httpErrors.badRequest("Fișierul este obligatoriu.");

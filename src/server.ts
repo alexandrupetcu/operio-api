@@ -187,6 +187,10 @@ export async function buildServer() {
     // 4xx și erorile explicite de upstream (502/503/504 ridicate de noi, ex. „ANAF nu răspunde”)
     // păstrează mesajul; orice altceva e o eroare internă și nu iese din server.
     const explicitUpstream = [502, 503, 504].includes(statusCode) && /^(BadGateway|ServiceUnavailable|GatewayTimeout)Error$/.test((err as { name?: string }).name ?? "");
+    if (statusCode === 402 && (err as { feature?: string }).feature) {
+      const e = err as { message: string; feature?: string; upgradeTo?: string };
+      return reply.code(402).send({ statusCode: 402, error: "Payment Required", message: e.message, feature: e.feature, upgradeTo: e.upgradeTo ?? "execution" });
+    }
     if ((statusCode >= 400 && statusCode < 500) || explicitUpstream) {
       return reply.send(err);
     }

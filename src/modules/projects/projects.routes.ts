@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
 import { paginationSchemaFor } from "../../lib/pagination.js";
@@ -14,6 +15,8 @@ const listQuerySchema = paginationSchemaFor(PROJECTS_SORTABLE);
 
 export default async function projectsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
+  // Abonament: modulul cere „projects.workflows” (citirile trec, creările nu).
+  fastify.addHook("preHandler", requireFeature("projects.workflows"));
 
   fastify.get("/", async (request) => {
     const query = listQuerySchema.parse(request.query);

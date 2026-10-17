@@ -1,3 +1,4 @@
+import { getTenantEntitlements } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { hashPassword } from "../../lib/hash.js";
 import type { PaginationQuery } from "../../lib/pagination.js";
@@ -196,6 +197,20 @@ export async function update(
   // the access tokens still in flight expire within JWT_ACCESS_EXPIRY.
   if (userFields.mobileAccess === false) {
     await fastify.prisma.refreshToken.deleteMany({ where: { userId: id, client: "mobile" } });
+  }
+  // Locurile de tehnician ale abonamentului = utilizatorii cu acces mobil.
+  if (userFields.mobileAccess === true) {
+    const ent = await getTenantEntitlements(fastify.prisma, tenantId);
+    if (!ent.has("field.mobile")) {
+      throw Object.assign(new Error("Aplicația mobilă nu este inclusă în abonament"), { statusCode: 402, feature: "field.mobile", upgradeTo: "execution" });
+    }
+    const used = await fastify.prisma.user.count({ where: { tenantId, mobileAccess: true, isActive: true, id: { not: id } } });
+    if (used >= ent.limits.technicianSeats) {
+      throw Object.assign(
+        new Error(`Planul ${ent.planLabel} include ${ent.limits.technicianSeats} tehnicieni cu acces mobil — dezactivează un tehnician sau extinde abonamentul`),
+        { statusCode: 402, feature: "field.mobile", upgradeTo: "execution" },
+      );
+    }
   }
   return fastify.prisma.user.update({
     where: { id },

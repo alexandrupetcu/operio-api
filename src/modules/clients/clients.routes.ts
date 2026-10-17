@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
 import { paginationSchemaFor } from "../../lib/pagination.js";
@@ -230,7 +231,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { id: string } }>(
     "/:id/dossiers",
-    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")], preHandler: [requireFeature("documents.dossiers")] },
     async (request, reply) => {
       const body = quickDossierInputSchema.parse(request.body);
       const d = await clientsService.createDossier(
@@ -246,7 +247,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { id: string; dossierId: string } }>(
     "/:id/dossiers/:dossierId",
-    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")], preHandler: [requireFeature("documents.dossiers")] },
     async (request) => {
       const body = updateQuickDossierSchema.parse(request.body);
       return clientsService.updateDossier(
@@ -261,7 +262,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { id: string; dossierId: string } }>(
     "/:id/dossiers/:dossierId/generate",
-    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")], preHandler: [requireFeature("documents.dossiers")] },
     async (request, reply) => {
       const docs = await clientsService.generateDossier(
         fastify,

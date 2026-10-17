@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { requireRole } from "../../lib/rbac.js";
@@ -24,6 +25,8 @@ const upsertSchema = z.object({
 
 export default async function projectTeamRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
+  // Abonament: modulul cere „projects.workflows” (citirile trec, creările nu).
+  fastify.addHook("preHandler", requireFeature("projects.workflows"));
 
   // GET /projects/:id/team — list team members
   fastify.get<{ Params: { id: string } }>("/:id/team", async (request) => {

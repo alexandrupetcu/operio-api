@@ -29,6 +29,11 @@ model Tenant {
   locale         String   @default("ro")
   settingsJson   Json?
   brandingJson   Json?
+  // Abonament: planul (catalogul e în cod — src/lib/entitlements) + ajustări per
+  // firmă (pilot, preț de fondator, add-on). Gărzile verifică funcții, nu planuri.
+  plan                 String    @default("execution") // field | execution
+  planUntil            DateTime?
+  entitlementOverrides Json?
   countryId      Int?
   country        Country? @relation(fields: [countryId], references: [id])
   stateId        Int?

@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { requireRole, requireMasterAdmin } from "../../lib/rbac.js";
 import {
@@ -17,6 +18,8 @@ export default async function workflowDefinitionsRoutes(
   fastify: FastifyInstance
 ) {
   fastify.addHook("onRequest", fastify.authenticate);
+  // Abonament: modulul cere „admin.workflow-builder” (citirile trec, creările nu).
+  fastify.addHook("preHandler", requireFeature("admin.workflow-builder"));
 
   // Helper: resolve tenantId — for master admins operating on master workflows, use null
   const resolveTenantId = (request: { tenantId: string; isMasterAdmin: boolean }): string | null =>

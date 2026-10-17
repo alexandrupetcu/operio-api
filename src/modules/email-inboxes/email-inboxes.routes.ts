@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -80,6 +81,8 @@ function ownedInboxWhere(request: { params: { id: string }; tenantId: string; us
 
 export default async function emailInboxesRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
+  // Abonament: modulul cere „integrations.email” (citirile trec, creările nu).
+  fastify.addHook("preHandler", requireFeature("integrations.email"));
 
   // List inboxes (tenant-specific + global)
   fastify.get(

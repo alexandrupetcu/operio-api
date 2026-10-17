@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireRole, requireMasterAdmin } from "../../lib/rbac.js";
@@ -85,7 +86,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
   // Create a DOCX group (members added afterwards)
   fastify.post(
     "/groups",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER")], preHandler: [requireFeature("documents.dossiers")] },
     async (request, reply) => {
       const { name, category, description } = request.body as {
         name?: string;
@@ -106,7 +107,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
   // Upload one or more DOCX files into a group
   fastify.post<{ Params: { id: string } }>(
     "/:id/docs",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER")], preHandler: [requireFeature("documents.dossiers")] },
     async (request, reply) => {
       const parts = request.parts();
       const files: Array<{ buffer: Buffer; filename: string; mimetype: string }> = [];
@@ -124,7 +125,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
   // Reorder a group's members
   fastify.patch<{ Params: { id: string } }>(
     "/:id/docs/reorder",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER")], preHandler: [requireFeature("documents.dossiers")] },
     async (request) => {
       const { ids } = request.body as { ids?: string[] };
       if (!ids?.length) throw fastify.httpErrors.badRequest("ids required");
@@ -135,7 +136,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
   // Remove a member from a group
   fastify.delete<{ Params: { id: string; docId: string } }>(
     "/:id/docs/:docId",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER")], preHandler: [requireFeature("documents.dossiers")] },
     async (request) => {
       return templatesService.removeGroupDoc(fastify, request.tenantId, request.params.id, request.params.docId);
     }

@@ -1,3 +1,4 @@
+import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
 import { z } from "zod";
@@ -19,6 +20,8 @@ export type UpdateDrawingTemplateInput = z.infer<typeof updateSchema>;
 
 export default async function drawingTemplatesRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
+  // Abonament: modulul cere „projects.drawings” (citirile trec, creările nu).
+  fastify.addHook("preHandler", requireFeature("projects.drawings"));
 
   // List all templates visible to this tenant (own + global)
   fastify.get("/", async (request) => {
