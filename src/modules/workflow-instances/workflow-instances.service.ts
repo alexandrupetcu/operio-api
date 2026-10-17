@@ -379,6 +379,7 @@ export async function getLogs(
       workflowInstanceId: instanceId,
     },
     orderBy: { createdAt: "desc" },
+    take: 500,
   });
 }
 

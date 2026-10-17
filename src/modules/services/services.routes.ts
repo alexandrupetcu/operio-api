@@ -1,8 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
-import { paginationSchema } from "../../lib/pagination.js";
+import { paginationSchemaFor } from "../../lib/pagination.js";
 import { z } from "zod";
 import * as servicesService from "./services.service.js";
+import { SERVICES_SORTABLE } from "./services.service.js";
+
+const listQuerySchema = paginationSchemaFor(SERVICES_SORTABLE);
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -22,7 +25,7 @@ export default async function servicesRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
   fastify.get("/", async (request) => {
-    const query = paginationSchema.parse(request.query);
+    const query = listQuerySchema.parse(request.query);
     return servicesService.list(fastify, request.tenantId, query);
   });
 

@@ -3,6 +3,9 @@ import type { Prisma } from "@prisma/client";
 import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 
+/** Columns the scheduled-job list may be sorted by (allowlist for `sortBy`). */
+export const SCHEDULED_JOBS_SORTABLE = ["runAt", "createdAt", "updatedAt"] as const;
+
 export async function list(
   fastify: FastifyInstance,
   tenantId: string,
@@ -20,7 +23,7 @@ export async function list(
   const [data, total] = await Promise.all([
     fastify.prisma.scheduledJob.findMany({
       where,
-      ...paginationArgs(query),
+      ...paginationArgs(query, SCHEDULED_JOBS_SORTABLE),
     }),
     fastify.prisma.scheduledJob.count({ where }),
   ]);

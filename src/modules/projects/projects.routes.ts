@@ -1,19 +1,22 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
-import { paginationSchema } from "../../lib/pagination.js";
+import { paginationSchemaFor } from "../../lib/pagination.js";
 import {
   createProjectSchema,
   updateProjectSchema,
   createProjectWithClientSchema,
 } from "./projects.schema.js";
 import * as projectsService from "./projects.service.js";
+import { PROJECTS_SORTABLE } from "./projects.service.js";
 import { uploadFile, getPresignedUrl } from "../../lib/s3.js";
+
+const listQuerySchema = paginationSchemaFor(PROJECTS_SORTABLE);
 
 export default async function projectsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
   fastify.get("/", async (request) => {
-    const query = paginationSchema.parse(request.query);
+    const query = listQuerySchema.parse(request.query);
     const { status, projectTypeId } = request.query as Record<string, string>;
     return projectsService.list(fastify, request.tenantId, {
       ...query,

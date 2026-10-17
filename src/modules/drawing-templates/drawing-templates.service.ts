@@ -12,6 +12,7 @@ export async function list(fastify: FastifyInstance, tenantId: string) {
       OR: [{ tenantId }, { isGlobal: true }],
     },
     orderBy: [{ isGlobal: "desc" }, { name: "asc" }],
+    take: 200,
     select: {
       id: true,
       name: true,

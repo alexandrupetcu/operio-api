@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { osRegistrationDeadline } from "../../lib/working-days.js";
 import { regenerateFisaForOsRegistration } from "./appointments.service.js";
+import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 import type { OsRegistrationInput } from "./appointments.schema.js";
 
 /** Tipurile de programare care produc o Fișă de evidență ce trebuie înregistrată la OS. */
@@ -44,11 +45,13 @@ export async function setOsRegistration(
 
   // Ștergere (număr introdus greșit) — păstrăm istoricul notificării, nu-l mai retrimitem.
   if (!input.number) {
-    return fastify.prisma.appointment.update({
+    const cleared = await fastify.prisma.appointment.update({
       where: { id: appointmentId },
       data: { osRegistrationNumber: null, osRegisteredAt: null },
       select: osSelect,
     });
+    await invalidateDashboardCache(tenantId); // fișa reapare în „de înregistrat”
+    return cleared;
   }
 
   const registeredAt = input.registeredAt ? new Date(input.registeredAt) : new Date();
@@ -57,6 +60,7 @@ export async function setOsRegistration(
     data: { osRegistrationNumber: input.number, osRegisteredAt: registeredAt },
     select: osSelect,
   });
+  await invalidateDashboardCache(tenantId);
 
   const clientEmail = appt.client?.email ?? null;
   const willNotify = !!clientEmail && input.notifyClient !== false;

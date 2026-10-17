@@ -62,6 +62,7 @@ export async function list(
       distributor: { select: { id: true, code: true, name: true } },
     },
     orderBy: [{ code: "asc" }, { version: "desc" }],
+    take: 500,
   });
 }
 
@@ -933,6 +934,7 @@ export async function getVersions(
       },
     },
     orderBy: { version: "desc" },
+    take: 200,
   });
 }
 

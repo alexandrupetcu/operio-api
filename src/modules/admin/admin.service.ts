@@ -22,8 +22,8 @@ export async function listAllDocuments(
   fastify: FastifyInstance,
   params: { status?: string; page?: number; limit?: number }
 ) {
-  const page = params.page || 1;
-  const limit = params.limit || 25;
+  const page = Math.max(1, params.page || 1);
+  const limit = Math.min(Math.max(1, params.limit || 25), 200);
   const skip = (page - 1) * limit;
 
   const where: any = {};

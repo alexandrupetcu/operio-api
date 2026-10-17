@@ -114,5 +114,6 @@ export async function listDetailed(fastify: FastifyInstance, tenantId: string, s
   return fastify.prisma.fieldPreset.findMany({
     where: { tenantId, ...(scope && { scope }) },
     orderBy: [{ scope: "asc" }, { useCount: "desc" }],
+    take: 500,
   });
 }

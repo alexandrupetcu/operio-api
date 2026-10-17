@@ -1,18 +1,21 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
-import { paginationSchema } from "../../lib/pagination.js";
+import { paginationSchemaFor } from "../../lib/pagination.js";
 import { createNotificationSchema, markReadSchema } from "./notifications.schema.js";
 import * as notificationsService from "./notifications.service.js";
+import { NOTIFICATIONS_SORTABLE } from "./notifications.service.js";
 import * as prefs from "./notifications.preferences.js";
 import * as tenantSettings from "./tenant-settings.js";
 import { env } from "../../config/env.js";
+
+const listQuerySchema = paginationSchemaFor(NOTIFICATIONS_SORTABLE);
 
 export default async function notificationsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
   // GET / - list notifications for the current user (in_app) or all (admin)
   fastify.get("/", async (request) => {
-    const query = paginationSchema.parse(request.query);
+    const query = listQuerySchema.parse(request.query);
     const { channel, status, userId, category } = request.query as Record<
       string,
       string

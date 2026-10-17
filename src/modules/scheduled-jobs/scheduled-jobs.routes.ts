@@ -1,8 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireRole } from "../../lib/rbac.js";
-import { paginationSchema } from "../../lib/pagination.js";
+import { paginationSchemaFor } from "../../lib/pagination.js";
 import * as scheduledJobsService from "./scheduled-jobs.service.js";
+import { SCHEDULED_JOBS_SORTABLE } from "./scheduled-jobs.service.js";
+
+const listQuerySchema = paginationSchemaFor(SCHEDULED_JOBS_SORTABLE);
 
 const createJobSchema = z.object({
   jobType: z.string().min(1),
@@ -21,7 +24,7 @@ export default async function scheduledJobsRoutes(fastify: FastifyInstance) {
     "/",
     { onRequest: [requireRole("ADMIN")] },
     async (request) => {
-      const query = paginationSchema.parse(request.query);
+      const query = listQuerySchema.parse(request.query);
       const { status, jobType } = request.query as Record<string, string>;
       return scheduledJobsService.list(fastify, request.tenantId, {
         ...query,

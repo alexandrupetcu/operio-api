@@ -1,9 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
-import { paginationSchema } from "../../lib/pagination.js";
+import { paginationSchemaFor } from "../../lib/pagination.js";
 import { z } from "zod";
 import * as vehiclesService from "./vehicles.service.js";
+import { VEHICLES_SORTABLE } from "./vehicles.service.js";
 import { uploadFile, getPresignedUrl, deleteFile } from "../../lib/s3.js";
+
+const listQuerySchema = paginationSchemaFor(VEHICLES_SORTABLE);
 
 const createSchema = z.object({
   licensePlate: z.string().min(1).max(20),
@@ -29,7 +32,7 @@ export default async function vehiclesRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
   fastify.get("/", async (request) => {
-    const query = paginationSchema.parse(request.query);
+    const query = listQuerySchema.parse(request.query);
     const { isActive, expiry } = request.query as Record<string, string>;
     return vehiclesService.list(fastify, request.tenantId, {
       ...query,
@@ -80,6 +83,7 @@ export default async function vehiclesRoutes(fastify: FastifyInstance) {
       return fastify.prisma.vehicleRevision.findMany({
         where: { vehicleId: request.params.id },
         orderBy: { date: "desc" },
+        take: 500,
       });
     }
   );

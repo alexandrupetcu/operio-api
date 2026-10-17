@@ -30,6 +30,7 @@ export async function listByEquipment(
   const revisions = await fastify.prisma.equipmentRevision.findMany({
     where: { equipmentId },
     orderBy: { revisionDate: "desc" },
+    take: 500,
     select: {
       id: true,
       revisionDate: true,

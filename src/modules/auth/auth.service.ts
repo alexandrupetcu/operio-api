@@ -22,6 +22,20 @@ interface SessionUser {
 }
 
 /**
+ * Static argon2 hash verified against when the login e-mail does not match an
+ * (active) account, so a failed login costs the same wall-clock time whether
+ * or not the account exists — otherwise the response time leaks existence.
+ * Computed once, lazily, on the first miss.
+ */
+let dummyHashPromise: Promise<string> | null = null;
+function dummyHash(): Promise<string> {
+  if (!dummyHashPromise) {
+    dummyHashPromise = hashPassword("operio-dummy-password-for-timing-equalisation");
+  }
+  return dummyHashPromise;
+}
+
+/**
  * Mint an access + refresh token pair. `client`/`deviceId` are stamped into the
  * access token (so routes know the caller without a DB read) and stored on the
  * refresh token so rotation keeps them.
@@ -135,7 +149,8 @@ async function uniqueTenantSlug(fastify: FastifyInstance, base: string): Promise
 export async function register(fastify: FastifyInstance, input: RegisterInput) {
   const existingUser = await fastify.prisma.user.findFirst({ where: { email: input.email } });
   if (existingUser) {
-    throw fastify.httpErrors.conflict("Există deja un cont cu acest email");
+    // Generic on purpose — don't confirm that the e-mail has an account.
+    throw fastify.httpErrors.conflict("Nu putem crea contul cu aceste date");
   }
   if (input.tenantSlug) {
     const existingTenant = await fastify.prisma.tenant.findUnique({ where: { slug: input.tenantSlug } });
@@ -235,24 +250,25 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
       },
     },
   });
-  if (!user || !user.isActive) {
+  // Unknown / inactive account: still burn an argon2 verify against the dummy
+  // hash so the response time is indistinguishable from a wrong password.
+  const candidate = user && user.isActive ? user : null;
+  const valid = candidate
+    ? await verifyPassword(candidate.passwordHash, input.password)
+    : (await verifyPassword(await dummyHash(), input.password), false);
+  if (!candidate || !valid) {
     throw fastify.httpErrors.unauthorized("Invalid credentials");
   }
 
-  const tenant = user.tenant;
-
-  const valid = await verifyPassword(user.passwordHash, input.password);
-  if (!valid) {
-    throw fastify.httpErrors.unauthorized("Invalid credentials");
-  }
+  const tenant = candidate.tenant;
 
   if (input.client === "mobile") {
-    await registerMobileDevice(fastify, user, input.device!);
+    await registerMobileDevice(fastify, candidate, input.device!);
   }
 
   const { accessToken, refreshToken } = await issueTokens(
     fastify,
-    { id: user.id, tenantId: tenant?.id ?? null, role: user.role },
+    { id: candidate.id, tenantId: tenant?.id ?? null, role: candidate.role },
     { client: input.client, deviceId: input.client === "mobile" ? input.device!.deviceId : undefined },
   );
 
@@ -260,12 +276,12 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
     accessToken,
     refreshToken,
     user: {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      mobileAccess: user.mobileAccess,
+      id: candidate.id,
+      email: candidate.email,
+      firstName: candidate.firstName,
+      lastName: candidate.lastName,
+      role: candidate.role,
+      mobileAccess: candidate.mobileAccess,
     },
     tenant: tenant
       ? {
@@ -283,20 +299,35 @@ export async function refresh(fastify: FastifyInstance, token: string) {
   // Look up by the SHA-256 hash of the supplied token — the DB never stores
   // the plaintext value the client holds.
   const tokenHash = hashRefreshToken(token);
-  const storedToken = await fastify.prisma.refreshToken.findUnique({
-    where: { token: tokenHash },
-    include: { user: { include: { tenant: true } } },
-  });
 
-  if (!storedToken || storedToken.expiresAt < new Date()) {
-    if (storedToken) {
-      await fastify.prisma.refreshToken.delete({ where: { id: storedToken.id } });
+  // Rotation is atomic + reuse-detecting: the lookup and the delete of the old
+  // token run in one transaction. If two requests race with the same token,
+  // only one `deleteMany` sees a row — the other means the token was already
+  // rotated (replayed / stolen), so we revoke every session of that user.
+  const storedToken = await fastify.prisma.$transaction(async (tx) => {
+    const found = await tx.refreshToken.findUnique({
+      where: { token: tokenHash },
+      include: { user: { include: { tenant: true } } },
+    });
+    if (!found) {
+      throw fastify.httpErrors.unauthorized("Invalid or expired refresh token");
     }
-    throw fastify.httpErrors.unauthorized("Invalid or expired refresh token");
-  }
+    if (found.expiresAt < new Date()) {
+      await tx.refreshToken.delete({ where: { id: found.id } });
+      throw fastify.httpErrors.unauthorized("Invalid or expired refresh token");
+    }
 
-  // Rotate: delete old, create new
-  await fastify.prisma.refreshToken.delete({ where: { id: storedToken.id } });
+    const { count } = await tx.refreshToken.deleteMany({
+      where: { token: tokenHash, userId: found.userId },
+    });
+    if (count === 0) {
+      await tx.refreshToken.deleteMany({ where: { userId: found.userId } });
+      throw fastify.httpErrors.unauthorized(
+        "Token de reîmprospătare refolosit — sesiunile au fost revocate",
+      );
+    }
+    return found;
+  });
 
   const { user } = storedToken;
   if (!user.isActive) throw fastify.httpErrors.unauthorized("Account inactive");
@@ -333,7 +364,9 @@ const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
  * Forgot password — fire-and-forget. Always returns void; the route returns
  * an identical 200 whether the email exists or not, so a caller can't enumerate
  * accounts. If the user exists, we generate a random 32-byte token, store its
- * SHA-256, and email the plaintext as a single-use link.
+ * SHA-256, and email the plaintext as a single-use link. The e-mail itself is
+ * sent without awaiting so the SMTP round-trip doesn't show up in the response
+ * time (which would otherwise reveal that the account exists).
  */
 export async function forgotPassword(
   fastify: FastifyInstance,
@@ -360,16 +393,15 @@ export async function forgotPassword(
   });
 
   const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`;
-  // Best-effort: don't block / leak email failures to the caller.
-  try {
-    await sendPasswordResetEmail({
-      to: user.email,
-      firstName: user.firstName,
-      resetUrl,
-    });
-  } catch (err) {
+  // Best-effort and NOT awaited: don't block the response on SMTP (timing
+  // leak) and don't surface email failures to the caller.
+  void sendPasswordResetEmail({
+    to: user.email,
+    firstName: user.firstName,
+    resetUrl,
+  }).catch((err) => {
     fastify.log.error({ err, userId: user.id }, "Failed to send password reset email");
-  }
+  });
 }
 
 /**

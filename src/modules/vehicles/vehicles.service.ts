@@ -3,6 +3,9 @@ import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateVehicleInput, UpdateVehicleInput } from "./vehicles.routes.js";
 
+/** Columns the vehicle list may be sorted by (allowlist for `sortBy`). */
+export const VEHICLES_SORTABLE = ["licensePlate", "make", "createdAt", "updatedAt"] as const;
+
 export async function list(
   fastify: FastifyInstance,
   tenantId: string,
@@ -49,7 +52,7 @@ export async function list(
       where,
       // latest revision → current odometer ("total km")
       include: { revisions: { orderBy: { date: "desc" }, take: 1, select: { km: true, date: true } } },
-      ...paginationArgs(query),
+      ...paginationArgs(query, VEHICLES_SORTABLE),
       orderBy: { licensePlate: "asc" },
     }),
     fastify.prisma.vehicle.count({ where }),

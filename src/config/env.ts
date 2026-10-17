@@ -1,11 +1,15 @@
 import { z } from "zod";
 
+// JWT secrets: 32+ chars in production (HS256 key should be ≥ 256 bits);
+// relaxed to 10 in dev/test so the local `.env` keeps working.
+const secretMin = process.env.NODE_ENV === "production" ? 32 : 10;
+
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
 
-  JWT_SECRET: z.string().min(10),
-  JWT_REFRESH_SECRET: z.string().min(10),
+  JWT_SECRET: z.string().min(secretMin),
+  JWT_REFRESH_SECRET: z.string().min(secretMin),
   JWT_ACCESS_EXPIRY: z.string().default("15m"),
   JWT_REFRESH_EXPIRY: z.string().default("7d"),
 

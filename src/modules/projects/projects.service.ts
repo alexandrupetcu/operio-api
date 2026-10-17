@@ -11,6 +11,15 @@ import type {
   CreateProjectWithClientInput,
 } from "./projects.schema.js";
 
+/** Columns the project list may be sorted by (allowlist for `sortBy`). */
+export const PROJECTS_SORTABLE = [
+  "name",
+  "status",
+  "scheduledDate",
+  "createdAt",
+  "updatedAt",
+] as const;
+
 /**
  * After a project is created, try to find and start its primary workflow.
  * Failure is logged but never thrown — project creation succeeds regardless.
@@ -205,7 +214,7 @@ export async function list(
     fastify.prisma.project.findMany({
       where,
       include: listInclude,
-      ...paginationArgs(query),
+      ...paginationArgs(query, PROJECTS_SORTABLE),
     }),
     fastify.prisma.project.count({ where }),
   ]);
@@ -497,6 +506,7 @@ export async function calendar(
     },
     include: listInclude,
     orderBy: { scheduledDate: "asc" },
+    take: 500,
   });
 }
 

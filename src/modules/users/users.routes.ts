@@ -1,15 +1,18 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
-import { paginationSchema } from "../../lib/pagination.js";
+import { paginationSchemaFor } from "../../lib/pagination.js";
 import { createUserSchema, updateUserSchema } from "./users.schema.js";
 import * as usersService from "./users.service.js";
+import { USERS_SORTABLE } from "./users.service.js";
+
+const listQuerySchema = paginationSchemaFor(USERS_SORTABLE);
 
 export default async function usersRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
   fastify.addHook("onRequest", requireRole("ADMIN"));
 
   fastify.get("/", async (request) => {
-    const query = paginationSchema.parse(request.query);
+    const query = listQuerySchema.parse(request.query);
     return usersService.list(fastify, request.tenantId, query);
   });
 

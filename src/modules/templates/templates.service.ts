@@ -303,6 +303,7 @@ export async function listGroupDocs(fastify: FastifyInstance, tenantId: string, 
   return fastify.prisma.documentTemplate.findMany({
     where: { parentGroupId: groupId },
     orderBy: { memberOrder: "asc" },
+    take: 200,
   });
 }
 

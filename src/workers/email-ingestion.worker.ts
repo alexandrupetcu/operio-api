@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import { redisConnection } from "../config/redis.js";
 import { defaultJobOptions } from "../config/queue.js";
 import { uploadFile } from "../lib/s3.js";
+import { safeS3Filename } from "../lib/safe-filename.js";
 import {
   refreshAccessTokenIfNeeded,
   fetchUnreadPdfEmails,
@@ -70,9 +71,13 @@ async function processJob() {
         const emailErrors: string[] = [];
 
         for (const email of emails) {
+          // Only mark the message read once at least one tenant processed it;
+          // otherwise leave it unread so the next poll retries.
+          let processedForAnyTenant = false;
           for (const tenantId of tenantIds) {
             try {
               await processEmail(tenantId, email, inbox.id);
+              processedForAnyTenant = true;
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
               emailErrors.push(`${email.messageId}: ${msg}`);
@@ -83,10 +88,16 @@ async function processJob() {
             }
           }
 
-          try {
-            await markAsRead(refreshedInbox, email.messageId);
-          } catch (err) {
-            console.error(`[email-ingestion] Failed to mark email ${email.messageId} as read:`, err);
+          if (processedForAnyTenant) {
+            try {
+              await markAsRead(refreshedInbox, email.messageId);
+            } catch (err) {
+              console.error(`[email-ingestion] Failed to mark email ${email.messageId} as read:`, err);
+            }
+          } else {
+            console.warn(
+              `[email-ingestion] Email ${email.messageId} failed for every tenant — left unread for retry.`
+            );
           }
         }
 
@@ -151,8 +162,9 @@ async function processEmail(tenantId: string, email: IncomingEmail, inboxId: str
         continue;
       }
 
-      // Upload PDF to S3 FIRST (so we never lose it)
-      const s3Key = `${tenantId}/email-pdfs/${Date.now()}-${attachment.filename}`;
+      // Upload PDF to S3 FIRST (so we never lose it). The key uses a sanitised
+      // random name — the original filename is kept on emailIngestLog.fileName.
+      const s3Key = `${tenantId}/email-pdfs/${Date.now()}-${safeS3Filename(attachment.filename)}`;
       await uploadFile(s3Key, attachment.content, "application/pdf");
       await prisma.emailIngestLog.update({ where: { id: log.id }, data: { s3Key } });
 

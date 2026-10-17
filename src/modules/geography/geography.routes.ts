@@ -7,6 +7,22 @@ const searchSchema = z.object({
 });
 
 const BUCURESTI_STATE_ID = 4730;
+const ROMANIA_COUNTRY_ID = 181;
+const GEO_CACHE_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * Tiny in-memory TTL cache for the public /resolve-anaf route: the full state
+ * list and the per-county city lists are static, so don't hit the DB on every
+ * (unauthenticated) call.
+ */
+const geoCache = new Map<string, { expiresAt: number; value: unknown }>();
+async function cachedFor<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
+  const hit = geoCache.get(key);
+  if (hit && hit.expiresAt > Date.now()) return hit.value as T;
+  const value = await loader();
+  geoCache.set(key, { expiresAt: Date.now() + ttlMs, value });
+  return value;
+}
 
 /**
  * Strip Romanian diacritics entirely for fuzzy matching.
@@ -128,17 +144,20 @@ export default async function geographyRoutes(fastify: FastifyInstance) {
     localitate: z.string().optional(),
   });
 
-  fastify.post("/resolve-anaf", async (request) => {
+  // Public (no auth) → rate-limited, and the state/city lists are cached in memory.
+  fastify.post("/resolve-anaf", { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (request) => {
     const { judet, localitate } = resolveSchema.parse(request.body);
 
     const normalizedCounty = normalizeAnafCounty(judet);
     const strippedCounty = stripRomanianDiacritics(normalizedCounty).toLowerCase();
 
-    // Load all Romanian states and match using stripped diacritics
-    const allStates = await fastify.prisma.state.findMany({
-      where: { countryId: 181 },
-      select: { id: true, name: true },
-    });
+    // Load all Romanian states (cached) and match using stripped diacritics
+    const allStates = await cachedFor(`states:${ROMANIA_COUNTRY_ID}`, GEO_CACHE_TTL_MS, () =>
+      fastify.prisma.state.findMany({
+        where: { countryId: ROMANIA_COUNTRY_ID },
+        select: { id: true, name: true },
+      }),
+    );
 
     const state = allStates.find(
       (s) => stripRomanianDiacritics(s.name).toLowerCase() === strippedCounty
@@ -154,11 +173,13 @@ export default async function geographyRoutes(fastify: FastifyInstance) {
       const normalizedCity = normalizeAnafCity(localitate, isBucuresti);
       const strippedCity = stripRomanianDiacritics(normalizedCity).toLowerCase();
 
-      // Load all cities for this state and match using stripped diacritics
-      const allCities = await fastify.prisma.city.findMany({
-        where: { stateId: state.id },
-        select: { id: true, name: true },
-      });
+      // Load all cities for this state (cached) and match using stripped diacritics
+      const allCities = await cachedFor(`cities:${state.id}`, GEO_CACHE_TTL_MS, () =>
+        fastify.prisma.city.findMany({
+          where: { stateId: state.id },
+          select: { id: true, name: true },
+        }),
+      );
 
       // Exact match first
       city = allCities.find(

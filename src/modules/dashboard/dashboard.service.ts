@@ -6,6 +6,7 @@ import {
 import { getAlertWindows, type AlertWindows } from "../tenant/alert-settings.js";
 import { listPendingOsRegistrations, clientDisplayName, WORK_LABEL } from "../appointments/os-registration.js";
 import { daysUntil } from "../../lib/working-days.js";
+import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 
 // Warning windows are tenant-configurable (settingsJson.alertWindows); the
 // registry defaults in ../tenant/alert-settings.ts carry the historical values
@@ -139,6 +140,7 @@ export async function getAppointmentsUpcoming(
       employee: { select: { id: true, firstName: true, lastName: true } },
     },
     orderBy: { date: "asc" },
+    take: 500,
   });
 }
 
@@ -262,25 +264,41 @@ export async function getExpiringRevisions(
   const w = windows ?? (await getAlertWindows(fastify.prisma, tenantId));
   const warningCutoff = addDays(now, w.revisionWarningDays);
 
+  // Ultima revizie per centrală, calculată în SQL — nu mai încărcăm toate
+  // centralele firmei cu reviziile lor ca să filtrăm în JS. Pragul SQL e
+  // inversul lui „ultima revizie + interval ≤ cutoff", cu o zi de marjă
+  // (rotunjiri la 29 februarie); filtrul exact rămâne mai jos, în JS.
+  const latestRevisionAllowed = addDays(warningCutoff, 1);
+  latestRevisionAllowed.setFullYear(latestRevisionAllowed.getFullYear() - w.revisionIntervalYears);
+
+  const lastRevisions = await fastify.prisma.equipmentRevision.groupBy({
+    by: ["equipmentId"],
+    where: { equipment: { type: "CENTRALA", client: { tenantId } } },
+    _max: { revisionDate: true },
+    having: { revisionDate: { _max: { lte: latestRevisionAllowed } } },
+  });
+  if (lastRevisions.length === 0) return [];
+
+  const lastByEquipment = new Map(
+    lastRevisions.map((r) => [r.equipmentId, r._max.revisionDate] as const),
+  );
+
   const equipment = await fastify.prisma.equipment.findMany({
     where: {
-      client: { tenantId },
-      type: "CENTRALA",
-    },
-    include: {
-      revisions: {
-        orderBy: { revisionDate: "desc" },
-        take: 1,
-        select: { revisionDate: true },
-      },
+      id: { in: [...lastByEquipment.keys()] },
+      // no scheduled revision
       appointments: {
-        where: {
+        none: {
           deletedAt: null,
           type: "revizie",
           status: { in: ["scheduled", "in_progress", "awaiting_report"] },
         },
-        select: { id: true },
       },
+    },
+    select: {
+      id: true,
+      name: true,
+      internalName: true,
       client: {
         select: {
           id: true,
@@ -295,10 +313,10 @@ export async function getExpiringRevisions(
   });
 
   const expiring = equipment
-    .filter((eq) => eq.appointments.length === 0) // no scheduled revision
     .map((eq) => {
-      const last = eq.revisions[0];
-      if (!last) return null;
+      const lastRevisionDate = lastByEquipment.get(eq.id);
+      if (!lastRevisionDate) return null;
+      const last = { revisionDate: lastRevisionDate };
       const expiresAt = new Date(last.revisionDate);
       expiresAt.setFullYear(expiresAt.getFullYear() + w.revisionIntervalYears);
       if (expiresAt > warningCutoff) return null;
@@ -864,6 +882,7 @@ export async function snoozeAction(
       },
     }),
   ]);
+  await invalidateDashboardCache(tenantId);
   return state;
 }
 
@@ -911,6 +930,7 @@ export async function dismissAction(
       },
     }),
   ]);
+  await invalidateDashboardCache(tenantId);
   return state;
 }
 
@@ -944,6 +964,7 @@ export async function unsnoozeAction(
       },
     }),
   ]);
+  await invalidateDashboardCache(tenantId);
   return { success: true };
 }
 

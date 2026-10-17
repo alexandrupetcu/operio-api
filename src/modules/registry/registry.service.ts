@@ -44,6 +44,7 @@ export async function listSeries(fastify: FastifyInstance, tenantId: string) {
   return fastify.prisma.registrySeries.findMany({
     where: { tenantId },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    take: 200,
   });
 }
 
@@ -309,7 +310,9 @@ export async function createEntry(
  * can be embedded in the output.
  */
 export async function allocateEntryForDocument(
-  prisma: PrismaClient,
+  // În tranzacție (finalizare programare) un P2002 nu se poate reîncerca —
+  // tranzacția e deja abortată și eroarea urcă; apelantul reia toată finalizarea.
+  prisma: PrismaClient | Prisma.TransactionClient,
   tenantId: string,
   userId: string | null,
   seriesCode: string,
@@ -367,7 +370,7 @@ export async function allocateEntryForDocument(
   return null;
 }
 
-async function getSystemUserId(prisma: PrismaClient, tenantId: string): Promise<string> {
+async function getSystemUserId(prisma: PrismaClient | Prisma.TransactionClient, tenantId: string): Promise<string> {
   // Fallback: find first admin of tenant to attribute auto-generated entries
   const admin = await prisma.user.findFirst({
     where: { tenantId, role: "ADMIN" },

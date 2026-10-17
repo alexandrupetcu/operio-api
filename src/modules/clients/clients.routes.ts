@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
-import { paginationSchema } from "../../lib/pagination.js";
+import { paginationSchemaFor } from "../../lib/pagination.js";
 import {
   createClientSchema,
   updateClientSchema,
@@ -11,12 +11,15 @@ import {
   updateQuickDossierSchema,
 } from "./clients.schema.js";
 import * as clientsService from "./clients.service.js";
+import { CLIENTS_SORTABLE } from "./clients.service.js";
+
+const listQuerySchema = paginationSchemaFor(CLIENTS_SORTABLE);
 
 export default async function clientsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
   fastify.get("/", async (request) => {
-    const query = paginationSchema.parse(request.query);
+    const query = listQuerySchema.parse(request.query);
     const { status, type } = request.query as Record<string, string>;
     return clientsService.list(fastify, request.tenantId, { ...query, status, type });
   });
@@ -126,6 +129,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
       return fastify.prisma.equipment.findMany({
         where: { clientId: client.id },
         orderBy: { createdAt: "asc" },
+        take: 200,
       });
     }
   );

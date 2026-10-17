@@ -12,6 +12,16 @@ import type {
 } from "./clients.schema.js";
 import { generate as documentsGenerate } from "../documents/documents.service.js";
 
+/** Columns the client list may be sorted by (allowlist for `sortBy`). */
+export const CLIENTS_SORTABLE = [
+  "companyName",
+  "lastName",
+  "firstName",
+  "status",
+  "createdAt",
+  "updatedAt",
+] as const;
+
 const addressInclude = {
   country: { select: { id: true, name: true, emoji: true } },
   state: { select: { id: true, name: true } },
@@ -85,7 +95,7 @@ export async function list(
     fastify.prisma.client.findMany({
       where,
       include: clientInclude,
-      ...paginationArgs(query),
+      ...paginationArgs(query, CLIENTS_SORTABLE),
     }),
     fastify.prisma.client.count({ where }),
   ]);
@@ -138,6 +148,7 @@ export async function getById(
       projects: {
         include: { projectType: { select: { id: true, name: true } } },
         orderBy: { createdAt: "desc" },
+        take: 500,
       },
     },
   });
@@ -509,6 +520,7 @@ export async function listInstallations(
     where: { clientId },
     include: installationInclude,
     orderBy: { createdAt: "asc" },
+    take: 200,
   });
 }
 
@@ -587,6 +599,7 @@ export async function listDossiers(
     where: { tenantId, clientId, kind: "quick_dossier" },
     include: dossierInclude,
     orderBy: { createdAt: "desc" as const },
+    take: 200,
   });
 }
 

@@ -36,6 +36,7 @@ export default async function projectTeamRoutes(fastify: FastifyInstance) {
       where: { projectId: project.id },
       include: { employee: { select: { id: true, firstName: true, lastName: true, position: true } } },
       orderBy: { createdAt: "asc" },
+      take: 200,
     });
   });
 

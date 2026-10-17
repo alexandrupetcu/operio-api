@@ -156,6 +156,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
   fastify.get("/categories", async () => {
     return fastify.prisma.templateCategory.findMany({
       orderBy: { sortOrder: "asc" },
+      take: 200,
     });
   });
 

@@ -144,6 +144,7 @@ export default async function signingRoutes(fastify: FastifyInstance) {
           events: { orderBy: { createdAt: "asc" } },
         },
         orderBy: { createdAt: "desc" },
+        take: 200,
       });
     }
   );

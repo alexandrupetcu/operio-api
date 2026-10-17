@@ -5,7 +5,8 @@ import { redisConnection } from "../../config/redis.js";
 import { defaultJobOptions } from "../../config/queue.js";
 import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
-import type { CreateTaskInput, UpdateTaskInput } from "./tasks.schema.js";
+import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
+import { type CreateTaskInput, type UpdateTaskInput, TASKS_SORTABLE } from "./tasks.schema.js";
 import {
   assertClientInTenant,
   assertProjectInTenant,
@@ -191,7 +192,7 @@ export async function list(
     fastify.prisma.task.findMany({
       where,
       include: listInclude,
-      ...paginationArgs(query),
+      ...paginationArgs(query, TASKS_SORTABLE),
     }),
     fastify.prisma.task.count({ where }),
   ]);
@@ -255,6 +256,7 @@ export async function create(
     );
   }
 
+  await invalidateDashboardCache(tenantId);
   return task;
 }
 
@@ -337,7 +339,7 @@ export async function complete(
   if (!task) throw fastify.httpErrors.notFound("Task not found");
   assertCanModify(fastify, actor, task);
 
-  return fastify.prisma.task.update({
+  const completed = await fastify.prisma.task.update({
     where: { id },
     data: {
       status: "done",
@@ -345,6 +347,8 @@ export async function complete(
     },
     include: listInclude,
   });
+  await invalidateDashboardCache(tenantId);
+  return completed;
 }
 
 export async function remove(

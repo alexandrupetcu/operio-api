@@ -5,6 +5,16 @@ import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateUserInput, UpdateUserInput } from "./users.schema.js";
 import { clearMobileDeviceRevoked, markMobileDeviceRevoked } from "../../lib/mobile-devices.js";
 
+/** Columns the user list may be sorted by (allowlist for `sortBy`). */
+export const USERS_SORTABLE = [
+  "email",
+  "firstName",
+  "lastName",
+  "role",
+  "createdAt",
+  "updatedAt",
+] as const;
+
 const userSelect = {
   id: true,
   email: true,
@@ -39,6 +49,7 @@ export async function listDevices(fastify: FastifyInstance, tenantId: string, us
     where: { tenantId, userId },
     select: deviceSelect,
     orderBy: { lastSeenAt: "desc" },
+    take: 200,
   });
 }
 
@@ -98,7 +109,7 @@ export async function list(
     fastify.prisma.user.findMany({
       where,
       select: userSelect,
-      ...paginationArgs(query),
+      ...paginationArgs(query, USERS_SORTABLE),
     }),
     fastify.prisma.user.count({ where }),
   ]);

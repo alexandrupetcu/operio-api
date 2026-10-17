@@ -13,6 +13,7 @@ export async function list(
       ...(activeOnly !== undefined && { isActive: activeOnly }),
     },
     orderBy: { name: "asc" },
+    take: 200,
   });
 }
 

@@ -4,6 +4,9 @@ import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateNotificationInput } from "./notifications.schema.js";
 
+/** Columns the notification list may be sorted by (allowlist for `sortBy`). */
+export const NOTIFICATIONS_SORTABLE = ["createdAt", "updatedAt", "status"] as const;
+
 const listInclude = {
   project: { select: { id: true, name: true } },
   client: { select: { id: true, companyName: true, firstName: true, lastName: true } },
@@ -39,7 +42,7 @@ export async function list(
     fastify.prisma.notification.findMany({
       where,
       include: listInclude,
-      ...paginationArgs(query),
+      ...paginationArgs(query, NOTIFICATIONS_SORTABLE),
     }),
     fastify.prisma.notification.count({ where }),
   ]);
@@ -68,7 +71,7 @@ export async function listForUser(
     fastify.prisma.notification.findMany({
       where,
       include: listInclude,
-      ...paginationArgs(query),
+      ...paginationArgs(query, NOTIFICATIONS_SORTABLE),
     }),
     fastify.prisma.notification.count({ where }),
   ]);

@@ -29,6 +29,7 @@ export async function listByProject(
     where: { tenantId, projects: { some: { projectId } } },
     include: documentInclude,
     orderBy: { createdAt: "desc" },
+    take: 500,
   });
 }
 
@@ -182,6 +183,7 @@ export async function listByClient(
     where: { tenantId, clients: { some: { clientId } } },
     include: documentInclude,
     orderBy: { createdAt: "desc" },
+    take: 500,
   });
 }
 

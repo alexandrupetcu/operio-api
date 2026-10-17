@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requireRole } from "../../lib/rbac.js";
 import {
   createSeriesSchema,
@@ -8,6 +9,19 @@ import {
   voidEntrySchema,
 } from "./registry.schema.js";
 import * as registryService from "./registry.service.js";
+
+const listEntriesQuerySchema = z.object({
+  seriesId: z.string().optional(),
+  year: z.coerce.number().int().optional(),
+  search: z.string().optional(),
+  status: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
+const statsQuerySchema = z.object({
+  year: z.coerce.number().int().default(() => new Date().getFullYear()),
+});
 
 export default async function registryRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
@@ -60,29 +74,20 @@ export default async function registryRoutes(fastify: FastifyInstance) {
 
   // ─── Entries ────────────────────────────────────────────────────────
 
-  fastify.get<{
-    Querystring: {
-      seriesId?: string;
-      year?: string;
-      search?: string;
-      status?: string;
-      limit?: string;
-      offset?: string;
-    };
-  }>("/entries", async (request) => {
-    const q = request.query;
+  fastify.get("/entries", async (request) => {
+    const q = listEntriesQuerySchema.parse(request.query);
     return registryService.listEntries(fastify, request.tenantId, {
       seriesId: q.seriesId,
-      year: q.year ? parseInt(q.year) : undefined,
+      year: q.year,
       search: q.search,
       status: q.status,
-      limit: q.limit ? parseInt(q.limit) : undefined,
-      offset: q.offset ? parseInt(q.offset) : undefined,
+      limit: q.limit,
+      offset: q.offset,
     });
   });
 
-  fastify.get<{ Querystring: { year?: string } }>("/stats", async (request) => {
-    const year = request.query.year ? parseInt(request.query.year) : new Date().getFullYear();
+  fastify.get("/stats", async (request) => {
+    const { year } = statsQuerySchema.parse(request.query);
     return registryService.stats(fastify, request.tenantId, year);
   });
 

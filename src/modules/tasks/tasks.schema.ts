@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+/**
+ * Columns the task list may be sorted by (allowlist for `sortBy`). Lives here
+ * (not in tasks.service.ts) so both routes and service can import it without
+ * a routes<->service cycle; the service must pass it to `paginationArgs`.
+ */
+export const TASKS_SORTABLE = ["title", "dueAt", "priority", "status", "createdAt", "updatedAt"] as const;
+
 export const createTaskSchema = z.object({
   title: z.string().min(1).max(500),
   description: z.string().optional(),

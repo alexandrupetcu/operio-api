@@ -1,14 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
-import { paginationSchema } from "../../lib/pagination.js";
-import { createTaskSchema, updateTaskSchema } from "./tasks.schema.js";
+import { paginationSchemaFor } from "../../lib/pagination.js";
+import { createTaskSchema, updateTaskSchema, TASKS_SORTABLE } from "./tasks.schema.js";
 import * as tasksService from "./tasks.service.js";
+
+const listQuerySchema = paginationSchemaFor(TASKS_SORTABLE);
 
 export default async function tasksRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
   fastify.get("/", async (request) => {
-    const query = paginationSchema.parse(request.query);
+    const query = listQuerySchema.parse(request.query);
     const {
       status,
       assignedUserId,

@@ -192,6 +192,7 @@ model Client {
   gasInstallations GasInstallation[]
 
   @@index([tenantId])
+  @@index([tenantId, status])
 }
 
 model ClientAddress {
@@ -295,6 +296,7 @@ model EquipmentRevision {
 
   @@index([equipmentId])
   @@index([equipmentId, revisionDate])
+  @@index([sourceEmailId])
 }
 
 // Gas installation (instalație de utilizare gaze naturale) — reusable identity
@@ -563,6 +565,10 @@ model Document {
   status                 DocumentStatus        @default(PENDING)
   errorMessage           String?
   contextJson            Json?
+  // Programarea pentru care a fost generat (RT/PV/FISA/contract). Dublează
+  // `contextJson.appointmentId` (pe care îl citesc în continuare template-urile
+  // și worker-ul) ca să putem filtra pe coloană indexată, nu pe JSON.
+  appointmentId          String?
   createdAt              DateTime              @default(now())
   updatedAt              DateTime              @updatedAt
 
@@ -574,6 +580,7 @@ model Document {
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, workflowStepInstanceId])
+  @@index([tenantId, appointmentId])
 }
 
 model ProjectDocument {

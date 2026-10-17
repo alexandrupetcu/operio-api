@@ -56,11 +56,11 @@ export async function buildAnexa6Workbook(fastify: FastifyInstance, tenantId: st
     ? await fastify.prisma.document.findMany({
         where: {
           tenantId,
+          appointmentId: { in: ids },
           template: { categoryCode: { in: FISA_CATEGORY_CODES } },
-          createdAt: { gte: from },
         },
         select: {
-          contextJson: true,
+          appointmentId: true,
           createdAt: true,
           registryEntries: { select: { displayNumber: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
         },
@@ -68,7 +68,7 @@ export async function buildAnexa6Workbook(fastify: FastifyInstance, tenantId: st
     : [];
   const fisaByAppt = new Map<string, FisaRef>();
   for (const d of docs) {
-    const apptId = (d.contextJson as { appointmentId?: string } | null)?.appointmentId;
+    const apptId = d.appointmentId;
     if (!apptId || fisaByAppt.has(apptId)) continue;
     const entry = d.registryEntries[0];
     if (entry) fisaByAppt.set(apptId, { nr: entry.displayNumber, data: fmt(entry.createdAt) });

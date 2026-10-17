@@ -1536,13 +1536,6 @@ async function processJob(job: Job<DocumentJobData>) {
       }
 
       console.log("[doc-worker] Template content length:", template.content!.length);
-      console.log("[doc-worker] Tenant adminName:", tenant.adminName);
-      console.log("[doc-worker] Tenant stampS3Key:", tenant.stampS3Key);
-      console.log("[doc-worker] Tenant signatureS3Key:", tenant.signatureS3Key);
-      console.log("[doc-worker] htmlData keys:", Object.keys(htmlData).filter(k => k.startsWith("tenant_")));
-      console.log("[doc-worker] htmlData tenant_admin_name:", htmlData["tenant_admin_name"]);
-      console.log("[doc-worker] htmlData tenant_stamp present:", !!htmlData["tenant_stamp"]);
-      console.log("[doc-worker] htmlData tenant_signature present:", !!htmlData["tenant_signature"]);
 
       // Embed client signature from document.contextJson (for auto-generated GDPR docs).
       // Key comes from JSON → must be under the tenant prefix, else skipped.

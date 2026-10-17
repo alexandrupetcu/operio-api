@@ -14,7 +14,7 @@ const replyTo = () => (env.SMTP_REPLY_TO ? { replyTo: env.SMTP_REPLY_TO } : {});
 function getTransporter(): Transporter | null {
   if (!env.SMTP_HOST) return null;
   if (!transporter) {
-    console.log(`[email] Creating SMTP transporter: ${env.SMTP_HOST}:${env.SMTP_PORT} user=${env.SMTP_USER}`);
+    console.log(`[email] Creating SMTP transporter: ${env.SMTP_HOST}:${env.SMTP_PORT}`);
     transporter = nodemailer.createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
@@ -288,7 +288,8 @@ export async function sendContactRequest(req: {
 }): Promise<void> {
   const t = getTransporter();
   if (!t) {
-    console.warn("[email] SMTP not configured — contact request NOT delivered:", req);
+    // Nu logăm payload-ul (date de contact ale lead-ului).
+    console.warn("[email] SMTP not configured — contact request NOT delivered");
     return;
   }
   const esc = (v: string) => v.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
@@ -308,5 +309,5 @@ ${req.message ? `<p style="font-family:sans-serif;white-space:pre-wrap;border-le
     html,
     text: rows.map(([k, v]) => `${k}: ${v}`).join("\n") + (req.message ? `\n\n${req.message}` : ""),
   });
-  console.log(`[email] contact request from ${req.email} forwarded to ${env.CONTACT_EMAIL}`);
+  console.log("[email] contact request forwarded");
 }

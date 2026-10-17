@@ -91,6 +91,7 @@ export default async function emailInboxesRoutes(fastify: FastifyInstance) {
         where: request.user?.role === "MASTER_ADMIN" ? {} : { OR: [{ tenantId: request.tenantId }, { tenantId: null }] },
         orderBy: { createdAt: "asc" },
         omit: { refreshToken: true, accessToken: true },
+        take: 200,
       });
       return rows;
     }

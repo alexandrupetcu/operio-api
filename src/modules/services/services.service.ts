@@ -3,6 +3,9 @@ import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateServiceInput, UpdateServiceInput } from "./services.routes.js";
 
+/** Columns the service list may be sorted by (allowlist for `sortBy`). */
+export const SERVICES_SORTABLE = ["name", "createdAt", "updatedAt"] as const;
+
 export async function list(
   fastify: FastifyInstance,
   tenantId: string,
@@ -21,7 +24,7 @@ export async function list(
   const [data, total] = await Promise.all([
     fastify.prisma.service.findMany({
       where,
-      ...paginationArgs(query),
+      ...paginationArgs(query, SERVICES_SORTABLE),
       orderBy: { name: "asc" },
     }),
     fastify.prisma.service.count({ where }),

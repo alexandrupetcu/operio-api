@@ -1,7 +1,14 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { requireMasterAdmin } from "../../lib/rbac.js";
 import * as adminService from "./admin.service.js";
 import emailLogsRoutes from "./email-logs.routes.js";
+
+const listDocumentsQuerySchema = z.object({
+  status: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(200).default(25),
+});
 
 export default async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
@@ -15,16 +22,8 @@ export default async function adminRoutes(fastify: FastifyInstance) {
 
   // List all documents across tenants
   fastify.get("/documents", async (request) => {
-    const { status, page, limit } = request.query as {
-      status?: string;
-      page?: string;
-      limit?: string;
-    };
-    return adminService.listAllDocuments(fastify, {
-      status,
-      page: page ? parseInt(page) : undefined,
-      limit: limit ? parseInt(limit) : undefined,
-    });
+    const { status, page, limit } = listDocumentsQuerySchema.parse(request.query);
+    return adminService.listAllDocuments(fastify, { status, page, limit });
   });
 
   // Retry a failed document
@@ -45,6 +44,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         emailIngestionEnabled: true,
       },
       orderBy: { name: "asc" },
+      take: 500,
     });
   });
 

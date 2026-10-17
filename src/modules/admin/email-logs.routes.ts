@@ -10,15 +10,19 @@ import {
 
 const documentQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
 
+const listLogsQuerySchema = z.object({
+  status: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
 export default async function emailLogsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
   fastify.addHook("onRequest", requireRole("ADMIN", "MANAGER"));
 
   // List logs with filters
-  fastify.get<{
-    Querystring: { status?: string; limit?: string; offset?: string };
-  }>("/", async (request) => {
-    const { status, limit, offset } = request.query as Record<string, string>;
+  fastify.get("/", async (request) => {
+    const { status, limit, offset } = listLogsQuerySchema.parse(request.query);
     const where = {
       tenantId: request.tenantId,
       ...(status && { status }),
@@ -27,8 +31,8 @@ export default async function emailLogsRoutes(fastify: FastifyInstance) {
       fastify.prisma.emailIngestLog.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        take: limit ? parseInt(limit) : 50,
-        skip: offset ? parseInt(offset) : 0,
+        take: limit,
+        skip: offset,
       }),
       fastify.prisma.emailIngestLog.count({ where }),
     ]);
@@ -148,6 +152,7 @@ export default async function emailLogsRoutes(fastify: FastifyInstance) {
       if (!linkedApt) {
         const candidates = await fastify.prisma.appointment.findMany({
           where: { tenantId, deletedAt: null, clientId: client.id, type: "revizie", equipmentRevisionId: null, date: { gte: dateFrom, lte: dateTo } },
+          take: 1,
         });
         const matched = candidates[0] ?? null;
         if (matched) {

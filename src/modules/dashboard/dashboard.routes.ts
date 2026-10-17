@@ -1,18 +1,28 @@
 import type { FastifyInstance } from "fastify";
 import * as dashboardService from "./dashboard.service.js";
-import { resolveApptScope } from "../appointments/scope.js";
+import { resolveApptScope, type ApptScope } from "../appointments/scope.js";
 import { snoozeActionSchema, dismissActionSchema, unsnoozeActionSchema } from "./dashboard.schema.js";
+import { cachedDashboard } from "../../lib/dashboard-cache.js";
+
+/** Varianta de cache: răspunsul depinde de ce programări vede cererea. */
+function scopeVariant(scope: ApptScope): string {
+  return scope.kind === "all" ? "all" : `own:${scope.employeeId ?? "none"}`;
+}
 
 export default async function dashboardRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
-  fastify.get("/overview", async (request) => {
-    return dashboardService.getOverview(
-      fastify,
+  fastify.get("/overview", async (request, reply) => {
+    const scope = await resolveApptScope(fastify, request);
+    // `openTasks` sunt ale utilizatorului curent → varianta include și userul.
+    const { value, hit } = await cachedDashboard(
       request.tenantId,
-      request.user.sub,
-      await resolveApptScope(fastify, request)
+      "overview",
+      `${scopeVariant(scope)}:u:${request.user.sub}`,
+      () => dashboardService.getOverview(fastify, request.tenantId, request.user.sub, scope),
     );
+    reply.header("x-cache", hit ? "hit" : "miss");
+    return value;
   });
 
   fastify.get("/appointments-upcoming", async (request) => {
@@ -43,13 +53,16 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
     );
   });
 
-  fastify.get("/action-feed", async (request) => {
-    return dashboardService.getActionFeed(
-      fastify,
+  fastify.get("/action-feed", async (request, reply) => {
+    const scope = await resolveApptScope(fastify, request);
+    const { value, hit } = await cachedDashboard(
       request.tenantId,
-      request.user.sub,
-      await resolveApptScope(fastify, request)
+      "action-feed",
+      scopeVariant(scope),
+      () => dashboardService.getActionFeed(fastify, request.tenantId, request.user.sub, scope),
     );
+    reply.header("x-cache", hit ? "hit" : "miss");
+    return value;
   });
 
   fastify.post("/action-feed/snooze", async (request) => {

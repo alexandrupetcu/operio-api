@@ -1,9 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
-import { paginationSchema } from "../../lib/pagination.js";
+import { paginationSchemaFor } from "../../lib/pagination.js";
 import { z } from "zod";
 import * as employeesService from "./employees.service.js";
+import { EMPLOYEES_SORTABLE } from "./employees.service.js";
 import { getSchedulingSettings } from "../tenant/scheduling-settings.js";
+
+const listQuerySchema = paginationSchemaFor(EMPLOYEES_SORTABLE);
 
 const createSchema = z.object({
   firstName: z.string().min(1).max(100),
@@ -35,7 +38,7 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
   fastify.get("/", async (request) => {
-    const query = paginationSchema.parse(request.query);
+    const query = listQuerySchema.parse(request.query);
     const { isActive, employeeType } = request.query as Record<string, string>;
     // În modul cu calendare separate, un tehnician nu are de ce să vadă echipa:
     // pe telefon nu mai alege tehnicianul, iar ocuparea colegilor e informație

@@ -4,6 +4,9 @@ import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import { uploadFile, deleteFile, getPresignedUrl } from "../../lib/s3.js";
 import type { CreateEmployeeInput, UpdateEmployeeInput } from "./employees.routes.js";
 
+/** Columns the employee list may be sorted by (allowlist for `sortBy`). */
+export const EMPLOYEES_SORTABLE = ["lastName", "firstName", "createdAt", "updatedAt"] as const;
+
 const NON_TERMINAL_PROJECT = ["completed", "rejected", "cancelled"];
 const ACTIVE_APPT = ["scheduled", "in_progress"];
 
@@ -63,7 +66,7 @@ export async function list(
           },
         },
       },
-      ...paginationArgs(query),
+      ...paginationArgs(query, EMPLOYEES_SORTABLE),
       orderBy: { lastName: "asc" },
     }),
     fastify.prisma.employee.count({ where }),
