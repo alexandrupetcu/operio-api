@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import ExcelJS from "exceljs";
 import { INSTALATIE_APPT_TYPES, clientDisplayName } from "../appointments/os-registration.js";
+import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
 
 /**
  * Registrul anual de evidență a verificărilor și reviziilor tehnice (Anexa nr. 6 la
@@ -29,6 +30,9 @@ export async function buildAnexa6Workbook(fastify: FastifyInstance, tenantId: st
   const from = new Date(year, 0, 1);
   const to = new Date(year + 1, 0, 1);
 
+  // Vizita clientului de exemplu (onboarding) nu intră în registrul oficial.
+  const sampleClientId = await getSampleClientId(fastify.prisma, tenantId);
+
   const [tenant, appts] = await Promise.all([
     fastify.prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, cui: true } }),
     fastify.prisma.appointment.findMany({
@@ -40,6 +44,7 @@ export async function buildAnexa6Workbook(fastify: FastifyInstance, tenantId: st
         // Anul în care s-a întocmit fișa = data vizitei; completedAt e doar rezerva
         // pentru vizitele vechi fără dată de finalizare.
         date: { gte: from, lt: to },
+        ...excludeSampleAppointments(sampleClientId),
       },
       include: {
         client: { select: { companyName: true, firstName: true, lastName: true } },

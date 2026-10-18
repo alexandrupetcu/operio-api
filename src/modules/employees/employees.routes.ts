@@ -88,6 +88,15 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
     },
   });
 
+  // Invitație în aplicația mobilă (text WhatsApp/SMS + e-mailul contului legat).
+  // Nu trimite nimic — întoarce mesajul și linkul wa.me, operatorul alege canalul.
+  fastify.post<{ Params: { id: string } }>("/:id/invite", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request) => {
+      return employeesService.buildInvite(fastify, request.tenantId, request.params.id);
+    },
+  });
+
   // Save signature drawn on the canvas (PNG data URL) — placed on generated
   // documents as {role}_signature.
   fastify.post<{ Params: { id: string } }>("/:id/signature", {

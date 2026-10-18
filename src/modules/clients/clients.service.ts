@@ -11,6 +11,7 @@ import type {
   UpdateQuickDossierInput,
 } from "./clients.schema.js";
 import { generate as documentsGenerate } from "../documents/documents.service.js";
+import { getSampleClientId } from "../tenant/sample-settings.js";
 
 /** Columns the client list may be sorted by (allowlist for `sortBy`). */
 export const CLIENTS_SORTABLE = [
@@ -109,17 +110,21 @@ export async function stats(fastify: FastifyInstance, tenantId: string) {
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
+  // Clientul de exemplu (onboarding) rămâne în listă, dar nu umflă KPI-urile.
+  const sampleClientId = await getSampleClientId(fastify.prisma, tenantId);
+  const base = { tenantId, ...(sampleClientId && { id: { not: sampleClientId } }) };
+
   const [total, active, prospect, inactive, companies, persons, addedThisMonth, localities] =
     await Promise.all([
-      fastify.prisma.client.count({ where: { tenantId } }),
-      fastify.prisma.client.count({ where: { tenantId, status: "ACTIVE" } }),
-      fastify.prisma.client.count({ where: { tenantId, status: "PROSPECT" } }),
-      fastify.prisma.client.count({ where: { tenantId, status: "INACTIVE" } }),
-      fastify.prisma.client.count({ where: { tenantId, type: "COMPANY" } }),
-      fastify.prisma.client.count({ where: { tenantId, type: "PERSON" } }),
-      fastify.prisma.client.count({ where: { tenantId, createdAt: { gte: startOfMonth } } }),
+      fastify.prisma.client.count({ where: base }),
+      fastify.prisma.client.count({ where: { ...base, status: "ACTIVE" } }),
+      fastify.prisma.client.count({ where: { ...base, status: "PROSPECT" } }),
+      fastify.prisma.client.count({ where: { ...base, status: "INACTIVE" } }),
+      fastify.prisma.client.count({ where: { ...base, type: "COMPANY" } }),
+      fastify.prisma.client.count({ where: { ...base, type: "PERSON" } }),
+      fastify.prisma.client.count({ where: { ...base, createdAt: { gte: startOfMonth } } }),
       fastify.prisma.clientAddress.findMany({
-        where: { client: { tenantId }, cityId: { not: null } },
+        where: { client: base, cityId: { not: null } },
         select: { cityId: true },
         distinct: ["cityId"],
       }),

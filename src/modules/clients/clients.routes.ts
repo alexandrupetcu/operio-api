@@ -1,5 +1,5 @@
 import { requireFeature } from "../../lib/entitlements/index.js";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
 import { paginationSchemaFor } from "../../lib/pagination.js";
 import {
@@ -13,11 +13,104 @@ import {
 } from "./clients.schema.js";
 import * as clientsService from "./clients.service.js";
 import { CLIENTS_SORTABLE } from "./clients.service.js";
+import {
+  ImportFileError,
+  MAX_FILE_BYTES,
+  importClients,
+  mappingSchema,
+  parseUpload,
+  suggestMapping,
+} from "./clients-import.js";
+import { invalidateReadiness } from "../tenant/readiness.js";
+import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 
 const listQuerySchema = paginationSchemaFor(CLIENTS_SORTABLE);
 
+/** Citește multipart-ul unui import: fișierul din câmpul `file` + câmpurile text. */
+async function readImportUpload(fastify: FastifyInstance, request: FastifyRequest) {
+  let file: { buffer: Buffer; filename: string; mimetype: string } | null = null;
+  const fields: Record<string, string> = {};
+  try {
+    for await (const part of request.parts({ limits: { fileSize: MAX_FILE_BYTES, files: 1 } })) {
+      if (part.type === "file") {
+        if (part.fieldname !== "file") {
+          await part.toBuffer(); // consumăm fluxul ca să nu blocăm parserul
+          continue;
+        }
+        file = { buffer: await part.toBuffer(), filename: part.filename ?? "import", mimetype: part.mimetype ?? "" };
+      } else {
+        fields[part.fieldname] = String(part.value ?? "");
+      }
+    }
+  } catch (err) {
+    if ((err as { code?: string }).code === "FST_REQ_FILE_TOO_LARGE") {
+      throw fastify.httpErrors.payloadTooLarge("Fișierul depășește 5 MB");
+    }
+    throw err;
+  }
+  if (!file) throw fastify.httpErrors.badRequest("Lipsește fișierul (câmpul „file”)");
+  return { file, fields };
+}
+
+async function parseOr400(fastify: FastifyInstance, file: { buffer: Buffer; filename: string; mimetype: string }) {
+  try {
+    return await parseUpload(file.buffer, file.filename, file.mimetype);
+  } catch (err) {
+    if (err instanceof ImportFileError) throw fastify.httpErrors.badRequest(err.message);
+    throw err;
+  }
+}
+
 export default async function clientsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
+
+  // === Import din Excel/CSV (onboarding) ===
+  // Previzualizare: antet, primele rânduri și maparea propusă a coloanelor.
+  fastify.post(
+    "/import/preview",
+    {
+      onRequest: [requireRole("ADMIN", "MANAGER")],
+      config: { rateLimit: { max: 30, timeWindow: "1 hour" } },
+    },
+    async (request) => {
+      const { file } = await readImportUpload(fastify, request);
+      const sheet = await parseOr400(fastify, file);
+      return {
+        headers: sheet.headers,
+        rows: sheet.rows.slice(0, 5),
+        totalRows: sheet.rows.length,
+        suggestedMapping: suggestMapping(sheet.headers),
+      };
+    },
+  );
+
+  // Importul propriu-zis, cu maparea confirmată (`mapping` = JSON, `skipDuplicates` = "true"/"false").
+  fastify.post(
+    "/import",
+    {
+      onRequest: [requireRole("ADMIN", "MANAGER")],
+      config: { rateLimit: { max: 5, timeWindow: "1 hour" } },
+    },
+    async (request) => {
+      const { file, fields } = await readImportUpload(fastify, request);
+      let mappingRaw: unknown;
+      try {
+        mappingRaw = JSON.parse(fields.mapping ?? "");
+      } catch {
+        throw fastify.httpErrors.badRequest("Câmpul „mapping” trebuie să fie JSON valid");
+      }
+      const mapping = mappingSchema.parse(mappingRaw);
+      const skipDuplicates = fields.skipDuplicates === undefined ? true : fields.skipDuplicates !== "false";
+
+      const sheet = await parseOr400(fastify, file);
+      const result = await importClients(fastify, request.tenantId, sheet, mapping, skipDuplicates);
+      if (result.created > 0) {
+        invalidateReadiness(request.tenantId);
+        await invalidateDashboardCache(request.tenantId);
+      }
+      return result;
+    },
+  );
 
   fastify.get("/", async (request) => {
     const query = listQuerySchema.parse(request.query);

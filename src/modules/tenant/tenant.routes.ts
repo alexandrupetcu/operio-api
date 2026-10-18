@@ -5,6 +5,8 @@ import { uploadFile, getPresignedUrl, deleteFile } from "../../lib/s3.js";
 import { removeWhiteBackground, normalizeLogo } from "../../lib/image.js";
 import { resolveStampSlots, upsertStampSlot, STAMP_SLOTS } from "../../lib/stamps.js";
 import { readCompanySettings, setCompanySettings } from "./company-settings.js";
+import { getReadiness } from "./readiness.js";
+import { createSampleData, deleteSampleData } from "./sample-data.js";
 import { ALERT_WINDOWS, getAlertWindows, setAlertWindows } from "./alert-settings.js";
 import {
   SCHEDULING_MODES,
@@ -111,6 +113,28 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
         data: body,
         include: tenantInclude,
       });
+    },
+  });
+
+  // Lista de pornire (onboarding): ce mai lipsește ca firma să emită documente.
+  // Orice rol autentificat — panoul o arată tuturor.
+  fastify.get("/readiness", async (request) => {
+    return getReadiness(fastify, request.tenantId);
+  });
+
+  // Date de exemplu: client fictiv + instalație + o revizie finalizată (cu documente).
+  fastify.post("/sample-data", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request, reply) => {
+      const result = await createSampleData(fastify, request.tenantId);
+      return reply.status(result.documentsQueued ? 201 : 200).send(result);
+    },
+  });
+
+  fastify.delete("/sample-data", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request) => {
+      return deleteSampleData(fastify, request.tenantId, request.user.sub);
     },
   });
 

@@ -4,6 +4,7 @@ import { osRegistrationDeadline } from "../../lib/working-days.js";
 import { regenerateFisaForOsRegistration } from "./appointments.service.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 import type { OsRegistrationInput } from "./appointments.schema.js";
+import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
 
 /** Tipurile de programare care produc o Fișă de evidență ce trebuie înregistrată la OS. */
 export const INSTALATIE_APPT_TYPES = ["revizie_instalatie", "verificare_instalatie"] as const;
@@ -83,6 +84,8 @@ const osSelect = {
  * termenul legal (5 zile lucrătoare de la finalizare).
  */
 export async function listPendingOsRegistrations(fastify: FastifyInstance, tenantId: string) {
+  // Fișa clientului de exemplu (onboarding) nu se înregistrează nicăieri.
+  const sampleClientId = await getSampleClientId(fastify.prisma, tenantId);
   const rows = await fastify.prisma.appointment.findMany({
     where: {
       tenantId,
@@ -90,6 +93,7 @@ export async function listPendingOsRegistrations(fastify: FastifyInstance, tenan
       status: "completed",
       type: { in: [...INSTALATIE_APPT_TYPES] },
       osRegistrationNumber: null,
+      ...excludeSampleAppointments(sampleClientId),
     },
     select: {
       id: true,

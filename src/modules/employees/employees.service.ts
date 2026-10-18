@@ -156,6 +156,57 @@ export async function remove(
   return fastify.prisma.employee.delete({ where: { id } });
 }
 
+// Identificatorul aplicației mobile — același în operio-mobile/app.json
+// (`android.package` / `ios.bundleIdentifier`). Pagina App Store e un placeholder
+// până la publicare.
+const ANDROID_PACKAGE = "com.operio.mobile";
+export const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`;
+export const APP_STORE_URL = "https://apps.apple.com/app/operio";
+
+/** Număr de telefon RO → cifre pentru wa.me (prefix 40, fără „+”, „00” sau „0” inițial). */
+export function whatsappDigits(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  else if (digits.startsWith("0") && digits.length === 10) digits = "40" + digits.slice(1);
+  else if (digits.length === 9 && digits.startsWith("7")) digits = "40" + digits;
+  return digits.length >= 10 ? digits : null;
+}
+
+/**
+ * Mesajul de invitație pentru un tehnician (WhatsApp / SMS), cu linkurile către
+ * aplicație și e-mailul de autentificare dacă angajatul are deja un cont legat.
+ * Nu trimite nimic — operatorul alege canalul.
+ */
+export async function buildInvite(fastify: FastifyInstance, tenantId: string, id: string) {
+  const [employee, tenant] = await Promise.all([
+    fastify.prisma.employee.findFirst({
+      where: { id, tenantId },
+      select: { firstName: true, phone: true, user: { select: { email: true, isActive: true } } },
+    }),
+    fastify.prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true } }),
+  ]);
+  if (!employee) throw fastify.httpErrors.notFound("Employee not found");
+
+  const email = employee.user?.isActive ? employee.user.email : undefined;
+  const lines = [
+    `Salut, ${employee.firstName}! ${tenant.name} folosește Operio pentru programări și fișele de revizie/verificare.`,
+    "Instalează aplicația Operio pe telefon:",
+    `Android: ${PLAY_STORE_URL}`,
+    `iPhone: ${APP_STORE_URL}`,
+    email
+      ? `Intri cu e-mailul ${email}; parola o primești separat.`
+      : "Datele de autentificare le primești separat, după ce ți se creează contul.",
+  ];
+  const smsBody = lines.join("\n");
+  const digits = whatsappDigits(employee.phone);
+  return {
+    whatsappUrl: digits ? `https://wa.me/${digits}?text=${encodeURIComponent(smsBody)}` : null,
+    smsBody,
+    ...(email && { email }),
+  };
+}
+
 /** Store an employee's signature (PNG/JPEG data URL drawn on the canvas) in S3. */
 export async function setSignature(
   fastify: FastifyInstance,
