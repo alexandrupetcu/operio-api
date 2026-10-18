@@ -16,9 +16,11 @@ import { uploadFile } from "../../lib/s3.js";
 import { safeS3Filename } from "../../lib/safe-filename.js";
 import {
   detectSource,
-  extractPdfText,
+  extractText,
   getSource,
+  reportFileKind,
   ATTACH_ONLY_SOURCE_ID,
+  REPORT_FILE_CANONICAL_MIME,
   type ParsedRevision,
   type ReportSource,
 } from "../../lib/report-sources/index.js";
@@ -134,16 +136,18 @@ export async function importAppointmentReport(
   const cfg = getReportTypeConfig(settings, appointment.type);
   if (!cfg) throw fastify.httpErrors.badRequest("Tipul programării nu acceptă import de raport");
 
-  // 1. Fișierul, înainte de orice (nu pierdem niciodată PDF-ul).
+  // 1. Fișierul, înainte de orice (nu pierdem niciodată raportul). S3 păstrează
+  //    mimetype-ul original; lipsește → cel canonic pentru extensie.
+  const fileKind = reportFileKind(file.filename, file.mimetype) ?? "pdf";
   const s3Key = `${tenantId}/appointments/${appointmentId}/reports/${Date.now()}-${safeS3Filename(file.filename)}`;
-  await uploadFile(s3Key, file.buffer, file.mimetype || "application/pdf");
+  await uploadFile(s3Key, file.buffer, file.mimetype || REPORT_FILE_CANONICAL_MIME[fileKind]);
 
   // 2. Sursa: strategia „attach" nu extrage nimic; altfel cea configurată sau detecția.
   let text = "";
   try {
-    text = await extractPdfText(file.buffer);
+    text = await extractText(file.buffer, file.filename, file.mimetype);
   } catch (err) {
-    fastify.log.warn({ err, appointmentId }, "import-report: pdftotext failed");
+    fastify.log.warn({ err, appointmentId }, "import-report: text extraction failed");
   }
   let source: ReportSource;
   let score = 0;
@@ -187,7 +191,7 @@ export async function importAppointmentReport(
     const doc = await fastify.prisma.document.create({
       data: {
         tenantId,
-        name: `Raport analizor — ${source.label}`,
+        name: `Raport analizor (${fileKind.toUpperCase()}) — ${source.label}`,
         status: "COMPLETED",
         s3Key,
         appointmentId,

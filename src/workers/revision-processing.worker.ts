@@ -2,7 +2,7 @@ import { Worker, type Job } from "bullmq";
 import { PrismaClient } from "@prisma/client";
 import { redisConnection } from "../config/redis.js";
 import { getFileStream } from "../lib/s3.js";
-import { detectSource, extractPdfText } from "../lib/report-sources/index.js";
+import { detectSource, extractText } from "../lib/report-sources/index.js";
 import { getReportSourcesSettings } from "../modules/tenant/report-sources-settings.js";
 import { revisionDataFromParsed } from "../modules/equipment-revisions/equipment-revisions.service.js";
 
@@ -78,8 +78,8 @@ async function processJob(job: Job<RevisionJobData>) {
     const buffer = await streamToBuffer(stream);
     console.log(`[${revisionId}] Downloaded ${buffer.length} bytes`);
 
-    // Extract text from PDF
-    const rawText = await extractPdfText(buffer);
+    // Extract text (PDF via pdftotext; XML/CSV decoded) — the S3 key keeps the extension
+    const rawText = await extractText(buffer, s3Key);
     console.log(`[${revisionId}] Extracted ${rawText.length} chars`);
 
     // Pick the source from the registry (Seitron regex, AI, or attach-only) and parse

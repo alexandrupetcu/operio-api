@@ -116,15 +116,45 @@ export async function refreshAccessTokenIfNeeded(
   return { ...inbox, ...updated };
 }
 
-/** Fetch unread emails with PDF attachments */
+/** Atașamente de raport: PDF-ul analizorului sau exportul lui XML/CSV. */
+const REPORT_ATTACHMENT_MIMES = new Set([
+  "application/pdf",
+  "application/xml",
+  "text/xml",
+  "text/csv",
+  "text/comma-separated-values",
+  "application/vnd.ms-excel",
+]);
+const REPORT_ATTACHMENT_EXT = /\.(pdf|xml|csv)$/i;
+
+function isReportAttachment(part: { mimeType?: string | null; filename?: string | null }): boolean {
+  const name = part.filename ?? "";
+  if (REPORT_ATTACHMENT_EXT.test(name)) return true;
+  const mime = (part.mimeType ?? "").toLowerCase();
+  // `application/vnd.ms-excel` fără extensie .csv e un .xls real, nu ne interesează.
+  if (mime === "application/vnd.ms-excel") return false;
+  // `application/octet-stream` e acoperit de extensie mai sus.
+  return REPORT_ATTACHMENT_MIMES.has(mime);
+}
+
+/** Mimetype-ul cu care păstrăm atașamentul (după extensie când Gmail dă unul generic). */
+function reportAttachmentMime(part: { mimeType?: string | null; filename?: string | null }): string {
+  const ext = (part.filename ?? "").toLowerCase().match(/\.(pdf|xml|csv)$/)?.[1];
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "xml") return "application/xml";
+  if (ext === "csv") return "text/csv";
+  return part.mimeType || "application/octet-stream";
+}
+
+/** Fetch unread emails with report attachments (PDF, XML, CSV) */
 export async function fetchUnreadPdfEmails(inbox: InboxConfig): Promise<IncomingEmail[]> {
   const oauth2 = createOAuth2Client(inbox);
   const gmail = google.gmail({ version: "v1", auth: oauth2 });
 
-  // List unread messages with PDF attachments
+  // List unread messages with report attachments
   const listRes = await gmail.users.messages.list({
     userId: "me",
-    q: "is:unread has:attachment filename:pdf",
+    q: "is:unread has:attachment (filename:pdf OR filename:xml OR filename:csv)",
     maxResults: 20,
   });
 
@@ -148,16 +178,12 @@ export async function fetchUnreadPdfEmails(inbox: InboxConfig): Promise<Incoming
     const dateStr = headers.find((h) => h.name?.toLowerCase() === "date")?.value;
     const date = dateStr ? new Date(dateStr) : new Date();
 
-    // Extract PDF attachments
+    // Extract report attachments (PDF / XML / CSV)
     const attachments: EmailAttachment[] = [];
     const parts = flattenParts(fullMsg.data.payload ?? null);
 
     for (const part of parts) {
-      if (
-        part.mimeType === "application/pdf" &&
-        part.body?.attachmentId &&
-        part.filename
-      ) {
+      if (part.body?.attachmentId && part.filename && isReportAttachment(part)) {
         const attachRes = await gmail.users.messages.attachments.get({
           userId: "me",
           messageId: msg.id,
@@ -169,7 +195,7 @@ export async function fetchUnreadPdfEmails(inbox: InboxConfig): Promise<Incoming
           attachments.push({
             filename: part.filename,
             content,
-            contentType: "application/pdf",
+            contentType: reportAttachmentMime(part),
           });
         }
       }

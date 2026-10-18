@@ -3,16 +3,28 @@
  * (prima câștigă); `attach-only` e rezerva când nimeni nu recunoaște textul.
  */
 import { seitronPdfSource, SEITRON_SOURCE_ID } from "./seitron-pdf.js";
+import { structuredFileSource, STRUCTURED_FILE_SOURCE_ID } from "./structured-file.js";
 import { genericAiPdfSource, GENERIC_AI_SOURCE_ID } from "./generic-ai-pdf.js";
 import { attachOnlySource, ATTACH_ONLY_SOURCE_ID } from "./attach-only.js";
 import type { ReportSource } from "./types.js";
 
 export * from "./types.js";
-export { extractPdfText } from "./pdf-text.js";
-export { SEITRON_SOURCE_ID, GENERIC_AI_SOURCE_ID, ATTACH_ONLY_SOURCE_ID };
+export {
+  extractPdfText,
+  extractText,
+  reportFileKind,
+  REPORT_FILE_MIMETYPES,
+  REPORT_FILE_CANONICAL_MIME,
+  ACCEPTED_REPORT_FILES_MESSAGE,
+  type ReportFileKind,
+} from "./pdf-text.js";
+export { SEITRON_SOURCE_ID, STRUCTURED_FILE_SOURCE_ID, GENERIC_AI_SOURCE_ID, ATTACH_ONLY_SOURCE_ID };
 
+// Fișierele structurate (XML/CSV) stau înaintea sursei AI: la același text
+// câștigă parserul determinist, nu modelul.
 export const REPORT_SOURCES: readonly ReportSource[] = [
   seitronPdfSource,
+  structuredFileSource,
   genericAiPdfSource,
   attachOnlySource,
 ];

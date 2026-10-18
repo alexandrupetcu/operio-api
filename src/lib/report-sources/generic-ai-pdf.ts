@@ -8,65 +8,16 @@ import {
   type ParsedRevision,
   type ReportSource,
 } from "./types.js";
+// Tabelul de aliasuri (etichetă tipărită → cheia noastră) e comun cu sursa de
+// fișiere structurate — vezi `aliases.ts`.
+import { resolveReadingKey } from "./aliases.js";
+
+export { resolveReadingKey };
 
 export const GENERIC_AI_SOURCE_ID = "generic-ai-pdf";
 
 /** Linii „valoare + unitate" — semnătura minimă a unui raport de analiză. */
 const NUMERIC_UNIT_LINE = /-?\d+(?:[.,]\d+)?\s*(?:%|ppm|°\s?C|mbar|hPa|Pa)\b/;
-
-/**
- * Etichete frecvente pe rapoartele altor analizoare (Testo, Kane, Wöhler, MRU…)
- * → cheile noastre. Mapping-ul firmei (`sourceMappings[generic-ai-pdf]`) are
- * prioritate; ce nu e nici acolo, nici aici, ajunge pe o cheie slug din etichetă
- * (păstrată, ca să nu se piardă nimic din raport).
- */
-const DEFAULT_LABEL_ALIASES: Record<string, string> = {
-  "t gaz": "tGaz", "tgas": "tGaz", "t gas": "tGaz", "flue temp": "tGaz", "flue gas temp": "tGaz",
-  "ft": "tGaz", "fgt": "tGaz", "temperatura gaze": "tGaz", "temp gaze arse": "tGaz", "stack temp": "tGaz",
-  "t aer": "tAer", "tair": "tAer", "t air": "tAer", "ambient temp": "tAer", "at": "tAer", "temperatura aer": "tAer",
-  "o2": "o2", "oxygen": "o2", "oxigen": "o2",
-  "co2": "co2",
-  "co": "co", "carbon monoxide": "co", "monoxid de carbon": "co",
-  "co(0%)": "coCorr", "co (0%)": "coCorr", "co 0%": "coCorr", "co corr": "coCorr", "co corectat": "coCorr",
-  "co undiluted": "coCorr", "cou": "coCorr",
-  "lambda": "lambda", "λ": "lambda", "l": "lambda", "l;n": "lambda",
-  "excess air": "excessAir", "exces aer": "excessAir", "excesaer": "excessAir", "ea": "excessAir",
-  "dt": "dT", "δt": "dT", "delta t": "dT", "net temp": "dT",
-  "qs": "qs", "qa": "qs", "stack loss": "qs", "pierderi": "qs", "losses": "qs",
-  "es": "es", "eta": "es", "sensible efficiency": "es",
-  "et": "et", "eff": "et", "efficiency": "et", "randament": "et", "eficienta": "et", "eficiență": "et",
-  "no": "no", "nox": "nox", "no(0%)": "noCorr", "nox(0%)": "noxCorr",
-  "pi": "pi", "poison index": "pi",
-  "draft": "draft", "tiraj": "draft", "draught": "draft", "dp": "draft", "pressure": "draft",
-  "presiune rampa": "gasPressureRamp", "presiune rampă": "gasPressureRamp", "p rampa": "gasPressureRamp",
-  "presiune arzator": "gasPressureBurner", "presiune arzător": "gasPressureBurner", "p arzator": "gasPressureBurner",
-};
-
-// „CO(0.0%)", „CO (0 %)" → „co(0%)" ca să prindă aliasul corectat-la-0%-O2.
-const normalizeLabel = (label: string) =>
-  label
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/\s*\(\s*0(?:[.,]0+)?\s*%\s*\)/g, "(0%)");
-
-const slugKey = (label: string) =>
-  normalizeLabel(label)
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "") || "value";
-
-/** Cheia noastră pentru o etichetă tipărită: mapping-ul firmei > aliasuri > slug. */
-export function resolveReadingKey(label: string, mapping?: Record<string, string>): string {
-  if (mapping) {
-    const exact = mapping[label] ?? mapping[label.trim()];
-    if (exact) return exact;
-    const norm = normalizeLabel(label);
-    for (const [k, v] of Object.entries(mapping)) {
-      if (normalizeLabel(k) === norm) return v;
-    }
-  }
-  return DEFAULT_LABEL_ALIASES[normalizeLabel(label)] ?? slugKey(label);
-}
 
 const MAX_TEXT_CHARS = 40_000;
 

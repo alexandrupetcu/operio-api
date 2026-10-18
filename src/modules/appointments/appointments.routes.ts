@@ -14,6 +14,11 @@ import { resolveApptScope, canSeeEmployee } from "./scope.js";
 import { NO_OVERLAP } from "./overlap.js";
 import { getSchedulingSettings } from "../tenant/scheduling-settings.js";
 import { importAppointmentReport } from "./import-report.js";
+import {
+  reportFileKind,
+  ACCEPTED_REPORT_FILES_MESSAGE,
+  REPORT_FILE_CANONICAL_MIME,
+} from "../../lib/report-sources/index.js";
 import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
 import { defaultJobOptions } from "../../config/queue.js";
@@ -157,9 +162,8 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     async (request) => {
       const file = await request.file({ limits: { fileSize: IMPORT_REPORT_MAX_BYTES } });
       if (!file) throw fastify.httpErrors.badRequest("Fișierul lipsește");
-      if (file.mimetype !== "application/pdf" && !file.filename.toLowerCase().endsWith(".pdf")) {
-        throw fastify.httpErrors.badRequest("Doar fișiere PDF sunt acceptate");
-      }
+      const fileKind = reportFileKind(file.filename, file.mimetype);
+      if (!fileKind) throw fastify.httpErrors.badRequest(ACCEPTED_REPORT_FILES_MESSAGE);
       let buffer: Buffer;
       try {
         buffer = await file.toBuffer();
@@ -169,13 +173,17 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
       if (file.file.truncated) throw fastify.httpErrors.payloadTooLarge("Fișierul depășește 20 MB");
 
       const scope = await resolveApptScope(fastify, request);
+      // Mimetype-ul real al fișierului (multipart) — cel canonic doar când lipsește.
+      const mimetype = file.mimetype && file.mimetype !== "application/octet-stream"
+        ? file.mimetype
+        : REPORT_FILE_CANONICAL_MIME[fileKind];
       return importAppointmentReport(
         fastify,
         documentQueue,
         request.tenantId,
         request.params.id,
         scope,
-        { buffer, filename: file.filename, mimetype: "application/pdf" }
+        { buffer, filename: file.filename, mimetype }
       );
     }
   );

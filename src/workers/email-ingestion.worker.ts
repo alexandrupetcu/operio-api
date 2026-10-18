@@ -10,7 +10,7 @@ import {
   markAsRead,
   type IncomingEmail,
 } from "../lib/gmail.js";
-import { detectSource, extractPdfText } from "../lib/report-sources/index.js";
+import { detectSource, extractText, reportFileKind, REPORT_FILE_CANONICAL_MIME } from "../lib/report-sources/index.js";
 import { getReportSourcesSettings } from "../modules/tenant/report-sources-settings.js";
 import {
   matchClient,
@@ -131,7 +131,9 @@ async function processJob() {
 
 async function processEmail(tenantId: string, email: IncomingEmail, inboxId: string) {
   for (const attachment of email.attachments) {
-    if (!attachment.filename.toLowerCase().endsWith(".pdf")) continue;
+    // PDF-ul analizorului sau exportul lui XML/CSV; restul atașamentelor se ignoră.
+    const fileKind = reportFileKind(attachment.filename, attachment.contentType);
+    if (!fileKind || fileKind === "txt") continue;
 
     // Create log entry
     const log = await prisma.emailIngestLog.create({
@@ -166,14 +168,14 @@ async function processEmail(tenantId: string, email: IncomingEmail, inboxId: str
       // Upload PDF to S3 FIRST (so we never lose it). The key uses a sanitised
       // random name — the original filename is kept on emailIngestLog.fileName.
       const s3Key = `${tenantId}/email-pdfs/${Date.now()}-${safeS3Filename(attachment.filename)}`;
-      await uploadFile(s3Key, attachment.content, "application/pdf");
+      await uploadFile(s3Key, attachment.content, attachment.contentType || REPORT_FILE_CANONICAL_MIME[fileKind]);
       await prisma.emailIngestLog.update({ where: { id: log.id }, data: { s3Key } });
 
-      // Parse PDF through the source registry (Seitron regex unchanged; other
-      // analyzers go through the AI source when a key is configured).
+      // Parse through the source registry (Seitron regex unchanged; XML/CSV
+      // exports via structured-file; other PDFs via AI when a key is configured).
       let parsed;
       try {
-        const text = await extractPdfText(attachment.content);
+        const text = await extractText(attachment.content, attachment.filename, attachment.contentType);
         const { source } = detectSource(text);
         const settings = await getReportSourcesSettings(prisma, tenantId);
         parsed = await source.parse({ buffer: attachment.content, text, mapping: settings.sourceMappings[source.id] });
@@ -183,7 +185,7 @@ async function processEmail(tenantId: string, email: IncomingEmail, inboxId: str
           where: { id: log.id },
           data: { status: "failed", errorStep: "parse", errorMessage: err instanceof Error ? err.message : String(err) },
         });
-        console.error(`[email-ingestion] PDF parse failed for ${attachment.filename}:`, err);
+        console.error(`[email-ingestion] Report parse failed for ${attachment.filename}:`, err);
         continue;
       }
 

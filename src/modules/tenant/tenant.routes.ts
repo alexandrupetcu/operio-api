@@ -25,8 +25,10 @@ import {
   REPORT_SOURCES,
   describeSource,
   detectSource,
-  extractPdfText,
+  extractText,
+  reportFileKind,
   isSourceId,
+  ACCEPTED_REPORT_FILES_MESSAGE,
   type ParsedRevision,
 } from "../../lib/report-sources/index.js";
 import { env } from "../../config/env.js";
@@ -263,8 +265,8 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
     handler: async (request) => {
       const file = await request.file({ limits: { fileSize: REPORT_TEST_MAX_BYTES } });
       if (!file) throw fastify.httpErrors.badRequest("Fișierul lipsește");
-      if (file.mimetype !== "application/pdf" && !file.filename.toLowerCase().endsWith(".pdf")) {
-        throw fastify.httpErrors.badRequest("Doar fișiere PDF sunt acceptate");
+      if (!reportFileKind(file.filename, file.mimetype)) {
+        throw fastify.httpErrors.badRequest(ACCEPTED_REPORT_FILES_MESSAGE);
       }
       let buffer: Buffer;
       try {
@@ -278,9 +280,9 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
 
       let text = "";
       try {
-        text = await extractPdfText(buffer);
+        text = await extractText(buffer, file.filename, file.mimetype);
       } catch (err) {
-        request.log.warn({ err }, "report-sources/test: pdftotext failed");
+        request.log.warn({ err }, "report-sources/test: text extraction failed");
       }
       const settings = await getReportSourcesSettings(fastify.prisma, request.tenantId);
       const detected = detectSource(text);
