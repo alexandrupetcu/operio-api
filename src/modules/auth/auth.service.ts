@@ -426,7 +426,7 @@ export async function resetPassword(
   await fastify.prisma.$transaction([
     fastify.prisma.user.update({
       where: { id: stored.userId },
-      data: { passwordHash: newHash },
+      data: { passwordHash: newHash, invitePending: false },
     }),
     fastify.prisma.passwordResetToken.update({
       where: { id: stored.id },

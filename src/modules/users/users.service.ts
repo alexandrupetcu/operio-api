@@ -1,6 +1,9 @@
 import { getTenantEntitlements } from "../../lib/entitlements/index.js";
 import type { FastifyInstance } from "fastify";
 import { hashPassword } from "../../lib/hash.js";
+import { randomBytes, createHash } from "node:crypto";
+import { env } from "../../config/env.js";
+import { sendUserInviteEmail } from "../../lib/email.js";
 import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateUserInput, UpdateUserInput } from "./users.schema.js";
@@ -24,10 +27,49 @@ const userSelect = {
   role: true,
   isActive: true,
   mobileAccess: true,
+  invitePending: true,
+  invitedAt: true,
   createdAt: true,
   updatedAt: true,
   employee: { select: { id: true, firstName: true, lastName: true } },
 };
+
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Emite un link de setare a parolei (același mecanism ca resetarea: token aleator,
+ * stocat hash-uit, de unică folosință) și trimite e-mailul de invitație.
+ * Întoarce `false` dacă SMTP nu e configurat — contul există, dar adminul trebuie
+ * să îi comunice altfel parola (sau să retrimită invitația după configurare).
+ */
+export async function sendInvite(
+  fastify: FastifyInstance,
+  tenantId: string,
+  userId: string,
+  invitedByUserId: string,
+): Promise<boolean> {
+  const [user, tenant, inviter] = await Promise.all([
+    fastify.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, email: true, firstName: true, mobileAccess: true, isActive: true } }),
+    fastify.prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
+    fastify.prisma.user.findUnique({ where: { id: invitedByUserId }, select: { firstName: true, lastName: true } }),
+  ]);
+  if (!user || !user.isActive) throw fastify.httpErrors.notFound("User not found");
+  await fastify.prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
+  const rawToken = randomBytes(32).toString("hex");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  await fastify.prisma.passwordResetToken.create({
+    data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + INVITE_TTL_MS) },
+  });
+  await fastify.prisma.user.update({ where: { id: user.id }, data: { invitePending: true, invitedAt: new Date() } });
+  return sendUserInviteEmail({
+    to: user.email,
+    firstName: user.firstName,
+    tenantName: tenant?.name ?? "Operio",
+    invitedBy: inviter ? `${inviter.firstName} ${inviter.lastName}`.trim() : "Administratorul firmei",
+    setPasswordUrl: `${env.FRONTEND_URL}/reset-password?token=${rawToken}&invite=1`,
+    mobileAccess: user.mobileAccess,
+  });
+}
 
 const deviceSelect = {
   id: true,
@@ -134,7 +176,8 @@ export async function getById(
 export async function create(
   fastify: FastifyInstance,
   tenantId: string,
-  input: CreateUserInput
+  input: CreateUserInput,
+  createdByUserId?: string,
 ) {
   // `User.email` is globally unique (not per tenant). Check globally and keep
   // the message generic so we don't reveal that the address exists elsewhere.
@@ -144,8 +187,11 @@ export async function create(
   });
   if (existing) throw fastify.httpErrors.conflict("Adresa de e-mail nu poate fi folosită");
 
-  const passwordHash = await hashPassword(input.password);
-  return fastify.prisma.user.create({
+  // Fără parolă: hash aleator (contul nu poate fi folosit până nu-și setează
+  // parola din invitație).
+  const invite = !input.password;
+  const passwordHash = await hashPassword(input.password ?? randomBytes(48).toString("base64url"));
+  const user = await fastify.prisma.user.create({
     data: {
       tenantId,
       email: input.email,
@@ -153,9 +199,20 @@ export async function create(
       firstName: input.firstName,
       lastName: input.lastName,
       role: input.role,
+      invitePending: invite,
+      invitedAt: invite ? new Date() : null,
     },
     select: userSelect,
   });
+  let inviteSent = false;
+  if (invite) {
+    try {
+      inviteSent = await sendInvite(fastify, tenantId, user.id, createdByUserId ?? user.id);
+    } catch (err) {
+      console.error("[users] invite e-mail failed:", err);
+    }
+  }
+  return { ...user, inviteSent };
 }
 
 export async function update(

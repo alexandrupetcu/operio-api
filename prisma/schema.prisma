@@ -94,6 +94,10 @@ model User {
   isActive     Boolean  @default(true)
   // Explicit opt-in for the technician mobile app (see MobileDevice).
   mobileAccess Boolean  @default(false)
+  // Cont creat de admin fără parolă: utilizatorul primește un e-mail și își
+  // setează parola prin link-ul de invitație (se șterge la prima setare).
+  invitePending Boolean   @default(false)
+  invitedAt     DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

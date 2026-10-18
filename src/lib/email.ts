@@ -236,6 +236,50 @@ export async function sendFisaRegisteredEmail(opts: {
   console.log(`[email] OS-registration email sent to ${opts.to} — messageId: ${info.messageId}`);
 }
 
+/** Invitația unui utilizator nou: link de setare a parolei (valabil 7 zile). */
+export async function sendUserInviteEmail(opts: {
+  to: string;
+  firstName: string;
+  tenantName: string;
+  invitedBy: string;
+  setPasswordUrl: string;
+  mobileAccess: boolean;
+}): Promise<boolean> {
+  const t = getTransporter();
+  if (!t) {
+    console.warn("[email] SMTP not configured — skipping user invite to", opts.to);
+    return false;
+  }
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:16px">Bun venit în Operio</h2>
+      <p>Bună, <strong>${escapeHtml(opts.firstName)}</strong>,</p>
+      <p><strong>${escapeHtml(opts.invitedBy)}</strong> ți-a creat un cont în Operio pentru <strong>${escapeHtml(opts.tenantName)}</strong>.</p>
+      <p>Setează-ți parola ca să intri în cont:</p>
+      <p>
+        <a href="${opts.setPasswordUrl}"
+           style="display:inline-block;background:#1a1a1a;color:#F5D000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:700">
+          Setează parola
+        </a>
+      </p>
+      ${opts.mobileAccess ? `<p>Ai acces și la aplicația mobilă Operio — după ce îți setezi parola, instaleaz-o de pe telefon și intră cu aceleași date.</p>` : ""}
+      <p style="color:#888;font-size:12px;margin-top:24px">
+        Linkul e valabil 7 zile. Dacă nu te așteptai la acest e-mail, îl poți ignora.<br>
+        Dacă butonul nu merge, copiază linkul: <a href="${opts.setPasswordUrl}">${opts.setPasswordUrl}</a>
+      </p>
+    </div>
+  `;
+  const info = await t.sendMail({
+    from: env.SMTP_FROM,
+    ...replyTo(),
+    to: opts.to,
+    subject: `${opts.tenantName} te-a invitat în Operio`,
+    html,
+  });
+  console.log(`[email] User invite sent to ${opts.to} — messageId: ${info.messageId}`);
+  return true;
+}
+
 export async function sendPasswordResetEmail(opts: {
   to: string;
   firstName: string;

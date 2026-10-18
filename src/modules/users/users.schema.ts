@@ -2,7 +2,9 @@ import { z } from "zod";
 
 export const createUserSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  // Fără parolă = invitație: utilizatorul primește un e-mail și își setează
+  // singur parola. Cu parolă = cont creat direct (ex. adminul îi spune parola).
+  password: z.string().min(8).optional(),
   firstName: z.string().min(1).max(50),
   lastName: z.string().min(1).max(50),
   role: z.enum(["ADMIN", "MANAGER", "OPERATOR"]).default("OPERATOR"),

@@ -22,8 +22,14 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
   fastify.post("/", async (request, reply) => {
     const body = createUserSchema.parse(request.body);
-    const user = await usersService.create(fastify, request.tenantId, body);
+    const user = await usersService.create(fastify, request.tenantId, body, request.user.sub);
     return reply.status(201).send(user);
+  });
+
+  // Retrimite invitația (link nou de setare a parolei, 7 zile).
+  fastify.post<{ Params: { id: string } }>("/:id/invite", async (request) => {
+    const sent = await usersService.sendInvite(fastify, request.tenantId, request.params.id, request.user.sub);
+    return { sent };
   });
 
   fastify.patch<{ Params: { id: string } }>("/:id", async (request) => {
