@@ -170,7 +170,8 @@ export const genericAiPdfSource: ReportSource = {
       return empty;
     }
 
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+    // Un apel blocat nu ține ocupată cererea (și lucrătorul) la nesfârșit.
+    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 30_000, maxRetries: 1 });
     const mappingHint =
       mapping && Object.keys(mapping).length
         ? `\n\nEtichete cunoscute pe acest tip de raport (folosește-le exact așa în "readings" când le întâlnești): ${Object.keys(mapping).join(", ")}.`

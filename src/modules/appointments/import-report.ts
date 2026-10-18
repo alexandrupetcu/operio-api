@@ -21,6 +21,7 @@ import {
   reportFileKind,
   ATTACH_ONLY_SOURCE_ID,
   REPORT_FILE_CANONICAL_MIME,
+  emptyParsedRevision,
   type ParsedRevision,
   type ReportSource,
 } from "../../lib/report-sources/index.js";
@@ -136,36 +137,48 @@ export async function importAppointmentReport(
   const cfg = getReportTypeConfig(settings, appointment.type);
   if (!cfg) throw fastify.httpErrors.badRequest("Tipul programării nu acceptă import de raport");
 
-  // 1. Fișierul, înainte de orice (nu pierdem niciodată raportul). S3 păstrează
-  //    mimetype-ul original; lipsește → cel canonic pentru extensie.
+  // 1. Textul + sursa. Strategia „attach" nu extrage nimic; altfel cea
+  //    configurată sau detecția. Orice excepție din detect/parse (fișier ostil,
+  //    parser căzut) degradează la „doar atașare" cu motivul în `_warning` —
+  //    raportul se păstrează oricum.
   const fileKind = reportFileKind(file.filename, file.mimetype) ?? "pdf";
-  const s3Key = `${tenantId}/appointments/${appointmentId}/reports/${Date.now()}-${safeS3Filename(file.filename)}`;
-  await uploadFile(s3Key, file.buffer, file.mimetype || REPORT_FILE_CANONICAL_MIME[fileKind]);
-
-  // 2. Sursa: strategia „attach" nu extrage nimic; altfel cea configurată sau detecția.
   let text = "";
   try {
     text = await extractText(file.buffer, file.filename, file.mimetype);
   } catch (err) {
     fastify.log.warn({ err, appointmentId }, "import-report: text extraction failed");
   }
-  let source: ReportSource;
+  const attachOnly = getSource(ATTACH_ONLY_SOURCE_ID)!;
+  let source: ReportSource = attachOnly;
   let score = 0;
-  if (cfg.strategy === "attach") {
-    source = getSource(ATTACH_ONLY_SOURCE_ID)!;
-  } else if (cfg.sourceId !== AUTO_SOURCE && getSource(cfg.sourceId)) {
-    source = getSource(cfg.sourceId)!;
-    score = source.detect(text);
-  } else {
-    ({ source, score } = detectSource(text));
+  let parsed: ParsedRevision;
+  try {
+    if (cfg.strategy === "attach") {
+      source = attachOnly;
+    } else if (cfg.sourceId !== AUTO_SOURCE && getSource(cfg.sourceId)) {
+      source = getSource(cfg.sourceId)!;
+      score = source.detect(text);
+    } else {
+      ({ source, score } = detectSource(text));
+    }
+    parsed = await source.parse({
+      buffer: file.buffer,
+      text,
+      mapping: settings.sourceMappings[source.id],
+    });
+  } catch (err) {
+    fastify.log.warn({ err, appointmentId, sourceId: source.id }, "import-report: parse failed, attaching only");
+    source = attachOnly;
+    score = 0;
+    parsed = emptyParsedRevision(text);
+    parsed.analysisData._warning = "parse_failed";
   }
-
-  const parsed = await source.parse({
-    buffer: file.buffer,
-    text,
-    mapping: settings.sourceMappings[source.id],
-  });
   parsed.analysisData._source = source.id;
+
+  // 2. Fișierul în S3 abia după ce parsarea (sau rezerva) a reușit — o excepție
+  //    mai sus nu lasă un obiect orfan. Content-type canonic după extensie.
+  const s3Key = `${tenantId}/appointments/${appointmentId}/reports/${Date.now()}-${safeS3Filename(file.filename)}`;
+  await uploadFile(s3Key, file.buffer, REPORT_FILE_CANONICAL_MIME[fileKind]);
   if (cfg.requiredFields.length) {
     const have = new Set([
       ...Object.keys(readingsOf(parsed)),
@@ -261,13 +274,15 @@ async function upsertRevision(
       data: { ...data, revisionDate: parsed.revisionDate ?? existing?.revisionDate ?? appointment.date },
     });
   } else {
-    // Ca la finalizare: o revizie recentă încă nelegată de o programare (ex. venită
-    // pe e-mail) e a acestei programări; altfel creăm una.
+    // Ca la finalizare: o revizie recentă încă nelegată de o programare și FĂRĂ
+    // fișier (ex. creată manual, în așteptarea raportului) e a acestei programări;
+    // una care are deja un PDF (venit pe e-mail) nu se suprascrie — creăm alta.
     const recent = await prisma.equipmentRevision.findFirst({
       where: {
         equipmentId,
         createdAt: { gte: new Date(Date.now() - 7 * 24 * 3600_000) },
         appointment: { is: null },
+        s3Key: null,
       },
       orderBy: { createdAt: "desc" },
       select: { id: true, revisionDate: true },

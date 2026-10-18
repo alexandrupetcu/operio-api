@@ -78,18 +78,82 @@ function cellText(v: ExcelJS.CellValue): string {
   return String(v).trim();
 }
 
+/** Antet + MAX_ROWS rânduri de date; al (MAX_ROWS+2)-lea rând nevid oprește citirea (→ eroare clară, fără a converti restul). */
+const MAX_RAW_ROWS = MAX_ROWS + 1;
+
+/**
+ * Plafon pentru conținutul dezarhivat al unui .xlsx (sumă pe intrări). Un fișier
+ * de 5 MB comprimat poate ascunde sute de MB de XML („zip bomb”); îl respingem
+ * citind doar directorul central al arhivei, înainte de a-l da lui ExcelJS.
+ */
+const MAX_XLSX_UNCOMPRESSED_BYTES = 60 * 1024 * 1024;
+
+/**
+ * Suma dimensiunilor dezarhivate din directorul central ZIP (fără a dezarhiva
+ * nimic). null = arhivă neînțeleasă (ZIP64, director lipsă) — tratată ca prea mare.
+ */
+export function zipUncompressedSize(buffer: Buffer): number | null {
+  // End of central directory: semnătura 0x06054b50, în ultimii 64 KB + 22.
+  const minEocd = 22;
+  if (buffer.length < minEocd) return null;
+  const from = Math.max(0, buffer.length - 0xffff - minEocd);
+  let eocd = -1;
+  for (let i = buffer.length - minEocd; i >= from; i--) {
+    if (buffer.readUInt32LE(i) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) return null;
+  const entries = buffer.readUInt16LE(eocd + 10);
+  const cdSize = buffer.readUInt32LE(eocd + 12);
+  const cdOffset = buffer.readUInt32LE(eocd + 16);
+  if (entries === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) return null; // ZIP64
+  if (cdOffset + cdSize > buffer.length) return null;
+
+  let total = 0;
+  let p = cdOffset;
+  for (let n = 0; n < entries; n++) {
+    if (p + 46 > buffer.length || buffer.readUInt32LE(p) !== 0x02014b50) return null;
+    const uncompressed = buffer.readUInt32LE(p + 24);
+    if (uncompressed === 0xffffffff) return null; // ZIP64
+    total += uncompressed;
+    const nameLen = buffer.readUInt16LE(p + 28);
+    const extraLen = buffer.readUInt16LE(p + 30);
+    const commentLen = buffer.readUInt16LE(p + 32);
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return total;
+}
+
+/**
+ * Registrul se încarcă în memorie (ExcelJS; cititorul lui în flux — WorkbookReader —
+ * e nesigur în 4.4: textele celulelor stau după foi în arhivă și ies ca
+ * `{ sharedString }`, iar intrările de după prima foaie se pierd uneori), dar:
+ *   - arhiva e respinsă după dimensiunea dezarhivată ÎNAINTE de încărcare;
+ *   - rândurile se parcurg doar până la primul peste limită, fără a converti restul.
+ */
 async function parseXlsx(buffer: Buffer): Promise<string[][]> {
+  const size = zipUncompressedSize(buffer);
+  if (size === null || size > MAX_XLSX_UNCOMPRESSED_BYTES) {
+    throw new ImportFileError("Fișierul Excel este prea mare sau într-un format neacceptat — exportați doar lista de clienți, ca .xlsx sau .csv");
+  }
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer as unknown as ExcelJS.Buffer);
   const ws = wb.worksheets[0];
   if (!ws) return [];
   const out: string[][] = [];
-  ws.eachRow({ includeEmpty: false }, (row) => {
+  const last = ws.rowCount;
+  for (let r = 1; r <= last; r++) {
+    const row = ws.getRow(r);
+    if (!row.hasValues) continue;
     const values = Array.isArray(row.values) ? (row.values as ExcelJS.CellValue[]) : [];
     // `row.values` e indexat de la 1 (poziția 0 e goală).
     const cells = values.slice(1).map(cellText);
-    if (cells.some((c) => c !== "")) out.push(cells);
-  });
+    if (!cells.some((c) => c !== "")) continue;
+    out.push(cells);
+    if (out.length > MAX_RAW_ROWS) break;
+  }
   return out;
 }
 
@@ -146,6 +210,8 @@ function parseCsv(buffer: Buffer): string[][] {
       field = "";
       if (row.some((c) => c !== "")) rows.push(row);
       row = [];
+      // Peste limită: nu mai parcurgem restul fișierului (eroarea vine din parseUpload).
+      if (rows.length > MAX_RAW_ROWS) return rows;
     } else {
       field += ch;
     }
@@ -172,12 +238,14 @@ export async function parseUpload(buffer: Buffer, filename: string, mimetype: st
     throw new ImportFileError("Fișierul nu a putut fi citit — folosiți .xlsx sau .csv");
   }
   if (raw.length === 0) throw new ImportFileError("Fișierul nu conține date");
+  // Înainte de orice prelucrare: parserele se opresc la MAX_ROWS+2 rânduri, deci
+  // numărul exact nu e cunoscut — spunem doar că depășește limita.
+  if (raw.length - 1 > MAX_ROWS) throw new ImportFileError(`Fișierul are peste ${MAX_ROWS} rânduri — maximum ${MAX_ROWS} la un import`);
 
   const width = Math.max(...raw.map((r) => r.length));
   const pad = (r: string[]) => (r.length === width ? r : [...r, ...Array(width - r.length).fill("")]);
   const headers = pad(raw[0]).map((h, i) => h || `Coloana ${i + 1}`);
   const rows = raw.slice(1).map(pad);
-  if (rows.length > MAX_ROWS) throw new ImportFileError(`Fișierul are ${rows.length} rânduri — maximum ${MAX_ROWS} la un import`);
   return { headers, rows };
 }
 
@@ -486,7 +554,11 @@ export async function importClients(
           result.created++;
         } catch (err) {
           result.skipped++;
-          addError(r.row, err instanceof Error ? err.message.split("\n")[0].slice(0, 200) : "Eroare la salvare");
+          // Mesajul Prisma (SQL, coloane, constrângeri) rămâne în jurnal; utilizatorul
+          // primește doar cauza pe care o poate repara.
+          const duplicate = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+          if (!duplicate) fastify.log.warn({ err, tenantId, row: r.row }, "clients-import: row failed");
+          addError(r.row, duplicate ? "Duplicat" : "Eroare la salvare");
         }
       }
     }

@@ -6,7 +6,7 @@ import { defaultJobOptions } from "../../config/queue.js";
 import { createRevisionSchema, updateRevisionSchema } from "./equipment-revisions.schema.js";
 import * as revisionService from "./equipment-revisions.service.js";
 import { uploadFile, getPresignedUrl } from "../../lib/s3.js";
-import { safeS3Filename } from "../../lib/safe-filename.js";
+import { safeS3Filename, uploadContentType } from "../../lib/safe-filename.js";
 import { detectSource, extractPdfText } from "../../lib/report-sources/index.js";
 import { getReportSourcesSettings } from "../tenant/report-sources-settings.js";
 import { resolveApptScope, canSeeEmployee } from "../appointments/scope.js";
@@ -59,6 +59,10 @@ export default async function equipmentRevisionsRoutes(fastify: FastifyInstance)
     "/:id/equipment/:equipmentId/revisions/upload",
     { onRequest: [requireRole("ADMIN", "MANAGER")] },
     async (request, reply) => {
+      // Proprietatea (client → echipament → tenant) se verifică ÎNAINTE de a
+      // citi fișierul și de a scrie în S3 — altfel un id străin lasă un obiect orfan.
+      await revisionService.verifyOwnership(fastify, request.tenantId, request.params.id, request.params.equipmentId);
+
       const file = await request.file();
       if (!file) throw fastify.httpErrors.badRequest("No file uploaded");
 
@@ -66,7 +70,7 @@ export default async function equipmentRevisionsRoutes(fastify: FastifyInstance)
 
       // Upload to S3 immediately
       const s3Key = `${request.tenantId}/revisions/${request.params.equipmentId}/${Date.now()}-${safeS3Filename(file.filename)}`;
-      await uploadFile(s3Key, buffer, file.mimetype);
+      await uploadFile(s3Key, buffer, uploadContentType(file.filename));
 
       // Create revision record with PENDING status
       const revision = await revisionService.create(

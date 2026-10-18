@@ -107,7 +107,7 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
   // Save drawing (PNG + Fabric JSON) on project
   fastify.put<{ Params: { id: string } }>(
     "/:id/drawing",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER")], preHandler: [requireFeature("projects.drawings")] },
     async (request) => {
       const { png, canvasJson } = request.body as {
         png: string; // base64 data URL
@@ -142,6 +142,7 @@ export default async function projectsRoutes(fastify: FastifyInstance) {
   // mounting the Fabric.js canvas).
   fastify.get<{ Params: { id: string } }>(
     "/:id/drawing",
+    { preHandler: [requireFeature("projects.drawings")] },
     async (request) => {
       const project = await fastify.prisma.project.findFirst({
         where: { id: request.params.id, tenantId: request.tenantId },

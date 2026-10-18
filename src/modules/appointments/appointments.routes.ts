@@ -4,6 +4,7 @@ import {
   createAppointmentSchema,
   updateAppointmentSchema,
   finalizeAppointmentSchema,
+  followupAppointmentSchema,
   calendarQuerySchema,
   overlapQuerySchema,
   osRegistrationSchema,
@@ -116,6 +117,28 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // Urmare pe o programare deja finalizată: revenire (task) sau programare nouă,
+  // fără a atinge starea programării. Idempotent pe `Idempotency-Key` (o cheie
+  // deja folosită întoarce 200 cu programarea, fără alt task / altă programare).
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/followup",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request) => {
+      const body = followupAppointmentSchema.parse(request.body);
+      const scope = await resolveApptScope(fastify, request);
+      const rawKey = request.headers["idempotency-key"];
+      const idempotencyKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+      return appointmentsService.followup(
+        fastify,
+        request.tenantId,
+        request.params.id,
+        body,
+        scope,
+        idempotencyKey?.trim() || null
+      );
+    }
+  );
+
   // Verificare de suprapunere înainte de salvare. Doar informativ — nimic din
   // ce întoarce nu blochează crearea.
   fastify.get<{ Querystring: Record<string, string> }>(
@@ -156,9 +179,11 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
 
   // Import din teren: PDF-ul analizorului încărcat direct pe programare (vezi
   // import-report.ts). Orice rol care vede programarea — un tehnician doar pe
-  // ale lui, ca la celelalte rute de programări.
+  // ale lui, ca la celelalte rute de programări. 60/oră: extragerea de text
+  // (și, la unele surse, un apel AI) e scumpă.
   fastify.post<{ Params: { id: string } }>(
     "/:id/import-report",
+    { config: { rateLimit: { max: 60, timeWindow: "1 hour" } } },
     async (request) => {
       const file = await request.file({ limits: { fileSize: IMPORT_REPORT_MAX_BYTES } });
       if (!file) throw fastify.httpErrors.badRequest("Fișierul lipsește");
@@ -173,10 +198,9 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
       if (file.file.truncated) throw fastify.httpErrors.payloadTooLarge("Fișierul depășește 20 MB");
 
       const scope = await resolveApptScope(fastify, request);
-      // Mimetype-ul real al fișierului (multipart) — cel canonic doar când lipsește.
-      const mimetype = file.mimetype && file.mimetype !== "application/octet-stream"
-        ? file.mimetype
-        : REPORT_FILE_CANONICAL_MIME[fileKind];
+      // Mimetype-ul canonic al felului de fișier (după extensie) — antetul
+      // clientului nu e de încredere și nu ajunge nici în S3, nici la extragere.
+      const mimetype = REPORT_FILE_CANONICAL_MIME[fileKind];
       return importAppointmentReport(
         fastify,
         documentQueue,

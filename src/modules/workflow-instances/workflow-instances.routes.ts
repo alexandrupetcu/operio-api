@@ -283,6 +283,9 @@ export default async function workflowInstancesRoutes(fastify: FastifyInstance) 
   fastify.post<{ Params: { stepInstanceId: string } }>(
     "/step-instances/:stepInstanceId/execute-event",
     async (request) => {
+      // Aceeași regulă ca la complete-step: ADMIN/MANAGER sau utilizatorul căruia
+      // îi e atribuit pasul — verificată înainte de a citi fișierul din cerere.
+      await workflowInstancesService.assertStepActor(fastify, request.tenantId, request.user, request.params.stepInstanceId);
       const contentType = request.headers["content-type"] ?? "";
       const authHeader = request.headers["authorization"];
 

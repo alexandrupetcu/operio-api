@@ -43,11 +43,19 @@ export interface RawPair {
 
 const XML_ENTITIES: Record<string, string> = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
 
+/** Limite de protecție (fișier ostil): intrare, un singur tag, număr de elemente, adâncime. */
+export const MAX_XML_CHARS = 2 * 1024 * 1024;
+export const MAX_XML_ELEMENTS = 50_000;
+const MAX_TAG_CHARS = 64 * 1024;
+const MAX_XML_DEPTH = 256;
+
 function decodeXml(s: string): string {
   return s.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (m, ent: string) => {
     if (ent[0] === "#") {
       const code = ent[1] === "x" || ent[1] === "X" ? parseInt(ent.slice(2), 16) : parseInt(ent.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : m;
+      // În afara Unicode sau surogat → String.fromCodePoint aruncă RangeError; păstrăm literalul.
+      if (!Number.isFinite(code) || code < 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) return m;
+      return String.fromCodePoint(code);
     }
     return XML_ENTITIES[ent] ?? m;
   });
@@ -57,6 +65,10 @@ const stripNs = (name: string) => name.replace(/^[^:]+:/, "");
 
 const UNIT_ATTRS = new Set(["unit", "units", "einheit", "unita", "unità", "um", "u", "measureunit"]);
 
+/** Chei care ar polua prototipul unui obiect obișnuit — nu le acceptăm din fișier. */
+const UNSAFE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const isUnsafeKey = (k: string) => UNSAFE_KEYS.has(k);
+
 interface XmlNode {
   name: string;
   attrs: Record<string, string>;
@@ -64,18 +76,72 @@ interface XmlNode {
   children: XmlNode[];
 }
 
+const newNode = (name: string): XmlNode => ({ name, attrs: Object.create(null), text: "", children: [] });
+
+const isXmlSpace = (c: string) => c === " " || c === "\t" || c === "\n" || c === "\r";
+
+/**
+ * Atributele din corpul unui tag (după nume), scanate liniar caracter cu
+ * caracter — fără regex, ca un tag de forma `<a bbbb…=x>` să nu coste O(n²).
+ * Întoarce false dacă un ghilimea rămâne neînchisă.
+ */
+function scanAttrs(body: string, from: number, attrs: Record<string, string>): boolean {
+  const len = body.length;
+  let j = from;
+  while (j < len) {
+    while (j < len && isXmlSpace(body[j])) j++;
+    if (j >= len) break;
+    const nameStart = j;
+    while (j < len && !isXmlSpace(body[j]) && body[j] !== "=" && body[j] !== "/") j++;
+    const rawName = body.slice(nameStart, j);
+    if (!rawName) {
+      j++; // caracter rătăcit (`/`, `=`) — îl sărim ca să avansăm mereu
+      continue;
+    }
+    while (j < len && isXmlSpace(body[j])) j++;
+    if (body[j] !== "=") continue; // atribut fără valoare → ignorat
+    j++;
+    while (j < len && isXmlSpace(body[j])) j++;
+    let value: string;
+    const q = body[j];
+    if (q === '"' || q === "'") {
+      const end = body.indexOf(q, j + 1);
+      if (end < 0) return false;
+      value = body.slice(j + 1, end);
+      j = end + 1;
+    } else {
+      const start = j;
+      while (j < len && !isXmlSpace(body[j]) && body[j] !== ">") j++;
+      value = body.slice(start, j);
+    }
+    if (rawName === "xmlns" || rawName.startsWith("xmlns:")) continue;
+    const name = stripNs(rawName);
+    if (!name || isUnsafeKey(name)) continue;
+    attrs[name] = decodeXml(value);
+  }
+  return true;
+}
+
+type XmlParseReason = "malformed" | "too_large" | "too_many_elements";
+
 /**
  * Parser XML minimal: taguri, atribute, text, CDATA; ignoră prolog, comentarii,
  * PI și DOCTYPE. Întoarce rădăcina sau null dacă structura nu e bine formată
- * (taguri neînchise/încrucișate).
+ * (taguri neînchise/încrucișate) ori depășește limitele de protecție.
  */
 export function parseXml(text: string): XmlNode | null {
+  return parseXmlWithReason(text).root;
+}
+
+export function parseXmlWithReason(text: string): { root: XmlNode | null; reason?: XmlParseReason } {
+  if (text.length > MAX_XML_CHARS) return { root: null, reason: "too_large" };
   const src = text.replace(/^﻿/, "");
-  const root: XmlNode = { name: "", attrs: {}, text: "", children: [] };
+  const root = newNode("");
   const stack: XmlNode[] = [root];
   let i = 0;
   const n = src.length;
   let sawElement = false;
+  let elements = 0;
 
   while (i < n) {
     const lt = src.indexOf("<", i);
@@ -87,20 +153,20 @@ export function parseXml(text: string): XmlNode | null {
 
     if (src.startsWith("<!--", lt)) {
       const end = src.indexOf("-->", lt + 4);
-      if (end < 0) return null;
+      if (end < 0) return { root: null, reason: "malformed" };
       i = end + 3;
       continue;
     }
     if (src.startsWith("<![CDATA[", lt)) {
       const end = src.indexOf("]]>", lt + 9);
-      if (end < 0) return null;
+      if (end < 0) return { root: null, reason: "malformed" };
       stack[stack.length - 1].text += src.slice(lt + 9, end);
       i = end + 3;
       continue;
     }
     if (src.startsWith("<?", lt)) {
       const end = src.indexOf("?>", lt + 2);
-      if (end < 0) return null;
+      if (end < 0) return { root: null, reason: "malformed" };
       i = end + 2;
       continue;
     }
@@ -114,44 +180,49 @@ export function parseXml(text: string): XmlNode | null {
         else if (c === "]") depth--;
         else if (c === ">" && depth <= 0) break;
       }
-      if (j >= n) return null;
+      if (j >= n) return { root: null, reason: "malformed" };
       i = j + 1;
       continue;
     }
 
     const gt = findTagEnd(src, lt + 1);
-    if (gt < 0) return null;
+    if (gt < 0) return { root: null, reason: "malformed" };
+    // Un singur tag mai mare de 64 KB nu e un export de analizor — nu e XML pentru noi.
+    if (gt - lt > MAX_TAG_CHARS) return { root: null, reason: "malformed" };
     const raw = src.slice(lt + 1, gt);
     i = gt + 1;
 
     if (raw[0] === "/") {
       const closing = stripNs(raw.slice(1).trim());
       const top = stack[stack.length - 1];
-      if (stack.length < 2 || top.name !== closing) return null;
+      if (stack.length < 2 || top.name !== closing) return { root: null, reason: "malformed" };
       stack.pop();
       continue;
     }
 
     const selfClosing = raw.endsWith("/");
     const body = selfClosing ? raw.slice(0, -1) : raw;
-    const m = body.match(/^\s*([^\s/>]+)([\s\S]*)$/);
-    if (!m) return null;
-    const node: XmlNode = { name: stripNs(m[1]), attrs: {}, text: "", children: [] };
-    const attrRe = /([^\s=]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
-    let am: RegExpExecArray | null;
-    while ((am = attrRe.exec(m[2]))) {
-      const an = stripNs(am[1]);
-      if (an === "xmlns" || am[1].startsWith("xmlns:")) continue;
-      node.attrs[an] = decodeXml(am[2] ?? am[3] ?? "");
-    }
+    // Numele tagului: primul șir fără spații după eventualele spații de început.
+    let p = 0;
+    while (p < body.length && isXmlSpace(body[p])) p++;
+    const nameStart = p;
+    while (p < body.length && !isXmlSpace(body[p]) && body[p] !== "/" && body[p] !== ">") p++;
+    const rawName = body.slice(nameStart, p);
+    if (!rawName) return { root: null, reason: "malformed" };
+    if (++elements > MAX_XML_ELEMENTS) return { root: null, reason: "too_many_elements" };
+    const node = newNode(stripNs(rawName));
+    if (!scanAttrs(body, p, node.attrs)) return { root: null, reason: "malformed" };
     stack[stack.length - 1].children.push(node);
     sawElement = true;
-    if (!selfClosing) stack.push(node);
+    if (!selfClosing) {
+      if (stack.length >= MAX_XML_DEPTH) return { root: null, reason: "malformed" };
+      stack.push(node);
+    }
   }
 
-  if (stack.length !== 1 || !sawElement) return null;
-  if (root.text.trim() && root.children.length === 0) return null;
-  return root.children.length === 1 ? root.children[0] : root;
+  if (stack.length !== 1 || !sawElement) return { root: null, reason: "malformed" };
+  if (root.text.trim() && root.children.length === 0) return { root: null, reason: "malformed" };
+  return { root: root.children.length === 1 ? root.children[0] : root };
 }
 
 /** Sfârșitul tagului deschis la `from` (după `<`), sărind peste `>` din atribute citate. */
@@ -170,10 +241,16 @@ function findTagEnd(src: string, from: number): number {
   return -1;
 }
 
-/** Perechile brute dintr-un arbore XML: frunze cu text + atribute, cu calea completă. */
+/**
+ * Perechile brute dintr-un arbore XML: frunze cu text + atribute, cu calea
+ * completă. Parcurgere iterativă (stivă explicită, în ordinea documentului) —
+ * adâncimea e deja plafonată la parsare, dar nu depindem de stiva JS.
+ */
 export function flattenXml(root: XmlNode): RawPair[] {
   const pairs: RawPair[] = [];
-  const walk = (node: XmlNode, parentPath: string) => {
+  const stack: { node: XmlNode; parentPath: string }[] = [{ node: root, parentPath: "" }];
+  while (stack.length) {
+    const { node, parentPath } = stack.pop()!;
     const path = parentPath ? `${parentPath}/${node.name}` : node.name;
     const text = decodeXml(node.text).trim();
     const unitAttr = Object.keys(node.attrs).find((a) => UNIT_ATTRS.has(a.toLowerCase()));
@@ -186,9 +263,8 @@ export function flattenXml(root: XmlNode): RawPair[] {
       if (!av.trim()) continue;
       pairs.push({ label: `${node.name}[${an}]`, path: `${path}[${an}]`, value: av.trim() });
     }
-    for (const child of node.children) walk(child, path);
-  };
-  walk(root, "");
+    for (let c = node.children.length - 1; c >= 0; c--) stack.push({ node: node.children[c], parentPath: path });
+  }
   return pairs;
 }
 
@@ -323,13 +399,17 @@ export function flattenCsv(text: string): RawPair[] {
 
 const looksLikeXml = (text: string) => /^\s*(?:﻿)?\s*<(?:\?xml|[A-Za-z_])/.test(text);
 
-/** Perechile brute din text, după forma lui; `kind` spune ce s-a recunoscut. */
-export function extractPairs(text: string): { kind: "xml" | "csv" | null; pairs: RawPair[] } {
+/**
+ * Perechile brute din text, după forma lui; `kind` spune ce s-a recunoscut.
+ * `reason` explică un XML respins (prea mare / prea multe elemente) — ajunge în
+ * `analysisData._warning`.
+ */
+export function extractPairs(text: string): { kind: "xml" | "csv" | null; pairs: RawPair[]; reason?: XmlParseReason } {
   if (!text || !text.trim()) return { kind: null, pairs: [] };
   if (looksLikeXml(text)) {
-    const root = parseXml(text);
+    const { root, reason } = parseXmlWithReason(text);
     if (root) return { kind: "xml", pairs: flattenXml(root) };
-    return { kind: null, pairs: [] };
+    return { kind: null, pairs: [], reason };
   }
   const pairs = flattenCsv(text);
   return { kind: pairs.length ? "csv" : null, pairs };
@@ -373,7 +453,7 @@ function resolvePair(pair: RawPair, mapping?: Record<string, string>): { key: st
 /** Transformă perechile brute în `ParsedRevision` (prima pereche pe o cheie câștigă). */
 export function fromPairs(pairs: RawPair[], rawText: string, mapping?: Record<string, string>): ParsedRevision {
   const out = emptyParsedRevision(rawText);
-  const readings: Record<string, string> = {};
+  const readings: Record<string, string> = Object.create(null);
   const meta: Record<string, string> = {};
   const headerSet = new Set<string>();
   let fallbackDate: Date | null = null;
@@ -428,6 +508,8 @@ export function fromPairs(pairs: RawPair[], rawText: string, mapping?: Record<st
       setHeader(key, value);
       continue;
     }
+    // Cheia vine din fișier/mapping — nu lăsăm `__proto__` & co. să ajungă în obiect.
+    if (isUnsafeKey(key)) continue;
     if (READING_KEYS.has(key) || known) {
       if (!(key in readings)) readings[key] = value;
       continue;
@@ -467,10 +549,12 @@ export const structuredFileSource: ReportSource = {
   },
   async parse({ text, mapping }) {
     const rawText = text ?? "";
-    const { kind, pairs } = extractPairs(rawText);
+    const { kind, pairs, reason } = extractPairs(rawText);
     if (!kind) {
       const empty = emptyParsedRevision(rawText);
-      empty.analysisData = { _warning: "not_structured" };
+      empty.analysisData = {
+        _warning: reason === "too_large" ? "xml_too_large" : reason === "too_many_elements" ? "xml_too_many_elements" : "not_structured",
+      };
       return empty;
     }
     const parsed = fromPairs(pairs, rawText, mapping);

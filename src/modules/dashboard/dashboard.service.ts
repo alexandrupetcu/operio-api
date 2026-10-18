@@ -4,6 +4,7 @@ import {
   apptVisibilityWhere,
 } from "../appointments/scope.js";
 import { getAlertWindows, type AlertWindows } from "../tenant/alert-settings.js";
+import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
 import { listPendingOsRegistrations, clientDisplayName, WORK_LABEL } from "../appointments/os-registration.js";
 import { daysUntil } from "../../lib/working-days.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
@@ -38,6 +39,8 @@ export async function getOverview(
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
   const w = await getAlertWindows(fastify.prisma, tenantId);
+  // Programarea de exemplu (onboarding) nu e „o programare azi”.
+  const sampleClientId = await getSampleClientId(fastify.prisma, tenantId);
 
   const [
     activeProjects,
@@ -69,6 +72,7 @@ export async function getOverview(
         status: { not: "cancelled" },
         // Pentru un tehnician, „programări azi" înseamnă ziua LUI.
         ...apptVisibilityWhere(scope),
+        ...excludeSampleAppointments(sampleClientId),
       },
     }),
     fastify.prisma.task.count({
@@ -485,6 +489,8 @@ export async function getActionFeed(
   const tomorrowEnd = endOfDay(addDays(now, 1));
   const w = await getAlertWindows(fastify.prisma, tenantId);
   const deadlineCutoff = endOfDay(addDays(now, w.deadlineUpcomingDays));
+  const sampleClientId = await getSampleClientId(fastify.prisma, tenantId);
+  const notSample = excludeSampleAppointments(sampleClientId);
 
   const apptTimeSelect = { select: { date: true } } as const;
 
@@ -514,12 +520,12 @@ export async function getActionFeed(
         where: { tenantId, status: { notIn: ["completed", "cancelled", "rejected"] } },
       }),
       fastify.prisma.appointment.findMany({
-        where: { tenantId, deletedAt: null, date: { gte: todayStart, lte: todayEnd }, status: { not: "cancelled" }, ...apptVisibilityWhere(scope) },
+        where: { tenantId, deletedAt: null, date: { gte: todayStart, lte: todayEnd }, status: { not: "cancelled" }, ...apptVisibilityWhere(scope), ...notSample },
         orderBy: { date: "asc" },
         ...apptTimeSelect,
       }),
       fastify.prisma.appointment.findMany({
-        where: { tenantId, deletedAt: null, date: { gte: tomorrowStart, lte: tomorrowEnd }, status: { not: "cancelled" }, ...apptVisibilityWhere(scope) },
+        where: { tenantId, deletedAt: null, date: { gte: tomorrowStart, lte: tomorrowEnd }, status: { not: "cancelled" }, ...apptVisibilityWhere(scope), ...notSample },
         orderBy: { date: "asc" },
         ...apptTimeSelect,
       }),

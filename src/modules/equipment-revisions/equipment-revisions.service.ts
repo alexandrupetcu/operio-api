@@ -3,6 +3,11 @@ import type { Queue } from "bullmq";
 import type { CreateRevisionInput, UpdateRevisionInput } from "./equipment-revisions.schema.js";
 import { revisionSource, type ParsedRevision } from "../../lib/report-sources/index.js";
 
+/** Textul brut al raportului se ține pentru re-parsare/depanare — nu nelimitat. */
+export const RAW_TEXT_MAX_CHARS = 200 * 1024;
+export const capRawText = (text: string | null | undefined): string | null | undefined =>
+  typeof text === "string" && text.length > RAW_TEXT_MAX_CHARS ? text.slice(0, RAW_TEXT_MAX_CHARS) : text;
+
 /** Coloanele EquipmentRevision alimentate dintr-un raport parsat (fără dată/status/fișier). */
 export function revisionDataFromParsed(parsed: ParsedRevision) {
   return {
@@ -17,7 +22,7 @@ export function revisionDataFromParsed(parsed: ParsedRevision) {
     pdfEquipmentSerial: parsed.equipmentSerial,
     pdfClientAddress: parsed.clientAddress,
     analysisData: parsed.analysisData as never,
-    rawText: parsed.rawText,
+    rawText: capRawText(parsed.rawText),
   };
 }
 
@@ -84,7 +89,7 @@ export async function queueIscirIfReportExists(
 }
 
 /** Verify equipment belongs to client belongs to tenant. Returns equipment or throws 404 */
-async function verifyOwnership(
+export async function verifyOwnership(
   fastify: FastifyInstance,
   tenantId: string,
   clientId: string,
@@ -194,7 +199,7 @@ export async function create(
       analyzerName: input.analyzerName,
       analyzerSerial: input.analyzerSerial,
       analysisData: (input.analysisData ?? undefined) as any,
-      rawText: input.rawText,
+      rawText: capRawText(input.rawText),
       notes: input.notes,
     },
   });

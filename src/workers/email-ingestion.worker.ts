@@ -168,7 +168,8 @@ async function processEmail(tenantId: string, email: IncomingEmail, inboxId: str
       // Upload PDF to S3 FIRST (so we never lose it). The key uses a sanitised
       // random name — the original filename is kept on emailIngestLog.fileName.
       const s3Key = `${tenantId}/email-pdfs/${Date.now()}-${safeS3Filename(attachment.filename)}`;
-      await uploadFile(s3Key, attachment.content, attachment.contentType || REPORT_FILE_CANONICAL_MIME[fileKind]);
+      // Content-type canonic după extensie — cel declarat de expeditor nu e de încredere.
+      await uploadFile(s3Key, attachment.content, REPORT_FILE_CANONICAL_MIME[fileKind]);
       await prisma.emailIngestLog.update({ where: { id: log.id }, data: { s3Key } });
 
       // Parse through the source registry (Seitron regex unchanged; XML/CSV

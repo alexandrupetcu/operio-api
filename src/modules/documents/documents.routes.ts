@@ -48,7 +48,7 @@ export default async function documentsRoutes(fastify: FastifyInstance) {
   // Generate documents from templates
   fastify.post<{ Params: { projectId: string } }>(
     "/project/:projectId/generate",
-    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")], preHandler: [requireFeature("projects.workflows")] },
     async (request, reply) => {
       const body = generateDocumentsSchema.parse(request.body);
       const docs = await documentsService.generate(
@@ -82,6 +82,7 @@ export default async function documentsRoutes(fastify: FastifyInstance) {
   // Upload a document manually
   fastify.post<{ Params: { projectId: string } }>(
     "/project/:projectId/upload",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request, reply) => {
       const file = await request.file();
       if (!file) throw fastify.httpErrors.badRequest("File is required");

@@ -248,6 +248,31 @@ export const instalatieReportSchema = z.object({
   }).optional(),
 });
 
+// Ramurile „de urmare” — comune finalizării (rezultat ≠ raport) și rutei
+// `/followup` (după finalizare, fără a atinge starea programării).
+const revenireBranch = z.object({
+  outcome: z.literal("revenire"),
+  followup: z.object({
+    title: z.string().min(1).max(500),
+    dueAt: z.string().datetime().optional(),
+    description: z.string().optional(),
+    assignedUserId: z.string().cuid().optional(),
+    priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+  }),
+});
+
+const programareNouaBranch = z.object({
+  outcome: z.literal("programare_noua"),
+  newAppointment: z.object({
+    title: z.string().min(1).max(200),
+    date: z.string().datetime(),
+    // Minute. Plafonul e folosit de fereastra de căutare a suprapunerilor.
+    duration: z.number().int().min(5).max(480).optional(),
+    notes: z.string().optional(),
+    type: z.enum(APPOINTMENT_TYPES).default("general"),
+  }),
+});
+
 export const finalizeAppointmentSchema = z.discriminatedUnion("outcome", [
   z.object({
     outcome: z.literal("raport_complet"),
@@ -258,32 +283,17 @@ export const finalizeAppointmentSchema = z.discriminatedUnion("outcome", [
     // Centrala report OR gas-installation FISA report (disambiguated by reportKind / fields)
     reportData: z.union([reportDataSchema, instalatieReportSchema]),
   }),
-  z.object({
-    outcome: z.literal("revenire"),
-    followup: z.object({
-      title: z.string().min(1).max(500),
-      dueAt: z.string().datetime().optional(),
-      description: z.string().optional(),
-      assignedUserId: z.string().cuid().optional(),
-      priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
-    }),
-  }),
-  z.object({
-    outcome: z.literal("programare_noua"),
-    newAppointment: z.object({
-      title: z.string().min(1).max(200),
-      date: z.string().datetime(),
-      // Minute. Plafonul e folosit de fereastra de căutare a suprapunerilor.
-  duration: z.number().int().min(5).max(480).optional(),
-      notes: z.string().optional(),
-      type: z.enum(APPOINTMENT_TYPES).default("general"),
-    }),
-  }),
+  revenireBranch,
+  programareNouaBranch,
 ]);
+
+/** `POST /:id/followup` — o revenire (task) sau o programare nouă pe o programare deja finalizată. */
+export const followupAppointmentSchema = z.discriminatedUnion("outcome", [revenireBranch, programareNouaBranch]);
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
 export type FinalizeAppointmentInput = z.infer<typeof finalizeAppointmentSchema>;
+export type FollowupAppointmentInput = z.infer<typeof followupAppointmentSchema>;
 export type ReportData = z.infer<typeof reportDataSchema>;
 export type InstalatieReportData = z.infer<typeof instalatieReportSchema>;
 

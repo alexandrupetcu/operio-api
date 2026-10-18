@@ -417,23 +417,33 @@ export async function resetPassword(
   const tokenHash = createHash("sha256").update(input.token).digest("hex");
   const stored = await fastify.prisma.passwordResetToken.findUnique({
     where: { tokenHash },
+    include: { user: { select: { isActive: true } } },
   });
   if (!stored || stored.usedAt || stored.expiresAt < new Date()) {
     throw fastify.httpErrors.badRequest("Link-ul de resetare e invalid sau a expirat");
   }
+  // Un cont dezactivat nu-și poate reseta parola (același mesaj — nu dezvăluim starea contului).
+  if (!stored.user.isActive) {
+    throw fastify.httpErrors.badRequest("Link-ul de resetare e invalid sau a expirat");
+  }
 
   const newHash = await hashPassword(input.newPassword);
-  await fastify.prisma.$transaction([
-    fastify.prisma.user.update({
+  await fastify.prisma.$transaction(async (tx) => {
+    // Consumul token-ului e condiționat (`usedAt: null`) și verificat în aceeași
+    // tranzacție: două cereri concurente cu același link nu pot reuși amândouă.
+    const consumed = await tx.passwordResetToken.updateMany({
+      where: { id: stored.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (consumed.count !== 1) {
+      throw fastify.httpErrors.badRequest("Link-ul de resetare e invalid sau a expirat");
+    }
+    await tx.user.update({
       where: { id: stored.userId },
       data: { passwordHash: newHash, invitePending: false },
-    }),
-    fastify.prisma.passwordResetToken.update({
-      where: { id: stored.id },
-      data: { usedAt: new Date() },
-    }),
-    fastify.prisma.refreshToken.deleteMany({ where: { userId: stored.userId } }),
-  ]);
+    });
+    await tx.refreshToken.deleteMany({ where: { userId: stored.userId } });
+  });
 }
 
 /** Authenticated self-service password change. Verifies the current

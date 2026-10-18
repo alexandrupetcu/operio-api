@@ -368,6 +368,9 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // Intenționat fără `requireFeature("documents.dossiers")`: după renunțarea la
+  // modul, firma trebuie să poată în continuare șterge dosarele deja create
+  // (curățenie, GDPR) — doar crearea/generarea rămân blocate.
   fastify.delete<{ Params: { id: string; dossierId: string } }>(
     "/:id/dossiers/:dossierId",
     { onRequest: [requireRole("ADMIN", "MANAGER") ] },

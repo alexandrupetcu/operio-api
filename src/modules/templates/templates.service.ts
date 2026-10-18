@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { MultipartFile } from "@fastify/multipart";
 import PizZip from "pizzip";
 import { uploadFile, deleteFile, getPresignedUrl, getFileBuffer } from "../../lib/s3.js";
-import { safeS3Filename } from "../../lib/safe-filename.js";
+import { safeS3Filename, uploadContentType } from "../../lib/safe-filename.js";
 import type { CreateTemplateInput, UpdateTemplateInput } from "./templates.schema.js";
 
 type TemplateTypeFilter = "all" | "html" | "docx" | "group";
@@ -97,7 +97,8 @@ export async function createFromFile(
 ) {
   const buffer = await file.toBuffer();
   const s3Key = `templates/${tenantId}/${Date.now()}-${safeS3Filename(file.filename)}`;
-  await uploadFile(s3Key, buffer, file.mimetype);
+  // Content-type după extensie, nu după antetul clientului.
+  await uploadFile(s3Key, buffer, uploadContentType(file.filename));
 
   return fastify.prisma.documentTemplate.create({
     data: { tenantId, name, categoryCode: category, s3Key },

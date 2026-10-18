@@ -5,7 +5,14 @@ import { redisConnection } from "../../config/redis.js";
 import { defaultJobOptions } from "../../config/queue.js";
 import { uploadFile } from "../../lib/s3.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
-import type { CreateAppointmentInput, UpdateAppointmentInput, FinalizeAppointmentInput, InstalatieReportData } from "./appointments.schema.js";
+import type {
+  CreateAppointmentInput,
+  UpdateAppointmentInput,
+  FinalizeAppointmentInput,
+  FollowupAppointmentInput,
+  InstalatieReportData,
+} from "./appointments.schema.js";
+import { lockKey } from "../../lib/tenant-lock.js";
 import type { GasInstallationInput } from "../clients/clients.schema.js";
 import { allocateEntryForDocument } from "../registry/registry.service.js";
 import {
@@ -39,6 +46,14 @@ function storedIdempotencyKey(json: unknown): string | null {
   if (!json || typeof json !== "object") return null;
   const k = (json as Record<string, unknown>)._idempotencyKey;
   return typeof k === "string" ? k : null;
+}
+
+/** Cheile `Idempotency-Key` deja folosite pe `/followup` (`completionDataJson._followupKeys`). */
+const FOLLOWUP_KEYS_MAX = 20;
+function storedFollowupKeys(json: unknown): string[] {
+  if (!json || typeof json !== "object" || Array.isArray(json)) return [];
+  const keys = (json as Record<string, unknown>)._followupKeys;
+  return Array.isArray(keys) ? keys.filter((k): k is string => typeof k === "string") : [];
 }
 
 const documentQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
@@ -1174,6 +1189,100 @@ export async function finalize(
   ]);
   await invalidateDashboardCache(tenantId);
   return completed;
+}
+
+/**
+ * Urmare după finalizare: o revenire (task) sau o programare nouă, pe o
+ * programare deja finalizată — aceleași ramuri ca la `finalize`, dar starea
+ * programării NU se atinge. Idempotent pe `Idempotency-Key`: cheile folosite
+ * stau în `completionDataJson._followupKeys` (ultimele 20); o cheie văzută deja
+ * întoarce programarea, fără alt task / altă programare. Verificarea cheii și
+ * scrierea stau sub blocajul programării, ca două retrimiteri simultane să nu
+ * treacă amândouă.
+ */
+export async function followup(
+  fastify: FastifyInstance,
+  tenantId: string,
+  id: string,
+  input: FollowupAppointmentInput,
+  scope: ApptScope = { kind: "all" },
+  idempotencyKey: string | null = null
+) {
+  const appointment = await fastify.prisma.appointment.findFirst({
+    where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
+    select: { id: true, status: true, projectId: true, clientId: true, employeeId: true, completionDataJson: true },
+  });
+  if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
+  if (appointment.status !== "completed") {
+    throw fastify.httpErrors.conflict("Programarea nu este finalizată — folosește finalizarea cu rezultatul dorit");
+  }
+  // Drum rapid, fără tranzacție: cheia e deja consumată.
+  if (idempotencyKey && storedFollowupKeys(appointment.completionDataJson).includes(idempotencyKey)) {
+    return fastify.prisma.appointment.findUniqueOrThrow({ where: { id }, include: listInclude });
+  }
+
+  // FK-urile din body: ale firmei (programarea însăși e deja verificată mai sus).
+  if (input.outcome === "revenire") {
+    await assertUserInTenant(fastify, tenantId, input.followup.assignedUserId);
+  }
+
+  const result = await fastify.prisma.$transaction(async (tx) => {
+    await lockKey(tx, `appointment:${id}`);
+    const fresh = await tx.appointment.findUniqueOrThrow({ where: { id }, select: { completionDataJson: true } });
+    const usedKeys = storedFollowupKeys(fresh.completionDataJson);
+    if (idempotencyKey && usedKeys.includes(idempotencyKey)) {
+      return tx.appointment.findUniqueOrThrow({ where: { id }, include: listInclude });
+    }
+
+    if (input.outcome === "revenire") {
+      await tx.task.create({
+        data: {
+          tenantId,
+          title: input.followup.title,
+          description: input.followup.description,
+          taskType: "followup",
+          status: "open",
+          priority: input.followup.priority,
+          projectId: appointment.projectId,
+          clientId: appointment.clientId,
+          assignedUserId: input.followup.assignedUserId,
+          dueAt: input.followup.dueAt ? new Date(input.followup.dueAt) : undefined,
+        },
+      });
+    } else {
+      await tx.appointment.create({
+        data: {
+          tenantId,
+          projectId: appointment.projectId,
+          clientId: appointment.clientId,
+          employeeId: appointment.employeeId,
+          type: input.newAppointment.type,
+          title: input.newAppointment.title,
+          notes: input.newAppointment.notes,
+          date: new Date(input.newAppointment.date),
+          duration: input.newAppointment.duration,
+        },
+      });
+    }
+
+    // Raportul (sau `{ _idempotencyKey }`) rămâne neatins; doar lista de chei crește.
+    if (!idempotencyKey) {
+      return tx.appointment.findUniqueOrThrow({ where: { id }, include: listInclude });
+    }
+    const base =
+      fresh.completionDataJson && typeof fresh.completionDataJson === "object" && !Array.isArray(fresh.completionDataJson)
+        ? (fresh.completionDataJson as Record<string, unknown>)
+        : {};
+    const keys = [...usedKeys, idempotencyKey].slice(-FOLLOWUP_KEYS_MAX);
+    return tx.appointment.update({
+      where: { id },
+      data: { completionDataJson: { ...base, _followupKeys: keys } as Prisma.InputJsonValue },
+      include: listInclude,
+    });
+  }, FINALIZE_TX_OPTIONS);
+
+  await invalidateDashboardCache(tenantId);
+  return result;
 }
 
 export async function remove(

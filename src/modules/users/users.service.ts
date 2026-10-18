@@ -7,7 +7,8 @@ import { sendUserInviteEmail } from "../../lib/email.js";
 import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateUserInput, UpdateUserInput } from "./users.schema.js";
-import { clearMobileDeviceRevoked, markMobileDeviceRevoked } from "../../lib/mobile-devices.js";
+import { clearMobileDeviceRevoked, markMobileDeviceRevoked, markUserRevoked } from "../../lib/mobile-devices.js";
+import { lockTenant } from "../../lib/tenant-lock.js";
 
 /** Columns the user list may be sorted by (allowlist for `sortBy`). */
 export const USERS_SORTABLE = [
@@ -256,24 +257,36 @@ export async function update(
     await fastify.prisma.refreshToken.deleteMany({ where: { userId: id, client: "mobile" } });
   }
   // Locurile de tehnician ale abonamentului = utilizatorii cu acces mobil.
+  // Numărarea și scrierea stau în aceeași tranzacție, sub blocajul tenantului:
+  // două activări simultane nu pot trece amândouă de limită.
   if (userFields.mobileAccess === true) {
     const ent = await getTenantEntitlements(fastify.prisma, tenantId);
     if (!ent.has("field.mobile")) {
       throw Object.assign(new Error("Aplicația mobilă nu este inclusă în abonament"), { statusCode: 402, feature: "field.mobile", upgradeTo: "execution" });
     }
-    const used = await fastify.prisma.user.count({ where: { tenantId, mobileAccess: true, isActive: true, id: { not: id } } });
-    if (used >= ent.limits.technicianSeats) {
-      throw Object.assign(
-        new Error(`Planul ${ent.planLabel} include ${ent.limits.technicianSeats} tehnicieni cu acces mobil — dezactivează un tehnician sau extinde abonamentul`),
-        { statusCode: 402, feature: "field.mobile", upgradeTo: "execution" },
-      );
-    }
+    return fastify.prisma.$transaction(async (tx) => {
+      await lockTenant(tx, tenantId);
+      const used = await tx.user.count({ where: { tenantId, mobileAccess: true, isActive: true, id: { not: id } } });
+      if (used >= ent.limits.technicianSeats) {
+        throw Object.assign(
+          new Error(`Planul ${ent.planLabel} include ${ent.limits.technicianSeats} tehnicieni cu acces mobil — dezactivează un tehnician sau extinde abonamentul`),
+          { statusCode: 402, feature: "field.mobile", upgradeTo: "execution" },
+        );
+      }
+      return tx.user.update({ where: { id }, data: userFields, select: userSelect });
+    });
   }
-  return fastify.prisma.user.update({
+  const updated = await fastify.prisma.user.update({
     where: { id },
     data: userFields,
     select: userSelect,
   });
+  // Dezactivarea contului taie și sesiunile web în curs (token-urile de acces încă valide).
+  if (userFields.isActive === false) {
+    await fastify.prisma.refreshToken.deleteMany({ where: { userId: id } });
+    await markUserRevoked(id);
+  }
+  return updated;
 }
 
 export async function remove(
@@ -282,9 +295,14 @@ export async function remove(
   id: string
 ) {
   await getById(fastify, tenantId, id);
-  return fastify.prisma.user.update({
+  const removed = await fastify.prisma.user.update({
     where: { id },
     data: { isActive: false },
     select: userSelect,
   });
+  // Nicio sesiune nu supraviețuiește eliminării: refresh-urile cad, iar token-urile
+  // de acces încă valide sunt refuzate prin lista de revocare (vezi plugins/auth).
+  await fastify.prisma.refreshToken.deleteMany({ where: { userId: id } });
+  await markUserRevoked(id);
+  return removed;
 }

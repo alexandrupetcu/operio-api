@@ -11,6 +11,7 @@ import { requireMasterAdmin } from "./lib/rbac.js";
 import prismaPlugin from "./plugins/prisma.js";
 import authPlugin from "./plugins/auth.js";
 import tenantPlugin from "./plugins/tenant.js";
+import planExpiryPlugin from "./plugins/plan-expiry.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
 import clientsRoutes from "./modules/clients/clients.routes.js";
@@ -217,6 +218,7 @@ export async function buildServer() {
   await fastify.register(prismaPlugin);
   await fastify.register(authPlugin);
   await fastify.register(tenantPlugin);
+  await fastify.register(planExpiryPlugin);
 
   // Routes
   await fastify.register(authRoutes, { prefix: "/api/auth" });

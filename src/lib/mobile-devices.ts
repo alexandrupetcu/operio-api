@@ -46,3 +46,34 @@ export async function isMobileDeviceRevoked(userId: string, deviceId: string): P
     return false; // fail open on the fast path; refresh enforces via DB
   }
 }
+
+/**
+ * Whole-user revocation (account deactivated/removed): every session, web
+ * included, is refused at once. Kept for the ACCESS-token lifetime — after that
+ * no access token signed before the revocation can still be valid, and refresh
+ * is already refused by the DB (`isActive: false`, refresh rows deleted).
+ */
+const userKey = (userId: string) => `user:revoked:${userId}`;
+
+function accessLifetimeSeconds(): number {
+  const m = env.JWT_ACCESS_EXPIRY.match(/^(\d+)([smhd])$/);
+  if (!m) return 15 * 60;
+  return parseInt(m[1]) * { s: 1, m: 60, h: 3600, d: 86400 }[m[2] as "s" | "m" | "h" | "d"]!;
+}
+
+export async function markUserRevoked(userId: string): Promise<void> {
+  try {
+    // +60 s margin for clock skew between sign and verify.
+    await client().set(userKey(userId), "1", "EX", accessLifetimeSeconds() + 60);
+  } catch (err) {
+    console.warn("[mobile-devices] could not write user revocation to redis:", (err as Error).message);
+  }
+}
+
+export async function isUserRevoked(userId: string): Promise<boolean> {
+  try {
+    return (await client().exists(userKey(userId))) === 1;
+  } catch {
+    return false;
+  }
+}

@@ -155,7 +155,10 @@ export const slugKey = (label: string) =>
 /** Cheia din mapping-ul firmei pentru o etichetă (exact, apoi normalizat); undefined dacă nu e. */
 export function mappedKey(label: string, mapping?: Record<string, string>): string | undefined {
   if (!mapping) return undefined;
-  const exact = mapping[label] ?? mapping[label.trim()];
+  // Doar proprietăți proprii: o etichetă „constructor” / „__proto__” din fișier
+  // nu trebuie să nimerească prototipul obiectului.
+  const own = (k: string) => (Object.hasOwn(mapping, k) ? mapping[k] : undefined);
+  const exact = own(label) ?? own(label.trim());
   if (exact) return exact;
   const norm = normalizeLabel(label);
   for (const [k, v] of Object.entries(mapping)) {
@@ -166,7 +169,8 @@ export function mappedKey(label: string, mapping?: Record<string, string>): stri
 
 /** Cheia din aliasuri pentru o etichetă; undefined dacă nu e cunoscută. */
 export function aliasKey(label: string): string | undefined {
-  return DEFAULT_LABEL_ALIASES[normalizeLabel(label)];
+  const norm = normalizeLabel(label);
+  return Object.hasOwn(DEFAULT_LABEL_ALIASES, norm) ? DEFAULT_LABEL_ALIASES[norm] : undefined;
 }
 
 /** Cheia noastră pentru o etichetă tipărită: mapping-ul firmei > aliasuri > slug. */

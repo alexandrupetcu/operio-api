@@ -20,6 +20,25 @@ import { basename, extname } from "path";
  * Output shape: `<16-hex-random>.<ext>` where ext is the cleaned extension
  * (≤16 chars, only `[a-zA-Z0-9]`). No extension → just the random part.
  */
+/**
+ * Content-type-ul cu care se salvează un fișier încărcat, dedus din extensie —
+ * nu din antetul clientului (care poate declara `text/html` pentru un „pdf” și
+ * ar fi servit ca atare din S3). Extensii necunoscute → `application/octet-stream`.
+ */
+const UPLOAD_CONTENT_TYPES: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+};
+
+export function uploadContentType(rawFilename: string | undefined | null): string {
+  const ext = rawFilename ? extname(basename(rawFilename)).replace(/^\./, "").toLowerCase() : "";
+  return (Object.hasOwn(UPLOAD_CONTENT_TYPES, ext) && UPLOAD_CONTENT_TYPES[ext]) || "application/octet-stream";
+}
+
 export function safeS3Filename(rawFilename: string | undefined | null): string {
   const random = randomBytes(8).toString("hex");
 

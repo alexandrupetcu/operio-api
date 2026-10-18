@@ -2,7 +2,7 @@ import fp from "fastify-plugin";
 import fastifyJwt from "@fastify/jwt";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { env } from "../config/env.js";
-import { isMobileDeviceRevoked } from "../lib/mobile-devices.js";
+import { isMobileDeviceRevoked, isUserRevoked } from "../lib/mobile-devices.js";
 
 export type ClientKind = "web" | "mobile";
 
@@ -30,8 +30,12 @@ export default fp(async (fastify: FastifyInstance) => {
       } catch {
         return reply.unauthorized("Invalid or expired token");
       }
-      // Instant revocation for phones: one Redis lookup, mobile tokens only.
+      // Instant revocation: a deactivated/removed account (any client), then a
+      // revoked phone (mobile tokens only). One Redis lookup each.
       const { client, deviceId, sub } = request.user;
+      if (await isUserRevoked(sub)) {
+        return reply.unauthorized("Contul a fost dezactivat");
+      }
       if (client === "mobile" && deviceId && (await isMobileDeviceRevoked(sub, deviceId))) {
         return reply.unauthorized("Dispozitivul a fost revocat");
       }

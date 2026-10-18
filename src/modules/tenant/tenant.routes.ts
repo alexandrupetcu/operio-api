@@ -258,11 +258,14 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
     },
   });
 
-  // „Testează un PDF": rulează toate sursele pe fișier (AI doar cu cheie
-  // configurată) ca firma să vadă ce extrage fiecare înainte să aleagă.
-  fastify.post("/report-sources/test", {
+  // „Testează un PDF": rulează toate sursele pe fișier ca firma să vadă ce
+  // extrage fiecare înainte să aleagă. Sursa AI (cost per apel) rulează doar la
+  // cerere explicită (`?ai=1`) și cu cheie configurată; ruta e limitată la 20/oră.
+  fastify.post<{ Querystring: { ai?: string } }>("/report-sources/test", {
     onRequest: [requireRole("ADMIN")],
+    config: { rateLimit: { max: 20, timeWindow: "1 hour" } },
     handler: async (request) => {
+      const withAi = request.query?.ai === "1";
       const file = await request.file({ limits: { fileSize: REPORT_TEST_MAX_BYTES } });
       if (!file) throw fastify.httpErrors.badRequest("Fișierul lipsește");
       if (!reportFileKind(file.filename, file.mimetype)) {
@@ -295,7 +298,7 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
         error?: string;
       }[] = [];
       for (const source of REPORT_SOURCES) {
-        if (source.kind === "ai" && !env.OPENAI_API_KEY) continue;
+        if (source.kind === "ai" && (!withAi || !env.OPENAI_API_KEY)) continue;
         let score = 0;
         try {
           score = source.detect(text);
@@ -315,12 +318,14 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
               : {};
           results.push({ sourceId: source.id, score, readings, fields });
         } catch (err) {
+          // Mesajul real (chei, URL-uri, stack) rămâne în jurnal, nu în răspuns.
+          request.log.warn({ err, sourceId: source.id }, "report-sources/test: source failed");
           results.push({
             sourceId: source.id,
             score,
             readings: {},
             fields: {},
-            error: err instanceof Error ? err.message : String(err),
+            error: "Fișierul nu a putut fi citit",
           });
         }
       }

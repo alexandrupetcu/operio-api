@@ -4,6 +4,7 @@ import { deleteFile } from "../../lib/s3.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 import { invalidateReadiness } from "./readiness.js";
 import { readSampleSettings, writeSampleSettings } from "./sample-settings.js";
+import { lockTenant } from "../../lib/tenant-lock.js";
 import * as appointmentsService from "../appointments/appointments.service.js";
 import { finalizeAppointmentSchema, type InstalatieReportData } from "../appointments/appointments.schema.js";
 import { REVIZIE_OPERATIUNI } from "../appointments/instalatie-constants.js";
@@ -85,109 +86,134 @@ export type CreateSampleResult = { clientId: string; appointmentId: string | nul
  */
 export async function createSampleData(fastify: FastifyInstance, tenantId: string): Promise<CreateSampleResult> {
   const prisma = fastify.prisma;
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { settingsJson: true } });
-  const existing = readSampleSettings(tenant.settingsJson);
-  if (existing) {
-    const client = await prisma.client.findFirst({ where: { id: existing.clientId, tenantId }, select: { id: true } });
-    if (client) return { clientId: existing.clientId, appointmentId: existing.appointmentId, documentsQueued: false };
-    // Clientul a fost șters manual — curățăm referința și recreăm.
-    await writeSampleSettings(prisma, tenantId, null);
-  }
-
-  // Geografie: România / București / Sector 1, când există în tabelele seed-uite.
-  const ro = await prisma.country.findFirst({ where: { iso2: "RO" }, select: { id: true } });
-  const buc = ro
-    ? await prisma.state.findFirst({ where: { countryId: ro.id, name: { contains: "ucure", mode: "insensitive" } }, select: { id: true } })
-    : null;
-  const sector1 = buc
-    ? await prisma.city.findFirst({ where: { stateId: buc.id, name: { equals: "Sector 1", mode: "insensitive" } }, select: { id: true } })
-    : null;
-
   const today = new Date();
   const visitDate = new Date(today);
   visitDate.setHours(10, 0, 0, 0);
 
-  const client = await prisma.client.create({
-    data: {
-      tenantId,
-      type: "PERSON",
-      status: "ACTIVE",
-      firstName: SAMPLE_CLIENT.firstName,
-      lastName: SAMPLE_CLIENT.lastName,
-      phone: SAMPLE_CLIENT.phone,
-      email: SAMPLE_CLIENT.email,
-      notes: "Client de exemplu creat automat de Operio pentru a arăta cum funcționează aplicația.",
-      addresses: {
-        create: {
-          label: "Domiciliu",
-          address: SAMPLE_CLIENT.address,
-          countryId: ro?.id ?? null,
-          stateId: buc?.id ?? null,
-          cityId: sector1?.id ?? null,
-          isPrimary: true,
+  // Verificarea „există deja?” și crearea stau în aceeași tranzacție, sub
+  // blocajul tenantului: două clicuri simultane pe „Creează exemplul” nu pot
+  // produce doi clienți de exemplu. `settingsJson.sample` se recitește DUPĂ
+  // blocaj, ca să vadă ce a scris cererea care a trecut prima.
+  const created = await prisma.$transaction(
+    async (tx) => {
+      await lockTenant(tx, tenantId);
+      const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { settingsJson: true } });
+      const existing = readSampleSettings(tenant.settingsJson);
+      if (existing) {
+        const client = await tx.client.findFirst({ where: { id: existing.clientId, tenantId }, select: { id: true } });
+        if (client) return { existing: true as const, clientId: existing.clientId, appointmentId: existing.appointmentId };
+        // Clientul a fost șters manual — curățăm referința și recreăm.
+        await writeSampleSettings(tx, tenantId, null);
+      }
+
+      // Geografie: România / București / Sector 1, când există în tabelele seed-uite.
+      const ro = await tx.country.findFirst({ where: { iso2: "RO" }, select: { id: true } });
+      const buc = ro
+        ? await tx.state.findFirst({ where: { countryId: ro.id, name: { contains: "ucure", mode: "insensitive" } }, select: { id: true } })
+        : null;
+      const sector1 = buc
+        ? await tx.city.findFirst({ where: { stateId: buc.id, name: { equals: "Sector 1", mode: "insensitive" } }, select: { id: true } })
+        : null;
+
+      const client = await tx.client.create({
+        data: {
+          tenantId,
+          type: "PERSON",
+          status: "ACTIVE",
+          firstName: SAMPLE_CLIENT.firstName,
+          lastName: SAMPLE_CLIENT.lastName,
+          phone: SAMPLE_CLIENT.phone,
+          email: SAMPLE_CLIENT.email,
+          notes: "Client de exemplu creat automat de Operio pentru a arăta cum funcționează aplicația.",
+          addresses: {
+            create: {
+              label: "Domiciliu",
+              address: SAMPLE_CLIENT.address,
+              countryId: ro?.id ?? null,
+              stateId: buc?.id ?? null,
+              cityId: sector1?.id ?? null,
+              isPrimary: true,
+            },
+          },
         },
-      },
+        include: { addresses: { select: { id: true } } },
+      });
+      const addressId = client.addresses[0]?.id ?? null;
+
+      const installation = await tx.gasInstallation.create({
+        data: {
+          clientId: client.id,
+          clientAddressId: addressId,
+          label: "Instalație exemplu",
+          distributorName: "DISTRIGAZ SUD RETELE",
+          codTehnicPOD: "DGSEXEMPLU0000001",
+          codClient: "100000000001",
+          documentatieNr: `45/${today.getFullYear()}`,
+          documentatieData: fmtRo(today),
+          contorTip: "BK-G4 MT",
+          contorSeria: "DGSR",
+          contorNr: "00000001",
+          contorAn: String(today.getFullYear() - 2),
+          contorIndex: "00123,40 mc",
+          appliancesJson: [{ kind: "CT", name: "Centrală termică murală", debit: "2.50", count: 1 }] as Prisma.InputJsonValue,
+        },
+        select: { id: true },
+      });
+
+      const employee = await tx.employee.findFirst({
+        where: { tenantId, isActive: true },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      });
+
+      // Programarea se scrie direct (nu prin `appointments.service.create`, care
+      // lucrează pe clientul global, în afara tranzacției): client/adresă/instalație
+      // tocmai au fost create aici, angajatul e al firmei (filtrat pe tenant).
+      const appointment = await tx.appointment.create({
+        data: {
+          tenantId,
+          clientId: client.id,
+          clientAddressId: addressId,
+          installationId: installation.id,
+          employeeId: employee?.id ?? null,
+          type: "revizie_instalatie",
+          title: "Revizie instalație — Exemplu Ion Popescu",
+          notes: "Programare de exemplu generată automat.",
+          date: visitDate,
+          duration: 60,
+        },
+        select: { id: true },
+      });
+
+      // Scriem referința ÎNAINTE de finalizare: dacă generarea pică, ștergerea
+      // tot știe ce să curețe.
+      await writeSampleSettings(tx, tenantId, {
+        clientId: client.id,
+        appointmentId: appointment.id,
+        createdAt: today.toISOString(),
+      });
+
+      return { existing: false as const, clientId: client.id, appointmentId: appointment.id, installationId: installation.id, employeeId: employee?.id };
     },
-    include: { addresses: { select: { id: true } } },
-  });
-  const addressId = client.addresses[0]?.id ?? null;
+    { maxWait: 5_000, timeout: 20_000 },
+  );
 
-  const installation = await prisma.gasInstallation.create({
-    data: {
-      clientId: client.id,
-      clientAddressId: addressId,
-      label: "Instalație exemplu",
-      distributorName: "DISTRIGAZ SUD RETELE",
-      codTehnicPOD: "DGSEXEMPLU0000001",
-      codClient: "100000000001",
-      documentatieNr: `45/${today.getFullYear()}`,
-      documentatieData: fmtRo(today),
-      contorTip: "BK-G4 MT",
-      contorSeria: "DGSR",
-      contorNr: "00000001",
-      contorAn: String(today.getFullYear() - 2),
-      contorIndex: "00123,40 mc",
-      appliancesJson: [{ kind: "CT", name: "Centrală termică murală", debit: "2.50", count: 1 }] as Prisma.InputJsonValue,
-    },
-    select: { id: true },
-  });
+  if (created.existing) {
+    return { clientId: created.clientId, appointmentId: created.appointmentId, documentsQueued: false };
+  }
 
-  const employee = await prisma.employee.findFirst({
-    where: { tenantId, isActive: true },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
-
-  const appointment = await appointmentsService.create(fastify, tenantId, {
-    clientId: client.id,
-    clientAddressId: addressId,
-    installationId: installation.id,
-    employeeId: employee?.id,
-    type: "revizie_instalatie",
-    title: "Revizie instalație — Exemplu Ion Popescu",
-    notes: "Programare de exemplu generată automat.",
-    date: visitDate.toISOString(),
-    duration: 60,
-  });
-
-  // Scriem referința ÎNAINTE de finalizare: dacă generarea pică, ștergerea
-  // tot știe ce să curețe.
-  await writeSampleSettings(prisma, tenantId, {
-    clientId: client.id,
-    appointmentId: appointment.id,
-    createdAt: today.toISOString(),
-  });
-
+  // Finalizarea trece prin drumul aplicației mobile (documente RT/PV/contract în
+  // coadă) — după commit, ca worker-ul să găsească rândurile.
   const input = finalizeAppointmentSchema.parse({
     outcome: "raport_complet",
-    installationId: installation.id,
-    reportData: buildSampleReport(today, employee?.id),
+    installationId: created.installationId,
+    reportData: buildSampleReport(today, created.employeeId),
   });
-  await appointmentsService.finalize(fastify, tenantId, appointment.id, input);
+  await appointmentsService.finalize(fastify, tenantId, created.appointmentId, input);
 
   invalidateReadiness(tenantId);
   await invalidateDashboardCache(tenantId);
-  return { clientId: client.id, appointmentId: appointment.id, documentsQueued: true };
+  return { clientId: created.clientId, appointmentId: created.appointmentId, documentsQueued: true };
 }
 
 export type DeleteSampleResult = {

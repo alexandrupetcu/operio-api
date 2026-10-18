@@ -8,6 +8,12 @@ let transporter: Transporter | null = null;
 const escapeHtml = (v: unknown) =>
   String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
+/** În jurnale doar domeniul destinatarului — adresa completă e dată personală. */
+const mailDomain = (to: string) => {
+  const at = to.lastIndexOf("@");
+  return at >= 0 ? `@${to.slice(at + 1)}` : "<no-domain>";
+};
+
 /** Default Reply-To for automated mail: replies to noreply@ land in the firm's real inbox. */
 const replyTo = () => (env.SMTP_REPLY_TO ? { replyTo: env.SMTP_REPLY_TO } : {});
 
@@ -60,7 +66,7 @@ export async function sendNotificationEmail(opts: {
 }): Promise<void> {
   const t = getTransporter();
   if (!t) {
-    console.warn("[email] SMTP not configured — skipping notification to", opts.to);
+    console.warn("[email] SMTP not configured — skipping notification to", mailDomain(opts.to));
     return;
   }
 
@@ -91,7 +97,7 @@ export async function sendNotificationEmail(opts: {
     subject: opts.subject,
     html,
   });
-  console.log(`[email] Notification sent to ${opts.to} — messageId: ${info.messageId}`);
+  console.log(`[email] Notification sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);
 }
 
 export async function sendSigningInvitation(opts: {
@@ -104,7 +110,7 @@ export async function sendSigningInvitation(opts: {
 }): Promise<void> {
   const t = getTransporter();
   if (!t) {
-    console.warn("[email] SMTP not configured — skipping signing invitation to", opts.to);
+    console.warn("[email] SMTP not configured — skipping signing invitation to", mailDomain(opts.to));
     return;
   }
 
@@ -136,9 +142,9 @@ export async function sendSigningInvitation(opts: {
       subject: `Semnare document: ${opts.documentName}`,
       html,
     });
-    console.log(`[email] Invitation sent to ${opts.to} — messageId: ${info.messageId}`);
+    console.log(`[email] Invitation sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);
   } catch (err) {
-    console.error(`[email] Failed to send invitation to ${opts.to}:`, err);
+    console.error(`[email] Failed to send invitation to ${mailDomain(opts.to)}:`, err);
     throw err;
   }
 }
@@ -152,7 +158,7 @@ export async function sendSigningComplete(opts: {
 }): Promise<void> {
   const t = getTransporter();
   if (!t) {
-    console.warn("[email] SMTP not configured — skipping completion email to", opts.to);
+    console.warn("[email] SMTP not configured — skipping completion email to", mailDomain(opts.to));
     return;
   }
 
@@ -179,9 +185,9 @@ export async function sendSigningComplete(opts: {
         ? [{ filename: `${opts.documentName} - semnat.pdf`, content: opts.pdfBuffer, contentType: "application/pdf" }]
         : undefined,
     });
-    console.log(`[email] Completion email sent to ${opts.to} — messageId: ${info.messageId}`);
+    console.log(`[email] Completion email sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);
   } catch (err) {
-    console.error(`[email] Failed to send completion email to ${opts.to}:`, err);
+    console.error(`[email] Failed to send completion email to ${mailDomain(opts.to)}:`, err);
     throw err;
   }
 }
@@ -205,7 +211,7 @@ export async function sendFisaRegisteredEmail(opts: {
 }): Promise<void> {
   const t = getTransporter();
   if (!t) {
-    console.warn("[email] SMTP not configured — skipping OS-registration email to", opts.to);
+    console.warn("[email] SMTP not configured — skipping OS-registration email to", mailDomain(opts.to));
     return;
   }
   const os = opts.distributorName || "operatorul de distribuție";
@@ -233,7 +239,7 @@ export async function sendFisaRegisteredEmail(opts: {
       ? [{ filename: opts.pdf.filename, content: opts.pdf.buffer, contentType: "application/pdf" }]
       : undefined,
   });
-  console.log(`[email] OS-registration email sent to ${opts.to} — messageId: ${info.messageId}`);
+  console.log(`[email] OS-registration email sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);
 }
 
 /** Invitația unui utilizator nou: link de setare a parolei (valabil 7 zile). */
@@ -247,7 +253,7 @@ export async function sendUserInviteEmail(opts: {
 }): Promise<boolean> {
   const t = getTransporter();
   if (!t) {
-    console.warn("[email] SMTP not configured — skipping user invite to", opts.to);
+    console.warn("[email] SMTP not configured — skipping user invite to", mailDomain(opts.to));
     return false;
   }
   const html = `
@@ -276,7 +282,7 @@ export async function sendUserInviteEmail(opts: {
     subject: `${opts.tenantName} te-a invitat în Operio`,
     html,
   });
-  console.log(`[email] User invite sent to ${opts.to} — messageId: ${info.messageId}`);
+  console.log(`[email] User invite sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);
   return true;
 }
 
@@ -287,7 +293,7 @@ export async function sendPasswordResetEmail(opts: {
 }): Promise<void> {
   const t = getTransporter();
   if (!t) {
-    console.warn("[email] SMTP not configured — skipping password reset to", opts.to);
+    console.warn("[email] SMTP not configured — skipping password reset to", mailDomain(opts.to));
     return;
   }
 
@@ -318,9 +324,9 @@ export async function sendPasswordResetEmail(opts: {
       subject: "Resetare parolă Operio",
       html,
     });
-    console.log(`[email] Reset link sent to ${opts.to} — messageId: ${info.messageId}`);
+    console.log(`[email] Reset link sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);
   } catch (err) {
-    console.error(`[email] Failed to send reset email to ${opts.to}:`, err);
+    console.error(`[email] Failed to send reset email to ${mailDomain(opts.to)}:`, err);
     throw err;
   }
 }

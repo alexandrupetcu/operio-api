@@ -5,7 +5,7 @@ import { Queue } from "bullmq";
 import { redisConnection } from "../../config/redis.js";
 import { defaultJobOptions } from "../../config/queue.js";
 import { uploadFile, getPresignedUrl, deleteFile } from "../../lib/s3.js";
-import { safeS3Filename } from "../../lib/safe-filename.js";
+import { safeS3Filename, uploadContentType } from "../../lib/safe-filename.js";
 
 const documentQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
 
@@ -151,7 +151,8 @@ export async function upload(
   // Sanitize the user-supplied filename before embedding in the S3 key.
   // Original filename is preserved in the DB row (Document.name) for display.
   const s3Key = `${tenantId}/projects/${projectId}/uploads/${Date.now()}-${safeS3Filename(file.filename)}`;
-  await uploadFile(s3Key, buffer, file.mimetype);
+  // Content-type după extensie, nu după antetul clientului.
+  await uploadFile(s3Key, buffer, uploadContentType(file.filename));
 
   return fastify.prisma.document.create({
     data: {
