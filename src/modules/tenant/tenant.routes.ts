@@ -14,7 +14,55 @@ import {
   setSchedulingSettings,
   readSchedulingSettings,
 } from "./scheduling-settings.js";
+import {
+  REPORT_TYPE_KEYS,
+  REPORT_STRATEGIES,
+  AUTO_SOURCE,
+  getReportSourcesSettings,
+  setReportSourcesSettings,
+} from "./report-sources-settings.js";
+import {
+  REPORT_SOURCES,
+  describeSource,
+  detectSource,
+  extractPdfText,
+  isSourceId,
+  type ParsedRevision,
+} from "../../lib/report-sources/index.js";
+import { env } from "../../config/env.js";
 import { z } from "zod";
+
+const REPORT_TEST_MAX_BYTES = 10 * 1024 * 1024;
+
+const updateReportSourcesSchema = z
+  .object({
+    reportTypes: z
+      .array(
+        z
+          .object({
+            key: z.enum(REPORT_TYPE_KEYS),
+            strategy: z.enum(REPORT_STRATEGIES),
+            sourceId: z
+              .string()
+              .min(1)
+              .max(50)
+              .refine((id) => id === AUTO_SOURCE || isSourceId(id), { message: "Sursă necunoscută" }),
+            requiredFields: z.array(z.string().min(1).max(60)).max(100).default([]),
+          })
+          .strict(),
+      )
+      .max(REPORT_TYPE_KEYS.length)
+      .refine((arr) => new Set(arr.map((t) => t.key)).size === arr.length, {
+        message: "Tip de raport duplicat",
+      }),
+    sourceMappings: z
+      .record(
+        z.string().min(1).max(50),
+        z.record(z.string().min(1).max(80), z.string().min(1).max(60)),
+      )
+      .default({}),
+  })
+  .strict();
 
 const updateSchedulingSchema = z
   .object({
@@ -181,6 +229,104 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
       const body = updateSchedulingSchema.parse(request.body);
       const values = await setSchedulingSettings(fastify.prisma, request.tenantId, body);
       return { modes: SCHEDULING_MODES, ...values };
+    },
+  });
+
+  // Strategiile de raport (wizard / import / attach) per tip de programare +
+  // sursele din registru. Orice rol — mobilul alege ecranul după `strategy`.
+  const reportSourcesResponse = async (tenantId: string) => {
+    const settings = await getReportSourcesSettings(fastify.prisma, tenantId);
+    return {
+      reportTypes: settings.reportTypes,
+      sources: REPORT_SOURCES.map(describeSource),
+      sourceMappings: settings.sourceMappings,
+    };
+  };
+
+  fastify.get("/report-sources", async (request) => {
+    return reportSourcesResponse(request.tenantId);
+  });
+
+  fastify.put("/report-sources", {
+    onRequest: [requireRole("ADMIN")],
+    handler: async (request) => {
+      const body = updateReportSourcesSchema.parse(request.body);
+      await setReportSourcesSettings(fastify.prisma, request.tenantId, body);
+      return reportSourcesResponse(request.tenantId);
+    },
+  });
+
+  // „Testează un PDF": rulează toate sursele pe fișier (AI doar cu cheie
+  // configurată) ca firma să vadă ce extrage fiecare înainte să aleagă.
+  fastify.post("/report-sources/test", {
+    onRequest: [requireRole("ADMIN")],
+    handler: async (request) => {
+      const file = await request.file({ limits: { fileSize: REPORT_TEST_MAX_BYTES } });
+      if (!file) throw fastify.httpErrors.badRequest("Fișierul lipsește");
+      if (file.mimetype !== "application/pdf" && !file.filename.toLowerCase().endsWith(".pdf")) {
+        throw fastify.httpErrors.badRequest("Doar fișiere PDF sunt acceptate");
+      }
+      let buffer: Buffer;
+      try {
+        buffer = await file.toBuffer();
+      } catch {
+        throw fastify.httpErrors.payloadTooLarge("Fișierul depășește 10 MB");
+      }
+      if (file.file.truncated || buffer.length > REPORT_TEST_MAX_BYTES) {
+        throw fastify.httpErrors.payloadTooLarge("Fișierul depășește 10 MB");
+      }
+
+      let text = "";
+      try {
+        text = await extractPdfText(buffer);
+      } catch (err) {
+        request.log.warn({ err }, "report-sources/test: pdftotext failed");
+      }
+      const settings = await getReportSourcesSettings(fastify.prisma, request.tenantId);
+      const detected = detectSource(text);
+
+      const results: {
+        sourceId: string;
+        score: number;
+        readings: Record<string, unknown>;
+        fields: Partial<ParsedRevision>;
+        error?: string;
+      }[] = [];
+      for (const source of REPORT_SOURCES) {
+        if (source.kind === "ai" && !env.OPENAI_API_KEY) continue;
+        let score = 0;
+        try {
+          score = source.detect(text);
+        } catch {
+          score = 0;
+        }
+        try {
+          const parsed = await source.parse({
+            buffer,
+            text,
+            mapping: settings.sourceMappings[source.id],
+          });
+          const { rawText: _raw, analysisData, ...fields } = parsed;
+          const readings =
+            analysisData.readings && typeof analysisData.readings === "object"
+              ? (analysisData.readings as Record<string, unknown>)
+              : {};
+          results.push({ sourceId: source.id, score, readings, fields });
+        } catch (err) {
+          results.push({
+            sourceId: source.id,
+            score,
+            readings: {},
+            fields: {},
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      return {
+        detected: { sourceId: detected.source.id, score: detected.score },
+        results,
+      };
     },
   });
 

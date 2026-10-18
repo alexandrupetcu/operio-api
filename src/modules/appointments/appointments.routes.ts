@@ -13,6 +13,14 @@ import * as appointmentsService from "./appointments.service.js";
 import { resolveApptScope, canSeeEmployee } from "./scope.js";
 import { NO_OVERLAP } from "./overlap.js";
 import { getSchedulingSettings } from "../tenant/scheduling-settings.js";
+import { importAppointmentReport } from "./import-report.js";
+import { Queue } from "bullmq";
+import { redisConnection } from "../../config/redis.js";
+import { defaultJobOptions } from "../../config/queue.js";
+
+const documentQueue = new Queue("document-generation", { connection: redisConnection, defaultJobOptions });
+
+const IMPORT_REPORT_MAX_BYTES = 20 * 1024 * 1024;
 
 export default async function appointmentsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
@@ -137,6 +145,37 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
         request.tenantId,
         request.params.id,
         scope
+      );
+    }
+  );
+
+  // Import din teren: PDF-ul analizorului încărcat direct pe programare (vezi
+  // import-report.ts). Orice rol care vede programarea — un tehnician doar pe
+  // ale lui, ca la celelalte rute de programări.
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/import-report",
+    async (request) => {
+      const file = await request.file({ limits: { fileSize: IMPORT_REPORT_MAX_BYTES } });
+      if (!file) throw fastify.httpErrors.badRequest("Fișierul lipsește");
+      if (file.mimetype !== "application/pdf" && !file.filename.toLowerCase().endsWith(".pdf")) {
+        throw fastify.httpErrors.badRequest("Doar fișiere PDF sunt acceptate");
+      }
+      let buffer: Buffer;
+      try {
+        buffer = await file.toBuffer();
+      } catch {
+        throw fastify.httpErrors.payloadTooLarge("Fișierul depășește 20 MB");
+      }
+      if (file.file.truncated) throw fastify.httpErrors.payloadTooLarge("Fișierul depășește 20 MB");
+
+      const scope = await resolveApptScope(fastify, request);
+      return importAppointmentReport(
+        fastify,
+        documentQueue,
+        request.tenantId,
+        request.params.id,
+        scope,
+        { buffer, filename: file.filename, mimetype: "application/pdf" }
       );
     }
   );

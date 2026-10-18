@@ -1,32 +1,12 @@
-import { execFileSync } from "node:child_process";
-import { writeFile, unlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+/**
+ * Parser pe regex pentru rapoartele analizoarelor Seitron (Chemist). E sursa
+ * `seitron-pdf` din registrul `src/lib/report-sources`; rămâne aici, cu aceleași
+ * exporturi, pentru apelanții existenți.
+ */
+import type { ParsedRevision } from "../../lib/report-sources/types.js";
+import { extractPdfText } from "../../lib/report-sources/pdf-text.js";
 
-export interface ParsedRevision {
-  revisionDate: Date | null;
-  location: string | null;
-  clientName: string | null;
-  clientSurname: string | null;
-  clientAddress: string | null;
-  clientPhone: string | null;
-  clientEmail: string | null;
-  equipmentName: string | null;
-  equipmentSerial: string | null;
-  operator: {
-    name: string | null;
-    address: string | null;
-    phone: string | null;
-    email: string | null;
-  };
-  analyzer: {
-    name: string | null;
-    serial: string | null;
-  };
-  analysisData: Record<string, unknown>;
-  rawText: string;
-}
+export type { ParsedRevision };
 
 function extractField(text: string, pattern: RegExp): string | null {
   const match = text.match(pattern);
@@ -40,20 +20,6 @@ function parseDate(dateStr: string): Date | null {
   const [, day, month, yearShort] = match;
   const year = parseInt(yearShort) < 50 ? 2000 + parseInt(yearShort) : 1900 + parseInt(yearShort);
   return new Date(year, parseInt(month) - 1, parseInt(day));
-}
-
-async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  const tmpPath = join(tmpdir(), `revision-${randomUUID()}.pdf`);
-  try {
-    await writeFile(tmpPath, buffer);
-    const stdout = execFileSync("pdftotext", ["-layout", tmpPath, "-"], {
-      timeout: 30000,
-      encoding: "utf-8",
-    });
-    return stdout;
-  } finally {
-    await unlink(tmpPath).catch(() => {});
-  }
 }
 
 export function parseRevisionText(rawText: string): ParsedRevision {
@@ -213,6 +179,9 @@ export function parseRevisionText(rawText: string): ParsedRevision {
     ["noCorr", /NO\([\d.]+%\)\s+(\d+\s*ppm)/],
     ["noxCorr", /NOx\([\d.]+%\)\s+(\d+\s*ppm)/],
     ["pi", /PI\s+([\d.]+\s*%)/],
+    // Tirajul nu apare pe rapoartele Chemist văzute până acum; regex-ul e aditiv
+    // (nicio cheie nouă dacă lipsește) și alimentează prefill-ul wizard-ului.
+    ["draft", /(?:Tiraj|Draft|Draught)\s+(-?[\d.]+\s*(?:Pa|hPa|mbar))/i],
   ];
 
   for (const [key, pattern] of analysisPatterns) {
@@ -250,6 +219,6 @@ export function parseRevisionText(rawText: string): ParsedRevision {
 }
 
 export async function parseRevisionPdf(buffer: Buffer): Promise<ParsedRevision> {
-  const rawText = await extractTextFromPdf(buffer);
+  const rawText = await extractPdfText(buffer);
   return parseRevisionText(rawText);
 }

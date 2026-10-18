@@ -10,7 +10,8 @@ import {
   markAsRead,
   type IncomingEmail,
 } from "../lib/gmail.js";
-import { parseRevisionPdf } from "../modules/equipment-revisions/revision-pdf-parser.js";
+import { detectSource, extractPdfText } from "../lib/report-sources/index.js";
+import { getReportSourcesSettings } from "../modules/tenant/report-sources-settings.js";
 import {
   matchClient,
   matchOrCreateEquipment,
@@ -168,10 +169,15 @@ async function processEmail(tenantId: string, email: IncomingEmail, inboxId: str
       await uploadFile(s3Key, attachment.content, "application/pdf");
       await prisma.emailIngestLog.update({ where: { id: log.id }, data: { s3Key } });
 
-      // Parse PDF
+      // Parse PDF through the source registry (Seitron regex unchanged; other
+      // analyzers go through the AI source when a key is configured).
       let parsed;
       try {
-        parsed = await parseRevisionPdf(attachment.content);
+        const text = await extractPdfText(attachment.content);
+        const { source } = detectSource(text);
+        const settings = await getReportSourcesSettings(prisma, tenantId);
+        parsed = await source.parse({ buffer: attachment.content, text, mapping: settings.sourceMappings[source.id] });
+        parsed.analysisData._source = source.id;
       } catch (err) {
         await prisma.emailIngestLog.update({
           where: { id: log.id },

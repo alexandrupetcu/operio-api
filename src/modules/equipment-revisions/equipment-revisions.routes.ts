@@ -7,7 +7,10 @@ import { createRevisionSchema, updateRevisionSchema } from "./equipment-revision
 import * as revisionService from "./equipment-revisions.service.js";
 import { uploadFile, getPresignedUrl } from "../../lib/s3.js";
 import { safeS3Filename } from "../../lib/safe-filename.js";
-import { parseRevisionPdf } from "./revision-pdf-parser.js";
+import { detectSource, extractPdfText } from "../../lib/report-sources/index.js";
+import { getReportSourcesSettings } from "../tenant/report-sources-settings.js";
+import { resolveApptScope, canSeeEmployee } from "../appointments/scope.js";
+import { revisionDataFromParsed } from "./equipment-revisions.service.js";
 
 const revisionQueue = new Queue("revision-processing", { connection: redisConnection, defaultJobOptions });
 
@@ -139,22 +142,37 @@ export default async function equipmentRevisionsRoutes(fastify: FastifyInstance)
     }
   );
 
-  // Directly attach a Seitron analyzer PDF to THIS revision (alternative to the
-  // email-ingestion flow): parse it, fill the revision with readings + analyzer
-  // data, mark it COMPLETED, and (re)generate the ISCIR document if the linked
-  // appointment already has the technician's report.
+  // Directly attach an analyzer PDF to THIS revision (alternative to the
+  // email-ingestion flow): detect the source, parse it, fill the revision with
+  // readings + analyzer data, mark it COMPLETED, and (re)generate the ISCIR
+  // document if the linked appointment already has the technician's report.
+  //
+  // ADMIN/MANAGER always; a technician only for the revision linked to an
+  // appointment they can see (same rule as the appointment routes).
   fastify.post<SingleRevisionParams>(
     "/:id/equipment/:equipmentId/revisions/:revisionId/upload-pdf",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
     async (request, reply) => {
       const { id: clientId, equipmentId, revisionId } = request.params;
       const tenantId = request.tenantId;
 
       const rev = await fastify.prisma.equipmentRevision.findFirst({
         where: { id: revisionId, equipmentId, equipment: { clientId, client: { tenantId } } },
-        select: { id: true, iscirDocumentId: true, revisionDate: true, equipment: { select: { clientId: true } } },
+        select: { id: true, revisionDate: true, appointment: { select: { employeeId: true, deletedAt: true } } },
       });
       if (!rev) throw fastify.httpErrors.notFound("Revision not found");
+
+      const scope = await resolveApptScope(fastify, request);
+      if (scope.kind !== "all") {
+        const apt = rev.appointment && !rev.appointment.deletedAt ? rev.appointment : null;
+        if (!apt || !canSeeEmployee(scope, apt.employeeId)) {
+          throw fastify.httpErrors.forbidden("Nu poți încărca raportul pentru această revizie");
+        }
+      } else if (!["MASTER_ADMIN", "ADMIN", "MANAGER"].includes(request.user.role)) {
+        // Calendar comun: un tehnician încarcă doar pentru revizii legate de o programare.
+        if (!rev.appointment || rev.appointment.deletedAt) {
+          throw fastify.httpErrors.forbidden("Revizia nu are o programare asociată");
+        }
+      }
 
       const file = await request.file();
       if (!file) throw fastify.httpErrors.badRequest("No file uploaded");
@@ -166,7 +184,11 @@ export default async function equipmentRevisionsRoutes(fastify: FastifyInstance)
       const s3Key = `${tenantId}/revisions/${equipmentId}/${Date.now()}-${safeS3Filename(file.filename)}`;
       await uploadFile(s3Key, buffer, file.mimetype);
 
-      const parsed = await parseRevisionPdf(buffer);
+      const text = await extractPdfText(buffer).catch(() => "");
+      const { source } = detectSource(text);
+      const settings = await getReportSourcesSettings(fastify.prisma, tenantId);
+      const parsed = await source.parse({ buffer, text, mapping: settings.sourceMappings[source.id] });
+      parsed.analysisData._source = source.id;
 
       await fastify.prisma.equipmentRevision.update({
         where: { id: revisionId },
@@ -176,61 +198,13 @@ export default async function equipmentRevisionsRoutes(fastify: FastifyInstance)
           fileName: file.filename,
           sourceEmailId: `upload:${revisionId}`,
           revisionDate: parsed.revisionDate ?? rev.revisionDate,
-          operatorName: parsed.operator.name,
-          operatorAddress: parsed.operator.address,
-          operatorPhone: parsed.operator.phone,
-          operatorEmail: parsed.operator.email,
-          analyzerName: parsed.analyzer.name,
-          analyzerSerial: parsed.analyzer.serial,
-          location: parsed.location,
-          pdfEquipmentName: parsed.equipmentName,
-          pdfEquipmentSerial: parsed.equipmentSerial,
-          pdfClientAddress: parsed.clientAddress,
-          analysisData: parsed.analysisData as never,
-          rawText: parsed.rawText,
+          ...revisionDataFromParsed(parsed),
         },
       });
 
-      // (Re)generate the ISCIR document when the report is already filled in.
-      const linkedApt = await fastify.prisma.appointment.findFirst({
-        where: { equipmentRevisionId: revisionId, deletedAt: null },
-        select: { completionDataJson: true },
-      });
-      let iscirQueued = false;
-      if (linkedApt?.completionDataJson) {
-        const tpl = await fastify.prisma.documentTemplate.findFirst({
-          where: { categoryCode: "REVIZIE_CENTRALA", OR: [{ tenantId }, { tenantId: null }], isActive: true },
-          select: { id: true },
-        });
-        if (tpl) {
-          let documentId = rev.iscirDocumentId;
-          if (documentId) {
-            await fastify.prisma.document.update({
-              where: { id: documentId },
-              data: { status: "PENDING", errorMessage: null },
-            });
-          } else {
-            const doc = await fastify.prisma.document.create({
-              data: {
-                tenantId,
-                templateId: tpl.id,
-                name: "Raport Revizie Centrală (ISCIR)",
-                status: "PENDING",
-                clients: { create: { clientId: rev.equipment.clientId } },
-              },
-            });
-            documentId = doc.id;
-            await fastify.prisma.equipmentRevision.update({
-              where: { id: revisionId },
-              data: { iscirDocumentId: documentId },
-            });
-          }
-          await documentQueue.add("generate", { documentId, tenantId, clientId: rev.equipment.clientId, templateId: tpl.id, revisionId });
-          iscirQueued = true;
-        }
-      }
+      const iscirQueued = await revisionService.queueIscirIfReportExists(fastify, documentQueue, tenantId, revisionId);
 
-      return reply.status(200).send({ revisionId, iscirQueued });
+      return reply.status(200).send({ revisionId, iscirQueued, sourceId: source.id, sourceLabel: source.label });
     }
   );
 

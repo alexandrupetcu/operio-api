@@ -1,5 +1,87 @@
 import type { FastifyInstance } from "fastify";
+import type { Queue } from "bullmq";
 import type { CreateRevisionInput, UpdateRevisionInput } from "./equipment-revisions.schema.js";
+import { revisionSource, type ParsedRevision } from "../../lib/report-sources/index.js";
+
+/** Coloanele EquipmentRevision alimentate dintr-un raport parsat (fără dată/status/fișier). */
+export function revisionDataFromParsed(parsed: ParsedRevision) {
+  return {
+    operatorName: parsed.operator.name,
+    operatorAddress: parsed.operator.address,
+    operatorPhone: parsed.operator.phone,
+    operatorEmail: parsed.operator.email,
+    analyzerName: parsed.analyzer.name,
+    analyzerSerial: parsed.analyzer.serial,
+    location: parsed.location,
+    pdfEquipmentName: parsed.equipmentName,
+    pdfEquipmentSerial: parsed.equipmentSerial,
+    pdfClientAddress: parsed.clientAddress,
+    analysisData: parsed.analysisData as never,
+    rawText: parsed.rawText,
+  };
+}
+
+/**
+ * (Re)generează documentul ISCIR al unei revizii dacă programarea legată are
+ * deja raportul tehnicianului (`completionDataJson`). Refolosește documentul
+ * existent (reset la PENDING) sau creează unul. Întoarce true dacă a pus un job
+ * în coadă. Folosit de upload-pdf și de importul din teren.
+ */
+export async function queueIscirIfReportExists(
+  fastify: FastifyInstance,
+  documentQueue: Queue,
+  tenantId: string,
+  revisionId: string,
+): Promise<boolean> {
+  const rev = await fastify.prisma.equipmentRevision.findUnique({
+    where: { id: revisionId },
+    select: { iscirDocumentId: true, equipment: { select: { clientId: true } } },
+  });
+  if (!rev) return false;
+
+  const linkedApt = await fastify.prisma.appointment.findFirst({
+    where: { equipmentRevisionId: revisionId, deletedAt: null },
+    select: { completionDataJson: true },
+  });
+  if (!linkedApt?.completionDataJson) return false;
+
+  const tpl = await fastify.prisma.documentTemplate.findFirst({
+    where: { categoryCode: "REVIZIE_CENTRALA", OR: [{ tenantId }, { tenantId: null }], isActive: true },
+    select: { id: true },
+  });
+  if (!tpl) return false;
+
+  let documentId = rev.iscirDocumentId;
+  if (documentId) {
+    await fastify.prisma.document.update({
+      where: { id: documentId },
+      data: { status: "PENDING", errorMessage: null },
+    });
+  } else {
+    const doc = await fastify.prisma.document.create({
+      data: {
+        tenantId,
+        templateId: tpl.id,
+        name: "Raport Revizie Centrală (ISCIR)",
+        status: "PENDING",
+        clients: { create: { clientId: rev.equipment.clientId } },
+      },
+    });
+    documentId = doc.id;
+    await fastify.prisma.equipmentRevision.update({
+      where: { id: revisionId },
+      data: { iscirDocumentId: documentId },
+    });
+  }
+  await documentQueue.add("generate", {
+    documentId,
+    tenantId,
+    clientId: rev.equipment.clientId,
+    templateId: tpl.id,
+    revisionId,
+  });
+  return true;
+}
 
 /** Verify equipment belongs to client belongs to tenant. Returns equipment or throws 404 */
 async function verifyOwnership(
@@ -67,6 +149,7 @@ export async function listByEquipment(
 
   return revisions.map((r) => ({
     ...r,
+    source: revisionSource(r),
     iscirDocument: r.iscirDocumentId ? docMap.get(r.iscirDocumentId) ?? null : null,
   }));
 }
@@ -84,7 +167,7 @@ export async function getById(
     where: { id: revisionId, equipmentId },
   });
   if (!revision) throw fastify.httpErrors.notFound("Revision not found");
-  return revision;
+  return { ...revision, source: revisionSource(revision) };
 }
 
 export async function create(

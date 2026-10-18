@@ -1,13 +1,10 @@
 import { Worker, type Job } from "bullmq";
 import { PrismaClient } from "@prisma/client";
-import { spawn } from "node:child_process";
-import { writeFile, unlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { randomUUID } from "node:crypto";
 import { redisConnection } from "../config/redis.js";
 import { getFileStream } from "../lib/s3.js";
-import { parseRevisionText } from "../modules/equipment-revisions/revision-pdf-parser.js";
+import { detectSource, extractPdfText } from "../lib/report-sources/index.js";
+import { getReportSourcesSettings } from "../modules/tenant/report-sources-settings.js";
+import { revisionDataFromParsed } from "../modules/equipment-revisions/equipment-revisions.service.js";
 
 interface RevisionJobData {
   revisionId: string;
@@ -25,24 +22,48 @@ async function streamToBuffer(stream: any): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-function pdfToText(pdfPath: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("pdftotext", ["-layout", pdfPath, "-"]);
-    let stdout = "";
-    let stderr = "";
-    proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
-    proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
-    proc.on("close", (code) => {
-      if (code === 0) resolve(stdout);
-      else reject(new Error(`pdftotext exit ${code}: ${stderr}`));
-    });
-    proc.on("error", reject);
-    setTimeout(() => { proc.kill(); reject(new Error("pdftotext timeout")); }, 30000);
+const DAY_MS = 24 * 3600_000;
+
+/**
+ * Leagă revizia de programarea de revizie a clientului din aceeași zi (±1 zi)
+ * care nu e finalizată și nu are încă un fișier de revizie — doar când
+ * candidatul e unic; altfel rămâne de legat manual.
+ */
+async function linkSameDayAppointment(
+  tenantId: string,
+  revisionId: string,
+  equipmentId: string,
+  revisionDate: Date,
+): Promise<string | null> {
+  const equipment = await prisma.equipment.findUnique({
+    where: { id: equipmentId },
+    select: { clientId: true },
   });
+  if (!equipment) return null;
+
+  const candidates = await prisma.appointment.findMany({
+    where: {
+      tenantId,
+      deletedAt: null,
+      clientId: equipment.clientId,
+      type: "revizie",
+      status: { notIn: ["completed", "cancelled"] },
+      date: { gte: new Date(revisionDate.getTime() - DAY_MS), lte: new Date(revisionDate.getTime() + DAY_MS) },
+      OR: [{ equipmentRevisionId: null }, { equipmentRevision: { s3Key: null, analyzerName: null } }],
+    },
+    select: { id: true },
+  });
+  if (candidates.length !== 1) return null;
+
+  await prisma.appointment.update({
+    where: { id: candidates[0].id },
+    data: { equipmentId, equipmentRevisionId: revisionId },
+  });
+  return candidates[0].id;
 }
 
 async function processJob(job: Job<RevisionJobData>) {
-  const { revisionId, s3Key } = job.data;
+  const { revisionId, s3Key, tenantId } = job.data;
   console.log(`[${revisionId}] Starting job`);
 
   await prisma.equipmentRevision.update({
@@ -58,15 +79,15 @@ async function processJob(job: Job<RevisionJobData>) {
     console.log(`[${revisionId}] Downloaded ${buffer.length} bytes`);
 
     // Extract text from PDF
-    const tmpPath = join(tmpdir(), `revision-${randomUUID()}.pdf`);
-    await writeFile(tmpPath, buffer);
-    const rawText = await pdfToText(tmpPath);
-    await unlink(tmpPath).catch(() => {});
+    const rawText = await extractPdfText(buffer);
     console.log(`[${revisionId}] Extracted ${rawText.length} chars`);
 
-    // Parse extracted text
-    const parsed = parseRevisionText(rawText);
-    console.log(`[${revisionId}] Parsed: operator=${parsed.operator.name}`);
+    // Pick the source from the registry (Seitron regex, AI, or attach-only) and parse
+    const { source, score } = detectSource(rawText);
+    const settings = await getReportSourcesSettings(prisma, tenantId);
+    const parsed = await source.parse({ buffer, text: rawText, mapping: settings.sourceMappings[source.id] });
+    parsed.analysisData._source = source.id;
+    console.log(`[${revisionId}] Parsed with ${source.id} (score ${score.toFixed(2)}): operator=${parsed.operator.name}`);
 
     // Update revision with parsed data
     const revision = await prisma.equipmentRevision.update({
@@ -74,20 +95,19 @@ async function processJob(job: Job<RevisionJobData>) {
       data: {
         status: "COMPLETED",
         ...(parsed.revisionDate && { revisionDate: parsed.revisionDate }),
-        operatorName: parsed.operator.name,
-        operatorAddress: parsed.operator.address,
-        operatorPhone: parsed.operator.phone,
-        operatorEmail: parsed.operator.email,
-        analyzerName: parsed.analyzer.name,
-        analyzerSerial: parsed.analyzer.serial,
-        location: parsed.location,
-        pdfEquipmentName: parsed.equipmentName,
-        pdfEquipmentSerial: parsed.equipmentSerial,
-        pdfClientAddress: parsed.clientAddress,
-        analysisData: parsed.analysisData as any,
-        rawText: parsed.rawText,
+        ...revisionDataFromParsed(parsed),
       },
     });
+
+    // Link to the client's same-day revizie appointment (only when unambiguous)
+    if (tenantId) {
+      try {
+        const linked = await linkSameDayAppointment(tenantId, revisionId, revision.equipmentId, revision.revisionDate);
+        if (linked) console.log(`[${revisionId}] Linked to appointment ${linked}`);
+      } catch (err) {
+        console.error(`[${revisionId}] Appointment link failed:`, err instanceof Error ? err.message : err);
+      }
+    }
 
     // Update equipment name/serial from PDF if available
     if (parsed.equipmentName || parsed.equipmentSerial) {
