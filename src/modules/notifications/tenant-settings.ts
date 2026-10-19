@@ -40,6 +40,12 @@ export const TENANT_NOTIF_EVENTS = [
     group: "Activități",
   },
   {
+    key: "os_registration_due",
+    label: "Fișe de înregistrat la OS",
+    description: "Rezumat zilnic, dimineața, către admini și manageri, cu fișele RT/FISA neînregistrate la OS care au intrat în pragul urgent sau au depășit termenul (pragul: Setări → Alerte).",
+    group: "Fișe ANRE",
+  },
+  {
     key: "workflow_events",
     label: "Proiecte & workflow",
     description: "Notificări instant din workflow-uri: pași finalizați/întârziați, documente generate, notificări configurate în Constructor.",

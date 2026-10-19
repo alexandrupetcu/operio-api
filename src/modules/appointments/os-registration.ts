@@ -1,6 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { Prisma } from "@prisma/client";
-import { osRegistrationDeadline } from "../../lib/working-days.js";
+import { Prisma, type PrismaClient } from "@prisma/client";
+import { daysUntil, osRegistrationDeadline } from "../../lib/working-days.js";
+import { getAlertWindows } from "../tenant/alert-settings.js";
+import { osFeedState } from "./os-feed-state.js";
+
+export { osFeedState };
+import { getTenantEventMap } from "../notifications/tenant-settings.js";
+import { dispatch } from "../notifications/dispatch.js";
 import { regenerateFisaForOsRegistration } from "./appointments.service.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 import type { OsRegistrationInput } from "./appointments.schema.js";
@@ -80,13 +86,14 @@ const osSelect = {
 } satisfies Prisma.AppointmentSelect;
 
 /**
- * Fișe finalizate, încă neînregistrate la OS — pentru panoul principal. Întoarce și
- * termenul legal (5 zile lucrătoare de la finalizare).
+ * Fișe finalizate, încă neînregistrate la OS — pentru panou și notificarea zilnică.
+ * Întoarce și termenul: `workingDays` zile lucrătoare de la finalizare (setarea firmei,
+ * implicit 5 — Ord. ANRE 179/2015).
  */
-export async function listPendingOsRegistrations(fastify: FastifyInstance, tenantId: string) {
+export async function listPendingOsRegistrations(db: PrismaClient, tenantId: string, workingDays: number) {
   // Fișa clientului de exemplu (onboarding) nu se înregistrează nicăieri.
-  const sampleClientId = await getSampleClientId(fastify.prisma, tenantId);
-  const rows = await fastify.prisma.appointment.findMany({
+  const sampleClientId = await getSampleClientId(db, tenantId);
+  const rows = await db.appointment.findMany({
     where: {
       tenantId,
       deletedAt: null,
@@ -110,6 +117,63 @@ export async function listPendingOsRegistrations(fastify: FastifyInstance, tenan
   });
   return rows.map((r) => {
     const completedAt = r.completedAt ?? r.updatedAt;
-    return { ...r, completedAt, deadline: osRegistrationDeadline(completedAt) };
+    return { ...r, completedAt, deadline: osRegistrationDeadline(completedAt, workingDays) };
   });
+}
+
+const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : n < 20 ? `${n} ${many}` : `${n} de ${many}`);
+
+function deadlineText(d: number, deadline: Date): string {
+  if (d < 0) return `termen depășit de ${plural(-d, "zi", "zile")} (${deadline.toLocaleDateString("ro-RO")})`;
+  if (d === 0) return "termen azi";
+  if (d === 1) return "termen mâine";
+  return `termen ${deadline.toLocaleDateString("ro-RO")} (${plural(d, "zi", "zile")})`;
+}
+
+/**
+ * Rezumatul zilnic (scanerul de notificări, 07:00) către admini și manageri: fișele
+ * neînregistrate la OS care au intrat în pragul urgent sau au depășit termenul.
+ * Un singur mesaj pe zi și utilizator (`due:os:<zi>` — rularea de la 13:00 nu-l
+ * repetă). Întoarce câte notificări au plecat.
+ */
+export async function sendOsRegistrationDigest(db: PrismaClient, tenantId: string, now = new Date()): Promise<number> {
+  const enabled = await getTenantEventMap(db, tenantId);
+  if (!enabled.os_registration_due) return 0;
+
+  const w = await getAlertWindows(db, tenantId);
+  const pending = await listPendingOsRegistrations(db, tenantId, w.osRegistrationWorkingDays);
+  const due = pending
+    .map((p) => ({ ...p, d: daysUntil(p.deadline, now) }))
+    .filter((p) => osFeedState(p.d, w).urgent)
+    .sort((a, b) => a.d - b.d);
+  if (due.length === 0) return 0;
+
+  const overdue = due.filter((p) => p.d < 0).length;
+  const subject = `${plural(due.length, "fișă", "fișe")} de înregistrat la OS${overdue ? ` — ${overdue} cu termenul depășit` : ""}`;
+  const MAX_LINES = 10;
+  const lines = due.slice(0, MAX_LINES).map((p) => {
+    const os = p.installation?.distributorName || "OS";
+    return `• ${clientDisplayName(p.client)} — ${WORK_LABEL[p.type] ?? p.type}, ${os}: ${deadlineText(p.d, p.deadline)}`;
+  });
+  if (due.length > MAX_LINES) lines.push(`… și încă ${due.length - MAX_LINES}. Lista completă e în panoul principal.`);
+  const body = `${lines.join("\n")}\n\nNumărul de înregistrare se completează din fișa clientului (Instalații → Înreg. OS).`;
+
+  const recipients = await db.user.findMany({
+    where: { tenantId, isActive: true, role: { in: ["ADMIN", "MANAGER"] } },
+    select: { id: true },
+  });
+  const runDate = now.toISOString().slice(0, 10);
+  let sent = 0;
+  for (const u of recipients) {
+    const res = await dispatch(db, tenantId, {
+      userId: u.id,
+      category: "tasks",
+      subject,
+      body,
+      url: "/",
+      dedupeKey: `due:os:${runDate}`,
+    });
+    if (!res.skipped) sent++;
+  }
+  return sent;
 }

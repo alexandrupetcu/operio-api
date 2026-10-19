@@ -5,7 +5,7 @@ import {
 } from "../appointments/scope.js";
 import { getAlertWindows, type AlertWindows } from "../tenant/alert-settings.js";
 import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
-import { listPendingOsRegistrations, clientDisplayName, WORK_LABEL } from "../appointments/os-registration.js";
+import { listPendingOsRegistrations, osFeedState, clientDisplayName, WORK_LABEL } from "../appointments/os-registration.js";
 import { daysUntil } from "../../lib/working-days.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 
@@ -582,12 +582,13 @@ export async function getActionFeed(
   const items: ActionItem[] = [];
 
   // Fișe de evidență finalizate, neînregistrate încă la operatorul de sistem.
-  // Termen legal: 5 zile lucrătoare de la întocmire (Ord. ANRE 179/2015, art. 9 alin. 6).
-  const pendingOs = await listPendingOsRegistrations(fastify, tenantId);
+  // Termen: `osRegistrationWorkingDays` zile lucrătoare de la întocmire (legal 5 —
+  // Ord. ANRE 179/2015, art. 9 alin. 6); afișare/urgent după pragurile firmei.
+  const pendingOs = await listPendingOsRegistrations(fastify.prisma, tenantId, w.osRegistrationWorkingDays);
   for (const p of pendingOs) {
     const d = daysUntil(p.deadline, now);
-    const overdue = d < 0;
-    const urgent = d <= w.osRegistrationWarningDays;
+    const { show, overdue, urgent } = osFeedState(d, w);
+    if (!show) continue;
     const os = p.installation?.distributorName || "OS";
     items.push({
       id: `os-registration-${p.id}`,

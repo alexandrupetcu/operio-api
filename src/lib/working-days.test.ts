@@ -163,3 +163,11 @@ describe("daysUntil", () => {
     expect(daysUntil(d(2026, 10, 26), d(2026, 10, 25))).toBe(1);
   });
 });
+
+describe("osRegistrationDeadline — termen configurabil pe firmă", () => {
+  it("implicit 5 zile lucrătoare; cu 10 → peste două săptămâni lucrătoare", () => {
+    const vineri = d(2026, 10, 16);
+    expect(iso(osRegistrationDeadline(vineri))).toBe("2026-10-23");
+    expect(iso(osRegistrationDeadline(vineri, 10))).toBe("2026-10-30");
+  });
+});

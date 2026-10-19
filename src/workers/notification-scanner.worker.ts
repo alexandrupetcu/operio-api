@@ -4,6 +4,7 @@ import { redisConnection } from "../config/redis.js";
 import { defaultJobOptions } from "../config/queue.js";
 import { dispatch } from "../modules/notifications/dispatch.js";
 import { getTenantEventMap } from "../modules/notifications/tenant-settings.js";
+import { sendOsRegistrationDigest } from "../modules/appointments/os-registration.js";
 import { env } from "../config/env.js";
 
 /**
@@ -172,6 +173,9 @@ async function scanTenant(tenantId: string, now: Date): Promise<number> {
       }
     }
   }
+
+  // ── Fișe de înregistrat la OS (urgente / depășite) → un rezumat pe zi ─────
+  count += await sendOsRegistrationDigest(prisma, tenantId, now);
 
   return count;
 }

@@ -58,10 +58,13 @@ export function addWorkingDays(from: Date, n: number): Date {
   return d;
 }
 
-/** Termenul legal de înregistrare a Fișei de evidență la OS: 5 zile lucrătoare de la întocmire. */
+/**
+ * Termenul legal de înregistrare a Fișei de evidență la OS: 5 zile lucrătoare de la
+ * întocmire. Firma îl poate schimba (Setări → Alerte, `osRegistrationWorkingDays`).
+ */
 export const OS_REGISTRATION_WORKING_DAYS = 5;
-export function osRegistrationDeadline(completedAt: Date): Date {
-  return addWorkingDays(completedAt, OS_REGISTRATION_WORKING_DAYS);
+export function osRegistrationDeadline(completedAt: Date, workingDays: number = OS_REGISTRATION_WORKING_DAYS): Date {
+  return addWorkingDays(completedAt, workingDays);
 }
 
 /** Zile calendaristice rămase până la termen (negative = depășit), pe zile întregi. */
