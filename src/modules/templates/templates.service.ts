@@ -112,6 +112,23 @@ function assertCanMutateGlobal(fastify: FastifyInstance, role: string | undefine
   }
 }
 
+/** Who is asking: tenant admins reach their own + global rows, MASTER_ADMIN reaches every row. */
+export interface TemplateScope {
+  tenantId: string;
+  role?: string;
+}
+
+async function findScoped(fastify: FastifyInstance, id: string, scope: TemplateScope) {
+  const template = await fastify.prisma.documentTemplate.findFirst({
+    where: {
+      id,
+      ...(scope.role !== "MASTER_ADMIN" && { OR: [{ tenantId: scope.tenantId }, { tenantId: null }] }),
+    },
+  });
+  if (!template) throw fastify.httpErrors.notFound("Template not found");
+  return template;
+}
+
 export async function update(
   fastify: FastifyInstance,
   tenantId: string,
@@ -218,12 +235,10 @@ export async function listAdmin(
 
 export async function getDownloadUrl(
   fastify: FastifyInstance,
-  id: string
+  id: string,
+  scope: TemplateScope
 ) {
-  const template = await fastify.prisma.documentTemplate.findUnique({
-    where: { id },
-  });
-  if (!template) throw fastify.httpErrors.notFound("Template not found");
+  const template = await findScoped(fastify, id, scope);
   if (!template.s3Key)
     throw fastify.httpErrors.badRequest("Template has no file to download");
 
@@ -232,9 +247,8 @@ export async function getDownloadUrl(
 }
 
 /** Raw DOCX bytes of a template (for the in-app editor — same-origin, no CORS). */
-export async function getFileContent(fastify: FastifyInstance, id: string) {
-  const template = await fastify.prisma.documentTemplate.findUnique({ where: { id } });
-  if (!template) throw fastify.httpErrors.notFound("Template not found");
+export async function getFileContent(fastify: FastifyInstance, id: string, scope: TemplateScope) {
+  const template = await findScoped(fastify, id, scope);
   if (!template.s3Key) throw fastify.httpErrors.badRequest("Template has no file");
   const buffer = await getFileBuffer(template.s3Key);
   return { buffer, filename: template.fileName || template.name };
@@ -243,12 +257,11 @@ export async function getFileContent(fastify: FastifyInstance, id: string) {
 export async function replaceFile(
   fastify: FastifyInstance,
   id: string,
-  file: MultipartFile
+  file: MultipartFile,
+  scope: TemplateScope
 ) {
-  const template = await fastify.prisma.documentTemplate.findUnique({
-    where: { id },
-  });
-  if (!template) throw fastify.httpErrors.notFound("Template not found");
+  const template = await findScoped(fastify, id, scope);
+  if (template.tenantId === null) assertCanMutateGlobal(fastify, scope.role);
   if (!template.s3Key)
     throw fastify.httpErrors.badRequest("Template is not a file-based template");
 
@@ -261,9 +274,9 @@ export async function replaceFile(
 
   // Upload new file
   const buffer = await file.toBuffer();
-  const tenantId = template.tenantId ?? "system";
-  const newS3Key = `templates/${tenantId}/${Date.now()}-${safeS3Filename(file.filename)}`;
-  await uploadFile(newS3Key, buffer, file.mimetype);
+  const folder = template.tenantId ?? "system";
+  const newS3Key = `templates/${folder}/${Date.now()}-${safeS3Filename(file.filename)}`;
+  await uploadFile(newS3Key, buffer, uploadContentType(file.filename));
 
   return fastify.prisma.documentTemplate.update({
     where: { id },
@@ -298,6 +311,13 @@ async function getGroupOrThrow(fastify: FastifyInstance, tenantId: string, group
   return group;
 }
 
+/** Same lookup, for changes: a global group's members are master-only. */
+async function getMutableGroupOrThrow(fastify: FastifyInstance, tenantId: string, groupId: string, role?: string) {
+  const group = await getGroupOrThrow(fastify, tenantId, groupId);
+  if (group.tenantId === null) assertCanMutateGlobal(fastify, role);
+  return group;
+}
+
 /** Ordered DOCX members of a group. */
 export async function listGroupDocs(fastify: FastifyInstance, tenantId: string, groupId: string) {
   await getGroupOrThrow(fastify, tenantId, groupId);
@@ -313,9 +333,10 @@ export async function addGroupDocs(
   fastify: FastifyInstance,
   tenantId: string,
   groupId: string,
-  files: Array<{ buffer: Buffer; filename: string; mimetype: string; name?: string }>
+  files: Array<{ buffer: Buffer; filename: string; mimetype: string; name?: string }>,
+  role?: string
 ) {
-  const group = await getGroupOrThrow(fastify, tenantId, groupId);
+  const group = await getMutableGroupOrThrow(fastify, tenantId, groupId, role);
   const last = await fastify.prisma.documentTemplate.findFirst({
     where: { parentGroupId: groupId },
     orderBy: { memberOrder: "desc" },
@@ -349,9 +370,10 @@ export async function removeGroupDoc(
   fastify: FastifyInstance,
   tenantId: string,
   groupId: string,
-  docId: string
+  docId: string,
+  role?: string
 ) {
-  await getGroupOrThrow(fastify, tenantId, groupId);
+  await getMutableGroupOrThrow(fastify, tenantId, groupId, role);
   const doc = await fastify.prisma.documentTemplate.findFirst({
     where: { id: docId, parentGroupId: groupId },
   });
@@ -371,9 +393,10 @@ export async function reorderGroupDocs(
   fastify: FastifyInstance,
   tenantId: string,
   groupId: string,
-  ids: string[]
+  ids: string[],
+  role?: string
 ) {
-  await getGroupOrThrow(fastify, tenantId, groupId);
+  await getMutableGroupOrThrow(fastify, tenantId, groupId, role);
   await fastify.prisma.$transaction(
     ids.map((id, idx) =>
       fastify.prisma.documentTemplate.updateMany({

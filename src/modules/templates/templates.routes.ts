@@ -40,34 +40,41 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // ── DOCX files — tenant admins reach their own + global rows, master reaches all ──
+
+  const scopeOf = (request: { tenantId: string; user: { role: string } }) => ({
+    tenantId: request.tenantId,
+    role: request.user.role,
+  });
+
   // Download template file (presigned URL)
   fastify.get<{ Params: { id: string } }>(
     "/:id/download",
-    { onRequest: [requireMasterAdmin()] },
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
     async (request) => {
-      return templatesService.getDownloadUrl(fastify, request.params.id);
+      return templatesService.getDownloadUrl(fastify, request.params.id, scopeOf(request));
     }
   );
 
   // Raw DOCX bytes (for the in-app editor — same-origin fetch, avoids S3 CORS)
   fastify.get<{ Params: { id: string } }>(
     "/:id/content",
-    { onRequest: [requireMasterAdmin()] },
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
     async (request, reply) => {
-      const { buffer } = await templatesService.getFileContent(fastify, request.params.id);
+      const { buffer } = await templatesService.getFileContent(fastify, request.params.id, scopeOf(request));
       reply.header("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
       return reply.send(buffer);
     }
   );
 
-  // Replace DOCX file on an existing template
+  // Replace DOCX file on an existing template (global rows: master only)
   fastify.patch<{ Params: { id: string } }>(
     "/:id/file",
-    { onRequest: [requireMasterAdmin()] },
+    { onRequest: [requireRole("ADMIN", "MANAGER")] },
     async (request) => {
       const file = await request.file();
       if (!file) throw fastify.httpErrors.badRequest("File is required");
-      return templatesService.replaceFile(fastify, request.params.id, file);
+      return templatesService.replaceFile(fastify, request.params.id, file, scopeOf(request));
     }
   );
 
@@ -117,7 +124,13 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
         }
       }
       if (files.length === 0) throw fastify.httpErrors.badRequest("At least one file is required");
-      const created = await templatesService.addGroupDocs(fastify, request.tenantId, request.params.id, files);
+      const created = await templatesService.addGroupDocs(
+        fastify,
+        request.tenantId,
+        request.params.id,
+        files,
+        request.user.role
+      );
       return reply.status(201).send(created);
     }
   );
@@ -129,7 +142,7 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     async (request) => {
       const { ids } = request.body as { ids?: string[] };
       if (!ids?.length) throw fastify.httpErrors.badRequest("ids required");
-      return templatesService.reorderGroupDocs(fastify, request.tenantId, request.params.id, ids);
+      return templatesService.reorderGroupDocs(fastify, request.tenantId, request.params.id, ids, request.user.role);
     }
   );
 
@@ -138,7 +151,13 @@ export default async function templatesRoutes(fastify: FastifyInstance) {
     "/:id/docs/:docId",
     { onRequest: [requireRole("ADMIN", "MANAGER")], preHandler: [requireFeature("documents.dossiers")] },
     async (request) => {
-      return templatesService.removeGroupDoc(fastify, request.tenantId, request.params.id, request.params.docId);
+      return templatesService.removeGroupDoc(
+        fastify,
+        request.tenantId,
+        request.params.id,
+        request.params.docId,
+        request.user.role
+      );
     }
   );
 
