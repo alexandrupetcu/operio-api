@@ -180,13 +180,21 @@ export async function create(
   input: CreateUserInput,
   createdByUserId?: string,
 ) {
-  // `User.email` is globally unique (not per tenant). Check globally and keep
-  // the message generic so we don't reveal that the address exists elsewhere.
-  const existing = await fastify.prisma.user.findUnique({
-    where: { email: input.email },
-    select: { id: true },
+  // `User.email` is globally unique (not per tenant), and compared without case
+  // so "Ion@x.ro" can't become a second account for "ion@x.ro". The message tells
+  // the admin what to do; it says the address has an account, never which firm.
+  // (Public registration stays generic — this route needs an authenticated ADMIN.)
+  const existing = await fastify.prisma.user.findFirst({
+    where: { email: { equals: input.email, mode: "insensitive" } },
+    select: { tenantId: true },
   });
-  if (existing) throw fastify.httpErrors.conflict("Adresa de e-mail nu poate fi folosită");
+  if (existing) {
+    throw fastify.httpErrors.conflict(
+      existing.tenantId === tenantId
+        ? "Această adresă de e-mail e deja în echipa ta — caut-o în lista de utilizatori (poate e dezactivată)."
+        : "Această adresă de e-mail are deja un cont Operio. Folosește altă adresă pentru utilizatorul nou."
+    );
+  }
 
   // Fără parolă: hash aleator (contul nu poate fi folosit până nu-și setează
   // parola din invitație).

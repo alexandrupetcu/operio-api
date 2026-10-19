@@ -5,6 +5,7 @@ import { closeStub, expectReject, serviceStub } from "../../test/stub.js";
 import { seedTwoTenants, type TwoTenants } from "../../test/fixtures.js";
 import { invalidateEntitlements } from "../../lib/entitlements/resolve.js";
 import * as users from "./users.service.js";
+import { createUserSchema } from "./users.schema.js";
 
 let app: FastifyInstance;
 let f: TwoTenants;
@@ -136,5 +137,31 @@ describe("izolarea între firme — utilizatori", () => {
     expect(err.status).toBe(404);
     const emp = await prisma.employee.findUniqueOrThrow({ where: { id: f.b.employeeId } });
     expect(emp.userId).toBe(f.b.operator.id);
+  });
+});
+
+describe("adăugarea unui utilizator cu o adresă deja folosită", () => {
+  const input = (email: string) =>
+    createUserSchema.parse({ email, password: "parola-test-123", firstName: "Nou", lastName: "Utilizator", role: "OPERATOR" });
+
+  it("adresa unui cont din ALTĂ firmă → 409 cu un mesaj care spune ce s-a întâmplat și ce e de făcut", async () => {
+    const err = await expectReject(() => users.create(app, f.a.id, input(f.b.admin.email)));
+    expect(err.status).toBe(409);
+    expect(err.message).toMatch(/are deja un cont Operio/);
+    expect(err.message).toMatch(/altă adresă/);
+    // Nu spune la ce firmă e contul.
+    expect(err.message).not.toMatch(/Firma B/);
+  });
+
+  it("adresa unui utilizator din aceeași firmă → mesaj că e deja în echipă", async () => {
+    const err = await expectReject(() => users.create(app, f.a.id, input(f.a.operator.email)));
+    expect(err.status).toBe(409);
+    expect(err.message).toMatch(/deja în echipa ta/);
+  });
+
+  it("aceeași adresă cu alte majuscule → tot conflict, fără al doilea cont", async () => {
+    const err = await expectReject(() => users.create(app, f.a.id, input(f.b.admin.email.toUpperCase())));
+    expect(err.status).toBe(409);
+    expect(await prisma.user.count({ where: { email: { equals: f.b.admin.email, mode: "insensitive" } } })).toBe(1);
   });
 });
