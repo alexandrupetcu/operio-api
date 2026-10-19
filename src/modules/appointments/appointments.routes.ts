@@ -164,6 +164,15 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
 
   // Field shortcut — what the technician can carry over from the installation
   // and from the last report at this address (see instalatiePrefill).
+  // Documentele generate pentru programare (RT/PV/FISA/ISCIR/GDPR) — detaliul din Calendar.
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/documents",
+    async (request) => {
+      const scope = await resolveApptScope(fastify, request);
+      return appointmentsService.listDocuments(fastify, request.tenantId, request.params.id, scope);
+    }
+  );
+
   fastify.get<{ Params: { id: string } }>(
     "/:id/instalatie-prefill",
     async (request) => {
