@@ -279,7 +279,7 @@ export const TEMPLATE_HTML = `<style>
   <td colspan="10" class="nbt">RESPINS- aparatul nu îndeplinește condițiile de punere în funcțiune și se interzice funcționarea acestuia</td>
 </tr>
 <tr><td colspan="11">SCADENȚA următoarei verificări este la 2 ani de la prezenta verificare, la data de <span class="f">{{next_revision_date}}</span></td></tr>
-<tr><td colspan="11" style="padding:8px 3px !important">Numele și prenumele "RSL IP" - <span class="f">{{operator_name}}</span></td></tr>
+<tr><td colspan="11" style="padding:8px 3px !important">Numele și prenumele "RSL IP" - <span class="f">{{rsl_nume}}</span> - circuit apă (presiune de încercare <span class="f">{{verif_water_pressure_test}}</span> bar / timp încercare <span class="f">{{verif_water_pressure_time}}</span> minute) &nbsp; {{rsl_stamp}}</td></tr>
 <tr><td colspan="11" class="nbb" style="padding:8px 3px !important">Numele și prenumele utilizatorului <span class="f">{{client_name}}</span></td></tr>
 <tr><td colspan="11" class="nbt nbb" style="padding:8px 3px !important">Numele și prenumele personalului instruit <span class="f">{{client_name}}</span></td></tr>
 <tr><td colspan="11" class="nbt" style="padding:8px 3px !important">Am fost instruit(semnătura) {{client_signature}}</td></tr>
@@ -294,7 +294,7 @@ export const TEMPLATE_HTML = `<style>
 </tr>
 <tr style="height:60px">
   <td colspan="3" class="c nbt nbb nbr" style="vertical-align:top"><span class="f b">{{tenant_name}}</span><br>{{tenant_stamp}}</td>
-  <td colspan="2" class="c nbt nbb nbl nbr" style="vertical-align:top"><span class="f b">{{rvt_nume}}</span></td>
+  <td colspan="2" class="c nbt nbb nbl nbr" style="vertical-align:top"><span class="f b">{{rvt_nume}}</span><br><span class="sm">{{rvt_atestat}}</span><br>{{rvt_stamp}}</td>
   <td colspan="3" class="c nbt nbb nbl nbr" style="vertical-align:top"><span class="f b">{{client_name}}</span><br>{{client_signature}}</td>
   <td colspan="3" class="nbt nbb nbl" style="vertical-align:top"></td>
 </tr>

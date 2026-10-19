@@ -15,6 +15,9 @@ import { allocateEntryForDocument } from "../modules/registry/registry.service.j
 import { completeStep, failStep } from "../lib/workflow-engine/step-completion.js";
 import { OPERATIUNI_LABELS, MAT_KINDS, materialClass } from "../modules/appointments/instalatie-constants.js";
 import { resolveStampSlots, stampVarName } from "../lib/stamps.js";
+import { stampWithSignatureHtml } from "../lib/stamp-html.js";
+import { resolveSignatory, type ResolvedSignatory } from "../modules/tenant/signatories.js";
+import { certType } from "../lib/certifications.js";
 import { readCompanySettings } from "../modules/tenant/company-settings.js";
 import { readAlertWindows } from "../modules/tenant/alert-settings.js";
 import { buildInstalatieFooterHtml, buildContractFooterHtml, embedFooterMarker, extractPdfMarkers } from "../lib/pdf-footer.js";
@@ -1058,6 +1061,22 @@ function inkOverlay(inner: string): string {
 }
 
 /**
+ * Ștampila personală (cu semnătura persoanei peste ea) a unui semnatar rezolvat,
+ * ca fragment HTML suprapus. Cheile S3 se verifică pe prefixul firmei.
+ */
+async function personStampHtml(tenantId: string, who: ResolvedSignatory | null, alt: string): Promise<string | null> {
+  if (!who) return null;
+  const stampUrl =
+    who.stampS3Key && assertTenantKey(tenantId, who.stampS3Key, `${alt} stamp`) ? await getPresignedUrl(who.stampS3Key) : null;
+  const sigUrl =
+    who.signatureS3Key && assertTenantKey(tenantId, who.signatureS3Key, `${alt} signature`)
+      ? await getPresignedUrl(who.signatureS3Key)
+      : null;
+  const html = stampWithSignatureHtml(stampUrl, sigUrl, { alt });
+  return html ? inkOverlay(html) : null;
+}
+
+/**
  * Template keys whose values are HTML BUILT BY THIS WORKER (tables, precomputed
  * cells, <img> stamps/signatures, ink overlays). Everything else substituted by
  * `renderHtml` is treated as text and HTML-escaped.
@@ -1071,6 +1090,10 @@ const RAW_HTML_KEYS = new Set<string>([
   "tenant_signature",
   ...STAMP_VARS,
   "client_signature",
+  // ștampilele personale (certificări): RVT / RSL-IP pe raportul ISCIR, instalatorul pe RT/FISA/PV
+  "rvt_stamp",
+  "rsl_stamp",
+  "instalator_stamp",
   // buildContractData — services table + <br>-joined text
   "services",
   "modifications",
@@ -1485,7 +1508,7 @@ async function processJob(job: Job<DocumentJobData>) {
           where: { id: job.data.revisionId, equipment: { client: { tenantId } } },
           include: {
             equipment: { select: { name: true, serial: true, fuel: true, deviceType: true, power: true, airSupply: true, feeding: true, location: true, fuelIscir: true, deviceAge: true } },
-            appointment: { select: { completionDataJson: true } },
+            appointment: { select: { completionDataJson: true, employeeId: true } },
           },
         });
         if (revision) {
@@ -1510,6 +1533,22 @@ async function processJob(job: Job<DocumentJobData>) {
           if (completionData) {
             Object.assign(htmlData, await buildAppointmentReportData(completionData, tenantId));
           }
+
+          // RVT (caseta de semnături) și RSL-IP (rândul probei de presiune): ales în
+          // raport → semnatarul implicit al firmei → tehnicianul vizitei, fiecare
+          // doar dacă are atestatul. Fără RSL rezolvat rămâne operatorul analizorului.
+          const chosen = (completionData as { signatories?: { rvt?: string; rsl?: string } } | null)?.signatories ?? {};
+          const technicianEmployeeId = revision.appointment?.employeeId ?? null;
+          const rvt = await resolveSignatory(prisma, tenantId, "rvt", { overrideEmployeeId: chosen.rvt, technicianEmployeeId });
+          const rsl = await resolveSignatory(prisma, tenantId, "rsl", { overrideEmployeeId: chosen.rsl, technicianEmployeeId });
+          htmlData.rvt_nume = rvt?.name ?? htmlData.rvt_nume ?? "";
+          htmlData.rvt_atestat = rvt?.number ? `Atestat nr. ${rvt.number}` : "";
+          htmlData.rsl_nume = rsl?.name || htmlData.operator_name || "";
+          htmlData.rsl_atestat = rsl?.number ?? "";
+          const rvtStamp = await personStampHtml(tenantId, rvt, "Ștampilă RVT");
+          const rslStamp = await personStampHtml(tenantId, rsl, "Ștampilă RSL-IP");
+          if (rvtStamp) htmlData.rvt_stamp = rvtStamp;
+          if (rslStamp) htmlData.rsl_stamp = rslStamp;
         }
       }
 
@@ -1534,7 +1573,21 @@ async function processJob(job: Job<DocumentJobData>) {
           ? appt.osRegisteredAt.toLocaleDateString("ro-RO")
           : "______________";
         if (appt?.completionDataJson) {
-          const empId = (docCtx.instalatorEmployeeId as string | null) ?? null;
+          // Instalatorul: cel ales în raport rămâne (fișele vechi nu-și schimbă
+          // semnatarul); fără alegere → semnatarul implicit → tehnicianul vizitei,
+          // dacă are o legitimație ANRE de execuție.
+          const chosenInstalator = (docCtx.instalatorEmployeeId as string | null) ?? null;
+          const instalatorSig = await resolveSignatory(prisma, tenantId, "instalator", {
+            overrideEmployeeId: chosenInstalator,
+            technicianEmployeeId: appt.employeeId,
+          });
+          const empId = chosenInstalator ?? instalatorSig?.employeeId ?? null;
+          const instalatorStamp =
+            instalatorSig && instalatorSig.employeeId === empId
+              ? await personStampHtml(tenantId, instalatorSig, `Ștampilă instalator ${certType(instalatorSig.certType)?.short ?? ""}`.trim())
+              : null;
+          // Fără ștampilă personală: ca până acum, semnătura/ștampila firmei.
+          htmlData.instalator_stamp = instalatorStamp ?? htmlData.tenant_signature ?? "";
           const instalator = empId
             ? await prisma.employee.findFirst({
                 where: { id: empId, tenantId },

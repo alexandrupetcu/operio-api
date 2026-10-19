@@ -125,6 +125,14 @@ const reportDataSchema = z.object({
     nextRevisionDate: z.string(),                // ISO date
     observations: z.string().optional(),
   }),
+  // RVT / RSL-IP ales pentru această vizită (altfel: semnatarul implicit al firmei,
+  // apoi tehnicianul). Validarea certificării se face la generare (resolveSignatory).
+  signatories: z
+    .object({
+      rvt: z.string().cuid().optional(),
+      rsl: z.string().cuid().optional(),
+    })
+    .optional(),
   // Sec. VII — Semnătură client + GDPR
   clientSignature: z.object({
     signatureDataUrl: z.string().optional(),     // PNG base64 data URL
