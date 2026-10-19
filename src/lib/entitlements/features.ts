@@ -20,7 +20,9 @@ export type Feature = keyof typeof FEATURES;
 export const ALL_FEATURES = Object.keys(FEATURES) as Feature[];
 
 export function isFeature(v: unknown): v is Feature {
-  return typeof v === "string" && v in FEATURES;
+  // `in` ar accepta și „__proto__" / „constructor" / „toString" (moștenite din
+  // Object.prototype), care ar intra apoi ca „funcții" în entitlementOverrides.
+  return typeof v === "string" && Object.hasOwn(FEATURES, v);
 }
 
 /** Limite numerice (0 = nelimitat nu există — folosim Infinity explicit). */

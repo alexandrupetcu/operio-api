@@ -14,7 +14,57 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Aceleași verificări blocante ca în CI, rulate pe commit-ul care se desfășoară.
+  # Deploy-ul e manual, deci poate porni de pe orice ref — nu ne bazăm pe faptul
+  # că CI a rulat deja acolo.
+  checks:
+    name: Verificări înainte de deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: operio
+          POSTGRES_PASSWORD: operio
+          POSTGRES_DB: operio_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U operio"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://operio:operio@localhost:5432/operio_test
+      DATABASE_URL: postgresql://operio:operio@localhost:5432/operio_test
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: ci-jwt-secret-value
+      JWT_REFRESH_SECRET: ci-jwt-refresh-secret
+      S3_ACCESS_KEY: ci-access-key
+      S3_SECRET_KEY: ci-secret-key
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Prisma client
+        run: npx prisma generate
+      - name: Typecheck (src)
+        run: npx tsc --noEmit -p tsconfig.json
+      - name: Typecheck (teste)
+        run: npx tsc --noEmit -p tsconfig.test.json
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Integration tests
+        run: npm run test:int
+
   deploy:
+    name: Deploy (api)
+    needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

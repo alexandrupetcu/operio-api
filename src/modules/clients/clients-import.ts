@@ -168,7 +168,8 @@ function decodeCsv(buffer: Buffer): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
-function detectDelimiter(firstLine: string): string {
+/** Separatorul CSV: cel mai frecvent din primul rând (`;` `,` tab), implicit `,`. */
+export function detectDelimiter(firstLine: string): string {
   const counts = [";", ",", "\t"].map((d) => ({ d, n: firstLine.split(d).length - 1 }));
   counts.sort((a, b) => b.n - a.n);
   return counts[0].n > 0 ? counts[0].d : ",";

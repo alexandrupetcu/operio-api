@@ -1,0 +1,12 @@
+{
+  // Verificarea de tipuri a suitei de teste: aceleași opțiuni strict ca la build,
+  // dar fără emit și incluzând `*.test.ts` + `src/test/**` (pe care tsconfig.json
+  // le exclude ca să nu ajungă în `dist`).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

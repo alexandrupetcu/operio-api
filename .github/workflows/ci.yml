@@ -1,0 +1,97 @@
+# Poarta de calitate a API-ului. Pașii blocanți sunt cei care au prins regresii
+# reale: verificarea de tipuri, suita unitară și suita de integrare pe un Postgres
+# adevărat (care rulează și `prisma migrate deploy`, deci prinde și drift-ul de
+# migrări). ESLint raportează, dar nu blochează — există o restanță mai veche.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  checks:
+    name: Typecheck + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Prisma client
+        run: npx prisma generate
+      - name: Typecheck (src)
+        run: npx tsc --noEmit -p tsconfig.json
+      - name: Typecheck (teste)
+        run: npx tsc --noEmit -p tsconfig.test.json
+      - name: Unit tests
+        run: npm run test:unit
+
+  integration:
+    name: Integration tests (Postgres 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: operio
+          POSTGRES_PASSWORD: operio
+          POSTGRES_DB: operio_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U operio"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Suita refuză orice bază care nu se termină cu „_test" (src/test/test-db-url.ts).
+      TEST_DATABASE_URL: postgresql://operio:operio@localhost:5432/operio_test
+      # `src/config/env.ts` validează mediul la import; restul valorilor au
+      # implicite în src/test/setup-int.ts. Redis și S3 nu sunt necesare:
+      # `bullmq` și `ioredis` sunt înlocuite în setup, iar S3 nu e atins.
+      DATABASE_URL: postgresql://operio:operio@localhost:5432/operio_test
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: ci-jwt-secret-value
+      JWT_REFRESH_SECRET: ci-jwt-refresh-secret
+      S3_ACCESS_KEY: ci-access-key
+      S3_SECRET_KEY: ci-secret-key
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Prisma client
+        run: npx prisma generate
+      - name: Integration tests
+        run: npm run test:int
+
+  lint:
+    name: ESLint (raportat, neblocant)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Prisma client
+        run: npx prisma generate
+      - name: ESLint
+        continue-on-error: true
+        run: npx eslint .

@@ -19,5 +19,7 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  // Testele nu intră în `dist` (build-ul e cel care rulează în producție).
+  // Sunt verificate de tipuri separat, cu `tsconfig.test.json` — vezi `npm run typecheck`.
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "src/test/**"]
 }
