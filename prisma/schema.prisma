@@ -10,38 +10,38 @@ datasource db {
 // ─── Multi-tenancy ──────────────────────────────────────────────────────────
 
 model Tenant {
-  id             String   @id @default(cuid())
-  name           String
-  slug           String   @unique
-  address        String?
-  phone          String?
-  email          String?
-  cui            String?  @unique // one firm = one tenant (NULLs stay distinct)
-  regCom         String?
-  isVatPayer     Boolean  @default(false)
-  adminName      String?
-  iscirNumber    String? // ex: "89C - 689"
-  iscirDate      String? // ex: "12.07.2023"
-  stampS3Key     String?
-  signatureS3Key String?
-  logoS3Key      String?
-  timezone       String   @default("Europe/Bucharest")
-  locale         String   @default("ro")
-  settingsJson   Json?
-  brandingJson   Json?
+  id                   String    @id @default(cuid())
+  name                 String
+  slug                 String    @unique
+  address              String?
+  phone                String?
+  email                String?
+  cui                  String?   @unique // one firm = one tenant (NULLs stay distinct)
+  regCom               String?
+  isVatPayer           Boolean   @default(false)
+  adminName            String?
+  iscirNumber          String? // ex: "89C - 689"
+  iscirDate            String? // ex: "12.07.2023"
+  stampS3Key           String?
+  signatureS3Key       String?
+  logoS3Key            String?
+  timezone             String    @default("Europe/Bucharest")
+  locale               String    @default("ro")
+  settingsJson         Json?
+  brandingJson         Json?
   // Abonament: planul (catalogul e în cod — src/lib/entitlements) + ajustări per
   // firmă (pilot, preț de fondator, add-on). Gărzile verifică funcții, nu planuri.
   plan                 String    @default("execution") // field | execution
   planUntil            DateTime?
   entitlementOverrides Json?
-  countryId      Int?
-  country        Country? @relation(fields: [countryId], references: [id])
-  stateId        Int?
-  state          State?   @relation(fields: [stateId], references: [id])
-  cityId         Int?
-  city           City?    @relation(fields: [cityId], references: [id])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  countryId            Int?
+  country              Country?  @relation(fields: [countryId], references: [id])
+  stateId              Int?
+  state                State?    @relation(fields: [stateId], references: [id])
+  cityId               Int?
+  city                 City?     @relation(fields: [cityId], references: [id])
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   users                   User[]
   clients                 Client[]
@@ -53,6 +53,7 @@ model Tenant {
   documentTemplates       DocumentTemplate[]
   services                Service[]
   employees               Employee[]
+  employeeCertifications  EmployeeCertification[]
   vehicles                Vehicle[]
   workflowDefinitions     WorkflowDefinition[]
   workflowInstances       WorkflowInstance[]
@@ -83,23 +84,23 @@ model Tenant {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String?
-  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
-  email        String   @unique
-  passwordHash String
-  firstName    String
-  lastName     String
-  role         Role     @default(OPERATOR)
-  isActive     Boolean  @default(true)
+  id            String    @id @default(cuid())
+  tenantId      String?
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
+  email         String    @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          Role      @default(OPERATOR)
+  isActive      Boolean   @default(true)
   // Explicit opt-in for the technician mobile app (see MobileDevice).
-  mobileAccess Boolean  @default(false)
+  mobileAccess  Boolean   @default(false)
   // Cont creat de admin fără parolă: utilizatorul primește un e-mail și își
   // setează parola prin link-ul de invitație (se șterge la prima setare).
   invitePending Boolean   @default(false)
   invitedAt     DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   refreshTokens           RefreshToken[]
   passwordResetTokens     PasswordResetToken[]
@@ -315,32 +316,32 @@ model EquipmentRevision {
 // client, service contract, gas meter (contor) + sealing, consumer appliances.
 // Scoped via the client (like Equipment). Filled once, reused across visits.
 model GasInstallation {
-  id               String         @id @default(cuid())
-  clientId         String
-  client           Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientAddressId  String?
-  clientAddress    ClientAddress? @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
-  label            String?
-  distributorName  String? // Operator de sistem (OS), ex. "DISTRIGAZ SUD RETELE"
-  codTehnicPOD     String? // Cod tehnic / POD, ex. "DGSBUSC20000641408"
-  codClient        String? // Cod client, ex. "191093362488"
-  contractNumber   String? // Contract prestări servicii, ex. "234 V-R"
-  contractDate     String? // ex. "18.05.2026"
-  documentatieNr   String? // Documentația tehnică nr.
-  documentatieData String? // Documentația tehnică data (or "nu detine")
-  contorTip        String? // ex. "BK-G4 MT"
-  contorSeria      String? // ex. "DGSR"
-  contorNr         String? // ex. "04110636"
-  contorAn         String? // ex. "2023"
-  contorIndex      String? // ex. "00717,60 mc"
-  appliancesJson   Json? // [{ kind: "CT"|"MA", name, debit, count }]
+  id                   String         @id @default(cuid())
+  clientId             String
+  client               Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientAddressId      String?
+  clientAddress        ClientAddress? @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
+  label                String?
+  distributorName      String? // Operator de sistem (OS), ex. "DISTRIGAZ SUD RETELE"
+  codTehnicPOD         String? // Cod tehnic / POD, ex. "DGSBUSC20000641408"
+  codClient            String? // Cod client, ex. "191093362488"
+  contractNumber       String? // Contract prestări servicii, ex. "234 V-R"
+  contractDate         String? // ex. "18.05.2026"
+  documentatieNr       String? // Documentația tehnică nr.
+  documentatieData     String? // Documentația tehnică data (or "nu detine")
+  contorTip            String? // ex. "BK-G4 MT"
+  contorSeria          String? // ex. "DGSR"
+  contorNr             String? // ex. "04110636"
+  contorAn             String? // ex. "2023"
+  contorIndex          String? // ex. "00717,60 mc"
+  appliancesJson       Json? // [{ kind: "CT"|"MA", name, debit, count }]
   // Data ultimei verificări/revizii a instalației cunoscută ÎNAINTE de Operio
   // (import din evidența veche a firmei). Informativ — alertele se calculează
   // din programările finalizate.
   lastVerificationDate DateTime?
-  appointments     Appointment[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  appointments         Appointment[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   @@index([clientId])
   @@index([clientAddressId])
@@ -765,8 +766,35 @@ model Employee {
   projects        Project[]
   teamAssignments ProjectTeamMember[]
   appointments    Appointment[]
+  certifications  EmployeeCertification[]
 
   @@index([tenantId])
+}
+
+/// O certificare profesională a unui angajat sau colaborator: legitimație ANRE
+/// (EGIU, PGD…), atestat ISCIR (RVT, RSL…), RTE, diriginte etc. — catalogul de
+/// tipuri e în `src/lib/certifications.ts`. Un om poate avea oricâte. Ștampila
+/// e opțională și poate fi pusă pe una singură dintr-o autoritate (ex. ștampila
+/// de instalator acoperă EGIU + PGIU + PGD).
+model EmployeeCertification {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String // cod din catalog (ex. "anre_egiu", "iscir_rvt") sau "other"
+  label      String? // numele afișat pentru "other"
+  number     String? // nr. legitimație / atestat / autorizație
+  domain     String? // domeniu / categorie / poanson — după tip (eticheta vine din catalog)
+  issuedAt   DateTime? @db.Date
+  expiresAt  DateTime? @db.Date
+  stampS3Key String?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([tenantId, expiresAt])
+  @@index([employeeId])
 }
 
 model Service {
@@ -1396,42 +1424,42 @@ model DrawingTemplate {
 // ─── Appointments ──────────────────────────────────────────────────────
 
 model Appointment {
-  id                  String             @id @default(cuid())
-  tenantId            String
-  tenant              Tenant             @relation(fields: [tenantId], references: [id])
-  projectId           String?
-  project             Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  clientId            String?
-  client              Client?            @relation(fields: [clientId], references: [id])
-  clientAddressId     String?
-  clientAddress       ClientAddress?     @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
-  employeeId          String?
-  employee            Employee?          @relation(fields: [employeeId], references: [id])
-  equipmentId         String?
-  equipment           Equipment?         @relation(fields: [equipmentId], references: [id])
-  equipmentRevisionId String?            @unique
-  equipmentRevision   EquipmentRevision? @relation(fields: [equipmentRevisionId], references: [id])
-  installationId      String?
-  installation        GasInstallation?   @relation(fields: [installationId], references: [id])
-  vehicleId           String?
-  vehicle             Vehicle?           @relation(fields: [vehicleId], references: [id])
-  type                String             @default("general") // general, revizie, ridicare_documente, revizie_instalatie, verificare_instalatie, itp, rca
-  title               String
-  notes               String?
-  date                DateTime
-  duration            Int?
-  status              String             @default("scheduled") // scheduled, in_progress, awaiting_report, completed, cancelled, rescheduled
-  completionDataJson  Json?
-  completedAt         DateTime?
+  id                   String             @id @default(cuid())
+  tenantId             String
+  tenant               Tenant             @relation(fields: [tenantId], references: [id])
+  projectId            String?
+  project              Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId             String?
+  client               Client?            @relation(fields: [clientId], references: [id])
+  clientAddressId      String?
+  clientAddress        ClientAddress?     @relation(fields: [clientAddressId], references: [id], onDelete: SetNull)
+  employeeId           String?
+  employee             Employee?          @relation(fields: [employeeId], references: [id])
+  equipmentId          String?
+  equipment            Equipment?         @relation(fields: [equipmentId], references: [id])
+  equipmentRevisionId  String?            @unique
+  equipmentRevision    EquipmentRevision? @relation(fields: [equipmentRevisionId], references: [id])
+  installationId       String?
+  installation         GasInstallation?   @relation(fields: [installationId], references: [id])
+  vehicleId            String?
+  vehicle              Vehicle?           @relation(fields: [vehicleId], references: [id])
+  type                 String             @default("general") // general, revizie, ridicare_documente, revizie_instalatie, verificare_instalatie, itp, rca
+  title                String
+  notes                String?
+  date                 DateTime
+  duration             Int?
+  status               String             @default("scheduled") // scheduled, in_progress, awaiting_report, completed, cancelled, rescheduled
+  completionDataJson   Json?
+  completedAt          DateTime?
   // Înregistrarea Fișei de evidență la operatorul de sistem (Ord. ANRE 179/2015,
   // art. 9 alin. 6–7): nr. primit de la OS, data, și când a plecat către client
   // exemplarul cu numărul de înregistrare. Doar pentru revizie/verificare instalație.
   osRegistrationNumber String?
   osRegisteredAt       DateTime?
   osClientNotifiedAt   DateTime?
-  deletedAt           DateTime?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  deletedAt            DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   @@index([tenantId])
   @@index([projectId])

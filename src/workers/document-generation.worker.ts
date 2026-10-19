@@ -1,4 +1,5 @@
 import { Worker, type Job } from "bullmq";
+import { legacyCredentialsFromCerts } from "../lib/certifications.js";
 import { pathToFileURL } from "node:url";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { redisConnection } from "../config/redis.js";
@@ -763,9 +764,13 @@ export async function buildInstalatieReportData(
   }
   out.apreciere_grad = cnt ? (sum / cnt).toFixed(0) : "";
 
-  // ── Instalator autorizat (from Employee.credentials) ──
+  // ── Instalator autorizat (certificarea ANRE de execuție; `credentials` = rezervă) ──
   if (instalator) {
-    const cred = instalator.credentials && typeof instalator.credentials === "object" ? instalator.credentials : {};
+    const legacy = instalator.credentials && typeof instalator.credentials === "object" ? instalator.credentials : {};
+    const cred: Record<string, any> = {
+      ...legacy,
+      ...legacyCredentialsFromCerts("instalator", Array.isArray(instalator.certifications) ? instalator.certifications : []),
+    };
     out.instalator_nume = `${s(instalator.firstName)} ${s(instalator.lastName)}`.trim();
     out.instalator_legitimatie = s(cred.legitimatie);
     out.instalator_tip = s(cred.tip) || "EGIU";
@@ -1256,7 +1261,19 @@ async function processJob(job: Job<DocumentJobData>) {
           },
           projectType: true,
           teamMembers: {
-            include: { employee: { select: { credentials: true, firstName: true, lastName: true, signatureS3Key: true } } },
+            include: {
+              employee: {
+                select: {
+                  credentials: true,
+                  firstName: true,
+                  lastName: true,
+                  signatureS3Key: true,
+                  certifications: {
+                    select: { type: true, number: true, domain: true, issuedAt: true, expiresAt: true, stampS3Key: true },
+                  },
+                },
+              },
+            },
           },
         },
       });
@@ -1292,8 +1309,11 @@ async function processJob(job: Job<DocumentJobData>) {
       // per-project assignment fields (e.g. decizie de numire nr/dată) come from
       // the team-member association and override/extend them.
       type TM = (typeof project.teamMembers)[number];
+      // Ordinea: `credentials` vechi (rezervă) ← certificările angajatului (sursa
+      // de acum, după rolul din proiect) ← câmpurile alocării pe proiect.
       const credsOf = (tm: TM) => ({
         ...((tm.employee?.credentials as Record<string, string> | null) ?? {}),
+        ...legacyCredentialsFromCerts(tm.role, tm.employee?.certifications ?? []),
         ...((tm.credentials as Record<string, string> | null) ?? {}),
       });
       const nameOf = (tm: TM) =>
@@ -1516,7 +1536,14 @@ async function processJob(job: Job<DocumentJobData>) {
         if (appt?.completionDataJson) {
           const empId = (docCtx.instalatorEmployeeId as string | null) ?? null;
           const instalator = empId
-            ? await prisma.employee.findFirst({ where: { id: empId, tenantId } })
+            ? await prisma.employee.findFirst({
+                where: { id: empId, tenantId },
+                include: {
+                  certifications: {
+                    select: { type: true, number: true, domain: true, issuedAt: true, expiresAt: true, stampS3Key: true },
+                  },
+                },
+              })
             : null;
           // Preserve the client's own (domicile) address before the installation
           // consumption address overrides client_address/* — the contract shows both.

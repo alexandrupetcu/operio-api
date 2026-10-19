@@ -5,6 +5,7 @@ import { defaultJobOptions } from "../config/queue.js";
 import { dispatch } from "../modules/notifications/dispatch.js";
 import { getTenantEventMap } from "../modules/notifications/tenant-settings.js";
 import { sendOsRegistrationDigest } from "../modules/appointments/os-registration.js";
+import { sendCertificationExpiryNotifications } from "../modules/employees/certification-alerts.js";
 import { env } from "../config/env.js";
 
 /**
@@ -176,6 +177,9 @@ async function scanTenant(tenantId: string, now: Date): Promise<number> {
 
   // ── Fișe de înregistrat la OS (urgente / depășite) → un rezumat pe zi ─────
   count += await sendOsRegistrationDigest(prisma, tenantId, now);
+
+  // ── Certificări ale echipei care expiră (o dată per prag) ─────────────────
+  count += await sendCertificationExpiryNotifications(prisma, tenantId, now);
 
   return count;
 }

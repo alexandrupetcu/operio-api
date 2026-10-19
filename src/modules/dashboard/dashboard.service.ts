@@ -6,6 +6,7 @@ import {
 import { getAlertWindows, type AlertWindows } from "../tenant/alert-settings.js";
 import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
 import { listPendingOsRegistrations, osFeedState, clientDisplayName, WORK_LABEL } from "../appointments/os-registration.js";
+import { listExpiringCertifications } from "../employees/certification-alerts.js";
 import { daysUntil } from "../../lib/working-days.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 
@@ -540,7 +541,7 @@ export async function getActionFeed(
 
   type ActionItem = {
     id: string;
-    kind: "revision" | "fleet" | "task" | "project" | "os_registration";
+    kind: "revision" | "fleet" | "task" | "project" | "os_registration" | "certification";
     time: string;
     title: string;
     meta: string;
@@ -609,6 +610,29 @@ export async function getActionFeed(
       clientId: p.client?.id,
       clientName: clientDisplayName(p.client),
     });
+  }
+
+  // Certificările echipei (legitimații ANRE, atestate ISCIR…) care expiră — biroul
+  // le vede; un tehnician cu calendar propriu vede doar ce ține de programul lui.
+  if (scope.kind === "all") {
+    const certs = await listExpiringCertifications(fastify.prisma, tenantId, w.certificationWarningDays, now);
+    for (const c of certs) {
+      const d = c.daysLeft;
+      items.push({
+        id: `certification-${c.id}`,
+        kind: "certification",
+        time: relTime(d),
+        title: `${c.employeeName} — ${c.certName} ${d < 0 ? "expirată" : "expiră"}`,
+        meta: `${c.number ? `Nr. ${c.number} · ` : ""}${d < 0 ? "a expirat pe" : "expiră pe"} ${c.expiresAt.toLocaleDateString("ro-RO", { timeZone: "UTC" })}`,
+        tag: d < 0 ? "Expirată" : relTag(d),
+        tone: d < 0 ? "danger" : d <= 30 ? "warn" : "yellow",
+        action: "Vezi angajat",
+        actionPrimary: d < 0,
+        href: `/employees?id=${c.employee.id}`,
+        priority: d < 0 ? 1 : d <= 30 ? 2 : 4,
+        conditionRef: c.expiresAt.toISOString(),
+      });
+    }
   }
 
   // Revizii care expiră

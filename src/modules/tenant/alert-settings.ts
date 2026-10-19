@@ -147,6 +147,16 @@ export const ALERT_WINDOWS = [
     max: 10,
     unit: "zile",
   },
+  {
+    key: "certificationWarningDays",
+    label: "Avertizare expirare certificări",
+    description: "Cu câte zile înainte de expirarea unei legitimații ANRE, a unui atestat ISCIR sau a altei certificări a unui angajat apare alerta în panou și pleacă prima notificare (apoi la 30 și 7 zile și în ziua expirării).",
+    group: "Echipă",
+    default: 60,
+    min: 1,
+    max: 365,
+    unit: "zile",
+  },
 ] as const;
 
 export type AlertWindowKey = (typeof ALERT_WINDOWS)[number]["key"];

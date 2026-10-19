@@ -46,6 +46,12 @@ export const TENANT_NOTIF_EVENTS = [
     group: "Fișe ANRE",
   },
   {
+    key: "certification_expiry",
+    label: "Certificări care expiră",
+    description: "Legitimații ANRE, atestate ISCIR și alte certificări ale echipei: o notificare la intrarea în pragul din Setări → Alerte, apoi la 30 și 7 zile și în ziua expirării — către admini, manageri și persoana în cauză.",
+    group: "Echipă",
+  },
+  {
     key: "workflow_events",
     label: "Proiecte & workflow",
     description: "Notificări instant din workflow-uri: pași finalizați/întârziați, documente generate, notificări configurate în Constructor.",

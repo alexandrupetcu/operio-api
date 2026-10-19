@@ -56,6 +56,8 @@ export async function list(
       include: {
         // Contul legat, ca selectorul din Setări să nu ofere un angajat deja legat.
         user: { select: { id: true, email: true } },
+        // Rezumatul certificărilor pentru listă (insigne + expirări).
+        certifications: { select: { id: true, type: true, label: true, expiresAt: true }, orderBy: { createdAt: "asc" } },
         // activeProjects + whether they have an active appointment today (on-site).
         _count: {
           select: {
@@ -86,7 +88,7 @@ export async function stats(fastify: FastifyInstance, tenantId: string) {
     fastify.prisma.employee.count({ where: { tenantId, employeeType: "intern" } }),
     fastify.prisma.employee.count({ where: { tenantId, employeeType: "colaborator" } }),
     fastify.prisma.employee.count({ where: { tenantId, isActive: true } }),
-    fastify.prisma.employee.findMany({ where: { tenantId }, select: { credentials: true } }),
+    fastify.prisma.employeeCertification.count({ where: { tenantId, employee: { isActive: true } } }),
     fastify.prisma.appointment.findMany({
       where: {
         tenantId,
@@ -100,10 +102,8 @@ export async function stats(fastify: FastifyInstance, tenantId: string) {
     }),
   ]);
 
-  const authorizations = emps.reduce((sum, e) => {
-    const creds = (e.credentials ?? {}) as Record<string, unknown>;
-    return sum + Object.values(creds).filter((v) => typeof v === "string" && v.trim()).length;
-  }, 0);
+  // Certificările angajaților activi (legitimații ANRE, atestate ISCIR…).
+  const authorizations = emps;
   const onSite = onSiteRows.length;
 
   return { total, intern, colaborator, authorizations, onSite, available: Math.max(0, active - onSite) };

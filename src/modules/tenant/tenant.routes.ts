@@ -5,6 +5,7 @@ import { uploadFile, getPresignedUrl, deleteFile } from "../../lib/s3.js";
 import { removeWhiteBackground, normalizeLogo } from "../../lib/image.js";
 import { resolveStampSlots, upsertStampSlot, STAMP_SLOTS } from "../../lib/stamps.js";
 import { getStampUsage } from "./stamp-usage.js";
+import { getSignatories, setSignatories, signatoriesUpdateSchema } from "./signatories.js";
 import { readCompanySettings, setCompanySettings } from "./company-settings.js";
 import { getReadiness } from "./readiness.js";
 import { createSampleData, deleteSampleData } from "./sample-data.js";
@@ -335,6 +336,17 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
         detected: { sourceId: detected.source.id, score: detected.score },
         results,
       };
+    },
+  });
+
+  // Semnatarii impliciți pe documente (instalator / RVT / RSL-IP) + cine se califică.
+  fastify.get("/signatories", async (request) => getSignatories(fastify.prisma, request.tenantId));
+
+  fastify.patch("/signatories", {
+    onRequest: [requireRole("ADMIN")],
+    handler: async (request) => {
+      const body = signatoriesUpdateSchema.parse(request.body);
+      return setSignatories(fastify, request.tenantId, body);
     },
   });
 

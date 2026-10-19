@@ -5,6 +5,17 @@ import { z } from "zod";
 import * as employeesService from "./employees.service.js";
 import { EMPLOYEES_SORTABLE } from "./employees.service.js";
 import { getSchedulingSettings } from "../tenant/scheduling-settings.js";
+import { CERT_TYPES, SIGNATORY_ROLES } from "../../lib/certifications.js";
+import {
+  certificationInputSchema,
+  certificationUpdateSchema,
+  listCertifications,
+  createCertification,
+  updateCertification,
+  deleteCertification,
+  setCertificationStamp,
+  removeCertificationStamp,
+} from "./certifications.service.js";
 
 const listQuerySchema = paginationSchemaFor(EMPLOYEES_SORTABLE);
 
@@ -56,6 +67,9 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
     });
   });
 
+  // Catalogul de certificări (ANRE / ISCIR / construcții) + rolurile de semnatar.
+  fastify.get("/certification-types", async () => ({ types: CERT_TYPES, signatoryRoles: SIGNATORY_ROLES }));
+
   fastify.get("/stats", async (request) => {
     return employeesService.stats(fastify, request.tenantId);
   });
@@ -86,6 +100,49 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
     handler: async (request) => {
       return employeesService.remove(fastify, request.tenantId, request.params.id);
     },
+  });
+
+  // ── Certificări (legitimații ANRE, atestate ISCIR, RTE…) ────────────────
+  type CertParams = { id: string; certId: string };
+
+  fastify.get<{ Params: { id: string } }>("/:id/certifications", async (request) => {
+    return listCertifications(fastify, request.tenantId, request.params.id);
+  });
+
+  fastify.post<{ Params: { id: string } }>("/:id/certifications", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request, reply) => {
+      const body = certificationInputSchema.parse(request.body);
+      return reply.status(201).send(await createCertification(fastify, request.tenantId, request.params.id, body));
+    },
+  });
+
+  fastify.patch<{ Params: CertParams }>("/:id/certifications/:certId", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request) => {
+      const body = certificationUpdateSchema.parse(request.body);
+      return updateCertification(fastify, request.tenantId, request.params.id, request.params.certId, body);
+    },
+  });
+
+  fastify.delete<{ Params: CertParams }>("/:id/certifications/:certId", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request) => deleteCertification(fastify, request.tenantId, request.params.id, request.params.certId),
+  });
+
+  fastify.post<{ Params: CertParams }>("/:id/certifications/:certId/stamp", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request) => {
+      const file = await request.file();
+      if (!file) throw fastify.httpErrors.badRequest("Alege o imagine cu ștampila");
+      if (!file.mimetype.startsWith("image/")) throw fastify.httpErrors.badRequest("Ștampila trebuie să fie o imagine");
+      return setCertificationStamp(fastify, request.tenantId, request.params.id, request.params.certId, await file.toBuffer());
+    },
+  });
+
+  fastify.delete<{ Params: CertParams }>("/:id/certifications/:certId/stamp", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request) => removeCertificationStamp(fastify, request.tenantId, request.params.id, request.params.certId),
   });
 
   // Invitație în aplicația mobilă (text WhatsApp/SMS + e-mailul contului legat).
