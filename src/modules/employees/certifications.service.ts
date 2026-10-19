@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CERT_TYPE_CODES, certDisplayName } from "../../lib/certifications.js";
 import { uploadFile, deleteFile, getPresignedUrl } from "../../lib/s3.js";
 import { removeWhiteBackground } from "../../lib/image.js";
+import { invalidateReadiness } from "../tenant/readiness.js";
 
 const optText = (max: number) =>
   z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? null : v), z.string().trim().max(max).nullable().optional());
@@ -110,6 +111,7 @@ export async function createCertification(
     },
     select: certSelect,
   });
+  invalidateReadiness(tenantId);
   return present(row);
 }
 
@@ -137,6 +139,7 @@ export async function updateCertification(
     },
     select: certSelect,
   });
+  invalidateReadiness(tenantId);
   return present(row);
 }
 
@@ -144,6 +147,7 @@ export async function deleteCertification(fastify: FastifyInstance, tenantId: st
   const current = await certOrThrow(fastify, tenantId, employeeId, certId);
   await fastify.prisma.employeeCertification.delete({ where: { id: certId } });
   if (current.stampS3Key) await deleteFile(current.stampS3Key).catch(() => {});
+  invalidateReadiness(tenantId);
   return { deleted: true };
 }
 
@@ -162,6 +166,7 @@ export async function setCertificationStamp(
   await uploadFile(key, png, "image/png");
   await fastify.prisma.employeeCertification.update({ where: { id: certId }, data: { stampS3Key: key } });
   if (current.stampS3Key) await deleteFile(current.stampS3Key).catch(() => {});
+  invalidateReadiness(tenantId);
   return present({ ...current, stampS3Key: key });
 }
 
@@ -171,5 +176,6 @@ export async function removeCertificationStamp(fastify: FastifyInstance, tenantI
     await fastify.prisma.employeeCertification.update({ where: { id: certId }, data: { stampS3Key: null } });
     await deleteFile(current.stampS3Key).catch(() => {});
   }
+  invalidateReadiness(tenantId);
   return present({ ...current, stampS3Key: null });
 }

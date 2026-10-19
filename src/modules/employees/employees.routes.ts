@@ -6,6 +6,7 @@ import * as employeesService from "./employees.service.js";
 import { EMPLOYEES_SORTABLE } from "./employees.service.js";
 import { getSchedulingSettings } from "../tenant/scheduling-settings.js";
 import { CERT_TYPES, SIGNATORY_ROLES } from "../../lib/certifications.js";
+import { invalidateReadiness } from "../tenant/readiness.js";
 import {
   certificationInputSchema,
   certificationUpdateSchema,
@@ -83,6 +84,7 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
     handler: async (request, reply) => {
       const body = createSchema.parse(request.body);
       const employee = await employeesService.create(fastify, request.tenantId, body);
+      invalidateReadiness(request.tenantId);
       return reply.status(201).send(employee);
     },
   });
@@ -91,14 +93,18 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
     onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request) => {
       const body = updateSchema.parse(request.body);
-      return employeesService.update(fastify, request.tenantId, request.params.id, body);
+      const updated = await employeesService.update(fastify, request.tenantId, request.params.id, body);
+      invalidateReadiness(request.tenantId); // activ/inactiv schimbă avertismentele de semnatari
+      return updated;
     },
   });
 
   fastify.delete<{ Params: { id: string } }>("/:id", {
     onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request) => {
-      return employeesService.remove(fastify, request.tenantId, request.params.id);
+      const removed = await employeesService.remove(fastify, request.tenantId, request.params.id);
+      invalidateReadiness(request.tenantId);
+      return removed;
     },
   });
 

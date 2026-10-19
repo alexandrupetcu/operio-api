@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { readCompanySettings } from "./company-settings.js";
 import { readSampleSettings, excludeSampleAppointments } from "./sample-settings.js";
+import { SIGNATORY_ROLES, certForRole, stampFor, type SignatoryRole } from "../../lib/certifications.js";
 
 /**
  * Lista de pornire a unei firme noi („ești gata să emiți documente?”). Fiecare
@@ -20,10 +21,25 @@ export interface ReadinessItem {
   hint?: string;
 }
 
+/**
+ * Avertisment (nu pas): documentele se pot genera, dar incomplet — ex. nimeni din
+ * echipă nu are atestat RVT, deci raportul ISCIR iese fără numele și ștampila RVT.
+ * Nu intră în procent; rămâne vizibil și după ce pașii sunt bifați.
+ */
+export interface ReadinessWarning {
+  key: `signatory_${SignatoryRole}`;
+  role: SignatoryRole;
+  level: "missing" | "no_stamp" | "expired";
+  title: string;
+  description: string;
+  href: string;
+}
+
 export interface ReadinessResponse {
   percent: number;
   complete: boolean;
   items: ReadinessItem[];
+  warnings: ReadinessWarning[];
   sample: { present: boolean; clientId?: string; appointmentId?: string };
   createdAt: string;
 }
@@ -110,9 +126,75 @@ async function computeReadiness(fastify: FastifyInstance, tenantId: string): Pro
     percent: Math.round((done / items.length) * 100),
     complete: done === items.length,
     items,
+    warnings: await signatoryWarnings(fastify, tenantId, {
+      anre: !!company.anreNr.trim(),
+      iscir: !!tenant.iscirNumber?.trim(),
+    }),
     sample: sampleClientExists && sample
       ? { present: true, clientId: sample.clientId, ...(sample.appointmentId && { appointmentId: sample.appointmentId }) }
       : { present: false },
     createdAt: tenant.createdAt.toISOString(),
   };
+}
+
+/** Pe ce documente semnează fiecare rol — pentru textul avertismentelor. */
+const ROLE_DOCS: Record<SignatoryRole, { who: string; noun: string; docs: string; needs: "anre" | "iscir" }> = {
+  instalator: { who: "instalator autorizat ANRE (EGIU, EGD…)", noun: "instalator autorizat", docs: "Fișele RT / FISA și PV-urile", needs: "anre" },
+  rvt: { who: "RVT (atestat ISCIR)", noun: "RVT", docs: "Rapoartele ISCIR de revizie a centralei", needs: "iscir" },
+  rsl: { who: "RSL-IP (atestat ISCIR)", noun: "RSL-IP", docs: "Rapoartele ISCIR de revizie a centralei", needs: "iscir" },
+};
+
+/**
+ * Câte un avertisment per rol de semnatar (instalator / RVT / RSL-IP) fără o
+ * persoană activă cu certificarea valabilă și ștampila încărcată. Rolurile se
+ * filtrează după autorizațiile firmei (ANRE → instalator, ISCIR → RVT/RSL-IP);
+ * fără niciuna (firmă nouă) se arată toate.
+ */
+async function signatoryWarnings(
+  fastify: FastifyInstance,
+  tenantId: string,
+  has: { anre: boolean; iscir: boolean },
+): Promise<ReadinessWarning[]> {
+  const relevant = SIGNATORY_ROLES.filter((r) => (!has.anre && !has.iscir) || has[ROLE_DOCS[r.key].needs]);
+  if (relevant.length === 0) return [];
+  const employees = await fastify.prisma.employee.findMany({
+    where: { tenantId, isActive: true },
+    select: { certifications: { select: { type: true, expiresAt: true, stampS3Key: true } } },
+  });
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const out: ReadinessWarning[] = [];
+  for (const role of relevant) {
+    const { who, noun, docs } = ROLE_DOCS[role.key];
+    const holders = employees.flatMap((e) => {
+      const cert = certForRole(role.key, e.certifications);
+      return cert ? [{ cert, all: e.certifications }] : [];
+    });
+    const valid = holders.filter((h) => !h.cert.expiresAt || h.cert.expiresAt >= today);
+    const base = { key: `signatory_${role.key}` as const, role: role.key, href: "/employees" };
+    if (holders.length === 0) {
+      out.push({
+        ...base,
+        level: "missing",
+        title: `Nimeni din echipă nu e ${who}`,
+        description: `${docs} se vor genera fără numele și ștampila de ${noun}. Adaugă certificarea la un angajat sau colaborator (Echipă → persoana → Certificări).`,
+      });
+    } else if (valid.length === 0) {
+      out.push({
+        ...base,
+        level: "expired",
+        title: `Certificarea de ${noun} a expirat`,
+        description: `Toate certificările de ${noun} din echipă au expirat. ${docs} nu ar trebui emise până nu actualizezi data de valabilitate.`,
+      });
+    } else if (!valid.some((h) => stampFor(h.cert, h.all))) {
+      out.push({
+        ...base,
+        level: "no_stamp",
+        title: `Ștampila de ${noun} nu e încărcată`,
+        description: `${docs} se vor genera fără ștampila de ${noun}. Încarcă imaginea ștampilei la certificarea persoanei (Echipă → persoana → Certificări).`,
+      });
+    }
+  }
+  return out;
 }
