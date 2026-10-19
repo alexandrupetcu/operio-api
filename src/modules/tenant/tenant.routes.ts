@@ -4,6 +4,7 @@ import { requireRole } from "../../lib/rbac.js";
 import { uploadFile, getPresignedUrl, deleteFile } from "../../lib/s3.js";
 import { removeWhiteBackground, normalizeLogo } from "../../lib/image.js";
 import { resolveStampSlots, upsertStampSlot, STAMP_SLOTS } from "../../lib/stamps.js";
+import { getStampUsage } from "./stamp-usage.js";
 import { readCompanySettings, setCompanySettings } from "./company-settings.js";
 import { getReadiness } from "./readiness.js";
 import { createSampleData, deleteSampleData } from "./sample-data.js";
@@ -335,6 +336,11 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
         results,
       };
     },
+  });
+
+  // Unde apare fiecare ștampilă (șabloanele firmei + cele de sistem) — Setări → Firmă.
+  fastify.get("/stamp-usage", async (request) => {
+    return { slots: await getStampUsage(fastify.prisma, request.tenantId) };
   });
 
   // Upload a stamp image into slot 1-4. Slot 1 keeps its image on
