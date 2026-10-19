@@ -149,8 +149,8 @@ export const ALERT_WINDOWS = [
   },
   {
     key: "certificationWarningDays",
-    label: "Avertizare expirare certificări",
-    description: "Cu câte zile înainte de expirarea unei legitimații ANRE, a unui atestat ISCIR sau a altei certificări a unui angajat apare alerta în panou și pleacă prima notificare (apoi la 30 și 7 zile și în ziua expirării).",
+    label: "Avertizare expirare certificări și autorizații",
+    description: "Cu câte zile înainte de expirare apare alerta în panou și pleacă prima notificare (apoi la 30 și 7 zile și în ziua expirării): legitimațiile ANRE, atestatele ISCIR și celelalte certificări ale echipei, plus autorizațiile ANRE și ISCIR ale firmei.",
     group: "Echipă",
     default: 60,
     min: 1,

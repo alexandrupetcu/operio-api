@@ -6,7 +6,7 @@ import {
 import { getAlertWindows, type AlertWindows } from "../tenant/alert-settings.js";
 import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
 import { listPendingOsRegistrations, osFeedState, clientDisplayName, WORK_LABEL } from "../appointments/os-registration.js";
-import { listExpiringCertifications } from "../employees/certification-alerts.js";
+import { listExpiringCertifications, listExpiringAuthorizations } from "../employees/certification-alerts.js";
 import { daysUntil } from "../../lib/working-days.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 
@@ -631,6 +631,25 @@ export async function getActionFeed(
         href: `/employees?id=${c.employee.id}`,
         priority: d < 0 ? 1 : d <= 30 ? 2 : 4,
         conditionRef: c.expiresAt.toISOString(),
+      });
+    }
+
+    // Autorizațiile firmei (ANRE / ISCIR) — aceeași fereastră ca certificările echipei.
+    for (const a of await listExpiringAuthorizations(fastify.prisma, tenantId, w.certificationWarningDays, now)) {
+      const d = a.daysLeft;
+      items.push({
+        id: `authorization-${a.key}`,
+        kind: "certification",
+        time: relTime(d),
+        title: `${a.label} a firmei ${d < 0 ? "a expirat" : "expiră"}`,
+        meta: `${a.number ? `${a.number} · ` : ""}${d < 0 ? "a expirat pe" : "expiră pe"} ${a.expiresAt.toLocaleDateString("ro-RO", { timeZone: "UTC" })}`,
+        tag: d < 0 ? "Expirată" : relTag(d),
+        tone: d < 0 ? "danger" : d <= 30 ? "warn" : "yellow",
+        action: "Vezi setări",
+        actionPrimary: d < 0,
+        href: "/settings?tab=company",
+        priority: d < 0 ? 0 : d <= 30 ? 2 : 4,
+        conditionRef: a.expiresAt.toISOString(),
       });
     }
   }

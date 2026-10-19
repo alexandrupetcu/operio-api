@@ -16,7 +16,7 @@ vi.mock("../../lib/web-push.js", () => ({ sendWebPush: vi.fn(async () => ({ ok: 
 vi.mock("../../lib/expo-push.js", () => ({ sendExpoPush: vi.fn(async () => ({ ok: [], invalid: [] })), isValidExpoToken: () => true }));
 
 import * as certs from "./certifications.service.js";
-import { sendCertificationExpiryNotifications } from "./certification-alerts.js";
+import { sendCertificationExpiryNotifications, listExpiringAuthorizations } from "./certification-alerts.js";
 import { getSignatories, resolveSignatory, setSignatories } from "../tenant/signatories.js";
 
 let app: FastifyInstance;
@@ -150,5 +150,33 @@ describe("notificări de expirare a certificărilor", () => {
     await certs.createCertification(app, f.a.id, f.a.employeeId, input({ expiresAt: "2026-10-25" }));
     await prisma.tenant.update({ where: { id: f.a.id }, data: { settingsJson: { notifications: { certification_expiry: false } } } });
     expect(await sendCertificationExpiryNotifications(prisma, f.a.id, NOW)).toBe(0);
+  });
+});
+
+describe("autorizațiile firmei (ANRE / ISCIR) care expiră", () => {
+  const NOW = new Date(2026, 9, 19, 7, 0);
+  const setCompany = (company: Record<string, string>, iscirNumber = "89C-689") =>
+    prisma.tenant.update({ where: { id: f.a.id }, data: { iscirNumber, settingsJson: { company } } });
+
+  it("expirată → în listă și notificată doar biroului; o dată per prag", async () => {
+    await setCompany({ anreNr: "19833", anreTip: "EDIB", anreExp: "08.12.2025", iscirExp: "15.10.2027" });
+    const list = await listExpiringAuthorizations(prisma, f.a.id, 60, NOW);
+    expect(list.map((a) => [a.key, a.daysLeft < 0])).toEqual([["anre", true]]);
+
+    expect(await sendCertificationExpiryNotifications(prisma, f.a.id, NOW)).toBe(1); // doar adminul (operatorul nu)
+    expect(await sendCertificationExpiryNotifications(prisma, f.a.id, new Date(2026, 9, 20, 7, 0))).toBe(0);
+    const [n] = await prisma.notification.findMany({ where: { userId: f.a.admin.id, dedupeKey: { startsWith: "due:auth:anre" } } });
+    expect(n.subject).toBe("Autorizația ANRE a firmei a expirat");
+  });
+
+  it("ISCIR în fereastră (în 30 de zile); date nevalide sau goale → ignorate", async () => {
+    await setCompany({ anreExp: "nelimitat", iscirExp: "18.11.2026" });
+    const list = await listExpiringAuthorizations(prisma, f.a.id, 60, NOW);
+    expect(list.map((a) => [a.key, a.daysLeft])).toEqual([["iscir", 30]]);
+  });
+
+  it("altă firmă nu primește alertele lui A", async () => {
+    await setCompany({ anreExp: "08.12.2025" });
+    expect(await listExpiringAuthorizations(prisma, f.b.id, 60, NOW)).toEqual([]);
   });
 });

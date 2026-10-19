@@ -47,8 +47,8 @@ export const TENANT_NOTIF_EVENTS = [
   },
   {
     key: "certification_expiry",
-    label: "Certificări care expiră",
-    description: "Legitimații ANRE, atestate ISCIR și alte certificări ale echipei: o notificare la intrarea în pragul din Setări → Alerte, apoi la 30 și 7 zile și în ziua expirării — către admini, manageri și persoana în cauză.",
+    label: "Certificări și autorizații care expiră",
+    description: "Certificările echipei (legitimații ANRE, atestate ISCIR…) și autorizațiile ANRE / ISCIR ale firmei: o notificare la intrarea în pragul din Setări → Alerte, apoi la 30 și 7 zile și în ziua expirării — către admini, manageri și, la certificări, persoana în cauză.",
     group: "Echipă",
   },
   {
