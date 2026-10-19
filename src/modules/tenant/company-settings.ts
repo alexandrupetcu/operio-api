@@ -10,13 +10,14 @@ export interface CompanySettings {
   anreTip: string;       // authorization type, e.g. "EDIB"
   anreData: string;      // issue date, e.g. "09.12.2020"
   anreExp: string;       // expiry date, e.g. "08.12.2025"
+  iscirExp: string;      // ISCIR authorization expiry (number/date stay on Tenant.iscirNumber/iscirDate)
   iban: string;          // company IBAN
   bank: string;          // bank name, e.g. "ING BANK Suc. București"
   operatorSistem: string; // system operator (distributor) name for the header box
 }
 
 const EMPTY: CompanySettings = {
-  anreNr: "", anreTip: "", anreData: "", anreExp: "", iban: "", bank: "", operatorSistem: "",
+  anreNr: "", anreTip: "", anreData: "", anreExp: "", iscirExp: "", iban: "", bank: "", operatorSistem: "",
 };
 
 type SettingsJson = { company?: Partial<CompanySettings>; [k: string]: unknown };
@@ -30,6 +31,7 @@ export function readCompanySettings(settingsJson: unknown): CompanySettings {
     anreTip: c.anreTip ?? "",
     anreData: c.anreData ?? "",
     anreExp: c.anreExp ?? "",
+    iscirExp: c.iscirExp ?? "",
     iban: c.iban ?? "",
     bank: c.bank ?? "",
     operatorSistem: c.operatorSistem ?? "",

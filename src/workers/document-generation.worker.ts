@@ -192,6 +192,7 @@ function buildTenantData(tenant: TenantInput) {
     tenant_admin_name: tenant.adminName || "",
     tenant_iscir_number: tenant.iscirNumber || "",
     tenant_iscir_date: tenant.iscirDate || "",
+    tenant_iscir_exp: readCompanySettings(tenant.settingsJson).iscirExp,
   };
   // Pass all 4 stamp slots + signature as image references for DOCX rendering.
   // Slot 1 → {{tenant_stamp}} (legacy), slots 2-4 → {{tenant_stamp_N}}.
@@ -937,6 +938,7 @@ export async function buildHtmlTemplateData(
         "tenant_anre_tip": c.anreTip,
         "tenant_anre_data": c.anreData,
         "tenant_anre_exp": c.anreExp,
+        "tenant_iscir_exp": c.iscirExp,
         "tenant_iban": c.iban,
         "tenant_bank": c.bank,
         "tenant_operator_sistem": c.operatorSistem,
