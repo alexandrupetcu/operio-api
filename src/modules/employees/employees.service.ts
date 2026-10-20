@@ -116,9 +116,71 @@ export async function getById(
 ) {
   const employee = await fastify.prisma.employee.findFirst({
     where: { id, tenantId },
+    include: {
+      user: { select: { id: true, email: true, mobileAccess: true } },
+      _count: {
+        select: {
+          appointments: {
+            where: { date: { gte: todayRange().start, lte: todayRange().end }, status: { in: ACTIVE_APPT }, deletedAt: null },
+          },
+        },
+      },
+    },
   });
   if (!employee) throw fastify.httpErrors.notFound("Employee not found");
   return withSignatureUrl(employee);
+}
+
+/**
+ * Proiectele persoanei (pagina de detaliu): cele alocate direct și cele în care e
+ * în echipă (cu rolul din proiect). Fără proiectele ascunse de dosar rapid.
+ */
+export async function listEmployeeProjects(fastify: FastifyInstance, tenantId: string, id: string) {
+  const employee = await fastify.prisma.employee.findFirst({ where: { id, tenantId }, select: { id: true } });
+  if (!employee) throw fastify.httpErrors.notFound("Employee not found");
+  const projects = await fastify.prisma.project.findMany({
+    where: {
+      tenantId,
+      kind: "project",
+      OR: [{ assignedEmployeeId: id }, { teamMembers: { some: { employeeId: id } } }],
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      address: true,
+      city: true,
+      scheduledDate: true,
+      updatedAt: true,
+      teamMembers: { where: { employeeId: id }, select: { role: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 100,
+  });
+  return projects.map(({ teamMembers, ...p }) => ({ ...p, roles: teamMembers.map((t) => t.role) }));
+}
+
+/** Jurnalul persoanei (certificări, ștampile, semnătură, date) — cele mai noi întâi. */
+export async function listEmployeeActivity(fastify: FastifyInstance, tenantId: string, id: string) {
+  const employee = await fastify.prisma.employee.findFirst({ where: { id, tenantId }, select: { id: true } });
+  if (!employee) throw fastify.httpErrors.notFound("Employee not found");
+  const rows = await fastify.prisma.auditLog.findMany({
+    where: { tenantId, entityType: "employee", entityId: id },
+    select: {
+      id: true,
+      action: true,
+      beforeJson: true,
+      afterJson: true,
+      createdAt: true,
+      actorUser: { select: { firstName: true, lastName: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+  return rows.map(({ actorUser, ...r }) => ({
+    ...r,
+    actorName: actorUser ? `${actorUser.firstName} ${actorUser.lastName}`.trim() : null,
+  }));
 }
 
 export async function create(

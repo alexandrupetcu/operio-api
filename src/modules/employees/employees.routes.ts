@@ -14,9 +14,18 @@ import {
   createCertification,
   updateCertification,
   deleteCertification,
-  setCertificationStamp,
-  removeCertificationStamp,
 } from "./certifications.service.js";
+import {
+  stampInputSchema,
+  stampUpdateSchema,
+  listStamps,
+  createStamp,
+  updateStamp,
+  deleteStamp,
+  setStampImage,
+  removeStampImage,
+} from "./stamps.service.js";
+import { logAudit } from "../../lib/audit.js";
 
 const listQuerySchema = paginationSchemaFor(EMPLOYEES_SORTABLE);
 
@@ -79,11 +88,20 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
     return employeesService.getById(fastify, request.tenantId, request.params.id);
   });
 
+  fastify.get<{ Params: { id: string } }>("/:id/projects", async (request) => {
+    return employeesService.listEmployeeProjects(fastify, request.tenantId, request.params.id);
+  });
+
+  fastify.get<{ Params: { id: string } }>("/:id/activity", async (request) => {
+    return employeesService.listEmployeeActivity(fastify, request.tenantId, request.params.id);
+  });
+
   fastify.post("/", {
     onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request, reply) => {
       const body = createSchema.parse(request.body);
       const employee = await employeesService.create(fastify, request.tenantId, body);
+      await logAudit(fastify, request.tenantId, request.user.sub, "employee", employee.id, "employee.created");
       invalidateReadiness(request.tenantId);
       return reply.status(201).send(employee);
     },
@@ -94,6 +112,9 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
     handler: async (request) => {
       const body = updateSchema.parse(request.body);
       const updated = await employeesService.update(fastify, request.tenantId, request.params.id, body);
+      await logAudit(fastify, request.tenantId, request.user.sub, "employee", request.params.id, "employee.updated", undefined, {
+        fields: Object.keys(body),
+      });
       invalidateReadiness(request.tenantId); // activ/inactiv schimbă avertismentele de semnatari
       return updated;
     },
@@ -119,7 +140,9 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
     onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request, reply) => {
       const body = certificationInputSchema.parse(request.body);
-      return reply.status(201).send(await createCertification(fastify, request.tenantId, request.params.id, body));
+      return reply
+        .status(201)
+        .send(await createCertification(fastify, request.tenantId, request.params.id, body, request.user.sub));
     },
   });
 
@@ -127,28 +150,57 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
     onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request) => {
       const body = certificationUpdateSchema.parse(request.body);
-      return updateCertification(fastify, request.tenantId, request.params.id, request.params.certId, body);
+      return updateCertification(fastify, request.tenantId, request.params.id, request.params.certId, body, request.user.sub);
     },
   });
 
   fastify.delete<{ Params: CertParams }>("/:id/certifications/:certId", {
     onRequest: [requireRole("ADMIN", "MANAGER")],
-    handler: async (request) => deleteCertification(fastify, request.tenantId, request.params.id, request.params.certId),
+    handler: async (request) =>
+      deleteCertification(fastify, request.tenantId, request.params.id, request.params.certId, request.user.sub),
   });
 
-  fastify.post<{ Params: CertParams }>("/:id/certifications/:certId/stamp", {
+  // ── Ștampile (o ștampilă include 1..n certificări ale aceleiași autorități) ──
+  type StampParams = { id: string; stampId: string };
+
+  fastify.get<{ Params: { id: string } }>("/:id/stamps", async (request) => {
+    return listStamps(fastify, request.tenantId, request.params.id);
+  });
+
+  fastify.post<{ Params: { id: string } }>("/:id/stamps", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request, reply) => {
+      const body = stampInputSchema.parse(request.body);
+      return reply.status(201).send(await createStamp(fastify, request.tenantId, request.params.id, body, request.user.sub));
+    },
+  });
+
+  fastify.patch<{ Params: StampParams }>("/:id/stamps/:stampId", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request) => {
+      const body = stampUpdateSchema.parse(request.body);
+      return updateStamp(fastify, request.tenantId, request.params.id, request.params.stampId, body, request.user.sub);
+    },
+  });
+
+  fastify.delete<{ Params: StampParams }>("/:id/stamps/:stampId", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    handler: async (request) => deleteStamp(fastify, request.tenantId, request.params.id, request.params.stampId, request.user.sub),
+  });
+
+  fastify.post<{ Params: StampParams }>("/:id/stamps/:stampId/image", {
     onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request) => {
       const file = await request.file();
       if (!file) throw fastify.httpErrors.badRequest("Alege o imagine cu ștampila");
       if (!file.mimetype.startsWith("image/")) throw fastify.httpErrors.badRequest("Ștampila trebuie să fie o imagine");
-      return setCertificationStamp(fastify, request.tenantId, request.params.id, request.params.certId, await file.toBuffer());
+      return setStampImage(fastify, request.tenantId, request.params.id, request.params.stampId, await file.toBuffer(), request.user.sub);
     },
   });
 
-  fastify.delete<{ Params: CertParams }>("/:id/certifications/:certId/stamp", {
+  fastify.delete<{ Params: StampParams }>("/:id/stamps/:stampId/image", {
     onRequest: [requireRole("ADMIN", "MANAGER")],
-    handler: async (request) => removeCertificationStamp(fastify, request.tenantId, request.params.id, request.params.certId),
+    handler: async (request) => removeStampImage(fastify, request.tenantId, request.params.id, request.params.stampId, request.user.sub),
   });
 
   // Invitație în aplicația mobilă (text WhatsApp/SMS + e-mailul contului legat).
@@ -172,6 +224,7 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
         request.params.id,
         dataUrl,
       );
+      await logAudit(fastify, request.tenantId, request.user.sub, "employee", request.params.id, "signature.set");
       return reply.send(result);
     },
   });
@@ -179,7 +232,9 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: { id: string } }>("/:id/signature", {
     onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request) => {
-      return employeesService.removeSignature(fastify, request.tenantId, request.params.id);
+      const removed = await employeesService.removeSignature(fastify, request.tenantId, request.params.id);
+      await logAudit(fastify, request.tenantId, request.user.sub, "employee", request.params.id, "signature.removed");
+      return removed;
     },
   });
 }

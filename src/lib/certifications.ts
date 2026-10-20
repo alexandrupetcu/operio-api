@@ -68,7 +68,8 @@ export interface CertLike {
   domain: string | null;
   issuedAt: Date | null;
   expiresAt: Date | null;
-  stampS3Key: string | null;
+  /** Ștampila pe care e trecută certificarea (cel mult una). */
+  stamp?: { s3Key: string | null } | null;
 }
 
 /** Numele afișat: eticheta catalogului sau, pentru „other”, numele dat de utilizator. */
@@ -120,16 +121,19 @@ export function certForRole<T extends Pick<CertLike, "type">>(role: SignatoryRol
   return undefined;
 }
 
+/** Autoritatea unei certificări = grupul din catalog („ANRE”, „ISCIR”…); ștampila o are la fel. */
+export const STAMP_AUTHORITIES: CertGroup[] = ["ANRE", "ISCIR", "Construcții", "Altele"];
+export function authorityOf(type: string): CertGroup {
+  return certType(type)?.group ?? "Altele";
+}
+
 /**
- * Ștampila de pus pentru o certificare: a ei, altfel a oricărei certificări a
- * aceluiași om din aceeași autoritate (ștampila de instalator ANRE acoperă EGIU,
- * PGIU, PGD — se încarcă o singură dată).
+ * Ștampila de pus pentru o certificare: imaginea ștampilei pe care e trecută —
+ * explicit, fără împrumut de la alte certificări (o ștampilă ISCIR doar cu RSL-IP
+ * nu ajunge în caseta RVT). `null` dacă nu e pe nicio ștampilă sau ștampila n-are imagine.
  */
-export function stampFor<T extends Pick<CertLike, "type" | "stampS3Key">>(cert: T, all: T[]): string | null {
-  if (cert.stampS3Key) return cert.stampS3Key;
-  const group = certType(cert.type)?.group;
-  if (!group || group === "Altele") return null;
-  return all.find((c) => c.stampS3Key && certType(c.type)?.group === group)?.stampS3Key ?? null;
+export function stampOf(cert: Pick<CertLike, "stamp">): string | null {
+  return cert.stamp?.s3Key ?? null;
 }
 
 // ── Compatibilitate cu variabilele dosarelor de proiect ({rol}_legitimatie…) ──

@@ -1294,7 +1294,7 @@ async function processJob(job: Job<DocumentJobData>) {
                   lastName: true,
                   signatureS3Key: true,
                   certifications: {
-                    select: { type: true, number: true, domain: true, issuedAt: true, expiresAt: true, stampS3Key: true },
+                    select: { type: true, number: true, domain: true, issuedAt: true, expiresAt: true, stamp: { select: { s3Key: true } } },
                   },
                 },
               },
@@ -1595,7 +1595,7 @@ async function processJob(job: Job<DocumentJobData>) {
                 where: { id: empId, tenantId },
                 include: {
                   certifications: {
-                    select: { type: true, number: true, domain: true, issuedAt: true, expiresAt: true, stampS3Key: true },
+                    select: { type: true, number: true, domain: true, issuedAt: true, expiresAt: true, stamp: { select: { s3Key: true } } },
                   },
                 },
               })

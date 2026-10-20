@@ -94,7 +94,7 @@ export async function sendCertificationExpiryNotifications(db: PrismaClient, ten
         category: "tasks",
         subject,
         body,
-        url: `/employees?id=${c.employee.id}`,
+        url: `/employees/${c.employee.id}`,
         dedupeKey: `due:cert:${c.id}:${c.expiresAt.toISOString().slice(0, 10)}:${bucket}`,
       });
       if (!res.skipped) sent++;

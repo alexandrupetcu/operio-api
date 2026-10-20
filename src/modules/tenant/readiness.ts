@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { readCompanySettings } from "./company-settings.js";
 import { readSampleSettings, excludeSampleAppointments } from "./sample-settings.js";
-import { SIGNATORY_ROLES, certForRole, stampFor, type SignatoryRole } from "../../lib/certifications.js";
+import { SIGNATORY_ROLES, certForRole, stampOf, type SignatoryRole } from "../../lib/certifications.js";
 
 /**
  * Lista de pornire a unei firme noi („ești gata să emiți documente?”). Fiecare
@@ -159,7 +159,7 @@ async function signatoryWarnings(
   if (relevant.length === 0) return [];
   const employees = await fastify.prisma.employee.findMany({
     where: { tenantId, isActive: true },
-    select: { certifications: { select: { type: true, expiresAt: true, stampS3Key: true } } },
+    select: { certifications: { select: { type: true, expiresAt: true, stamp: { select: { s3Key: true } } } } },
   });
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
@@ -187,7 +187,7 @@ async function signatoryWarnings(
         title: `Certificarea de ${noun} a expirat`,
         description: `Toate certificările de ${noun} din echipă au expirat. ${docs} nu ar trebui emise până nu actualizezi data de valabilitate.`,
       });
-    } else if (!valid.some((h) => stampFor(h.cert, h.all))) {
+    } else if (!valid.some((h) => stampOf(h.cert))) {
       out.push({
         ...base,
         level: "no_stamp",

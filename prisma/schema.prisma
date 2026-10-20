@@ -54,6 +54,7 @@ model Tenant {
   services                Service[]
   employees               Employee[]
   employeeCertifications  EmployeeCertification[]
+  employeeStamps          EmployeeStamp[]
   vehicles                Vehicle[]
   workflowDefinitions     WorkflowDefinition[]
   workflowInstances       WorkflowInstance[]
@@ -767,8 +768,29 @@ model Employee {
   teamAssignments ProjectTeamMember[]
   appointments    Appointment[]
   certifications  EmployeeCertification[]
+  stamps          EmployeeStamp[]
 
   @@index([tenantId])
+}
+
+/// Ștampila personală a unui angajat/colaborator (ex. „Ștampilă instalator” ANRE
+/// cu EGIU + PGIU + PGD). Include 1..n certificări ale aceleiași autorități; o
+/// certificare stă pe cel mult o ștampilă (`EmployeeCertification.stampId`). Pe
+/// document se pune ștampila pe care e trecută certificarea folosită.
+model EmployeeStamp {
+  id             String                  @id @default(cuid())
+  tenantId       String
+  tenant         Tenant                  @relation(fields: [tenantId], references: [id])
+  employeeId     String
+  employee       Employee                @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name           String
+  authority      String // "ANRE" | "ISCIR" | "Construcții" | "Altele" — grupul din catalogul de certificări
+  s3Key          String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  certifications EmployeeCertification[]
+
+  @@index([employeeId])
 }
 
 /// O certificare profesională a unui angajat sau colaborator: legitimație ANRE
@@ -777,21 +799,22 @@ model Employee {
 /// e opțională și poate fi pusă pe una singură dintr-o autoritate (ex. ștampila
 /// de instalator acoperă EGIU + PGIU + PGD).
 model EmployeeCertification {
-  id         String    @id @default(cuid())
+  id         String         @id @default(cuid())
   tenantId   String
-  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  tenant     Tenant         @relation(fields: [tenantId], references: [id])
   employeeId String
-  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   type       String // cod din catalog (ex. "anre_egiu", "iscir_rvt") sau "other"
   label      String? // numele afișat pentru "other"
   number     String? // nr. legitimație / atestat / autorizație
   domain     String? // domeniu / categorie / poanson — după tip (eticheta vine din catalog)
-  issuedAt   DateTime? @db.Date
-  expiresAt  DateTime? @db.Date
-  stampS3Key String?
+  issuedAt   DateTime?      @db.Date
+  expiresAt  DateTime?      @db.Date
+  stampId    String?
+  stamp      EmployeeStamp? @relation(fields: [stampId], references: [id], onDelete: SetNull)
   notes      String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   @@index([tenantId, expiresAt])
   @@index([employeeId])

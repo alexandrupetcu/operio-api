@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { CERT_TYPE_CODES, certDisplayName } from "../../lib/certifications.js";
-import { uploadFile, deleteFile, getPresignedUrl } from "../../lib/s3.js";
-import { removeWhiteBackground } from "../../lib/image.js";
+import { CERT_TYPE_CODES, authorityOf, certDisplayName, certType } from "../../lib/certifications.js";
+import { getPresignedUrl } from "../../lib/s3.js";
+import { logAudit } from "../../lib/audit.js";
 import { invalidateReadiness } from "../tenant/readiness.js";
 
 const optText = (max: number) =>
@@ -21,6 +21,8 @@ export const certificationInputSchema = z
     issuedAt: optDate,
     expiresAt: optDate,
     notes: optText(500),
+    // Pe ce ștampilă e trecută: id-ul uneia existente, „new” (una nouă, goală) sau null.
+    stampId: z.string().min(1).nullable().optional(),
   })
   .refine((c) => c.type !== "other" || !!c.label, { message: "Dă un nume certificării", path: ["label"] });
 
@@ -33,6 +35,7 @@ export const certificationUpdateSchema = z
     issuedAt: optDate,
     expiresAt: optDate,
     notes: optText(500),
+    stampId: z.string().min(1).nullable().optional(),
   });
 
 export type CertificationInput = z.infer<typeof certificationInputSchema>;
@@ -49,20 +52,50 @@ const certSelect = {
   domain: true,
   issuedAt: true,
   expiresAt: true,
-  stampS3Key: true,
+  stampId: true,
+  stamp: { select: { id: true, name: true, s3Key: true } },
   notes: true,
   createdAt: true,
   updatedAt: true,
 } as const;
 
-type CertRow = { stampS3Key: string | null; type: string; label: string | null };
+type CertRow = { stamp: { s3Key: string | null } | null; type: string; label: string | null };
 
 async function present<T extends CertRow>(c: T) {
   return {
     ...c,
     displayName: certDisplayName(c),
-    stampUrl: c.stampS3Key ? await getPresignedUrl(c.stampS3Key) : null,
+    stampUrl: c.stamp?.s3Key ? await getPresignedUrl(c.stamp.s3Key) : null,
   };
+}
+
+const auditLabel = (c: { type: string; label: string | null; number?: string | null }) =>
+  ({ code: certType(c.type)?.short || certDisplayName(c), number: c.number ?? null });
+
+/**
+ * `stampId` din formular → id-ul real: „new” creează o ștampilă goală a autorității
+ * certificării; un id existent trebuie să fie al aceluiași angajat și al aceleiași
+ * autorități. `undefined` = nu se schimbă.
+ */
+async function resolveStampId(
+  fastify: FastifyInstance,
+  tenantId: string,
+  employeeId: string,
+  type: string,
+  stampId: string | null | undefined,
+): Promise<string | null | undefined> {
+  if (stampId === undefined || stampId === null) return stampId;
+  const authority = authorityOf(type);
+  if (stampId === "new") {
+    const s = await fastify.prisma.employeeStamp.create({
+      data: { tenantId, employeeId, authority, name: `Ștampilă ${authority === "Altele" ? certType(type)?.short || "personală" : authority}` },
+    });
+    return s.id;
+  }
+  const s = await fastify.prisma.employeeStamp.findFirst({ where: { id: stampId, employeeId, tenantId }, select: { authority: true } });
+  if (!s) throw fastify.httpErrors.notFound("Ștampila nu există");
+  if (s.authority !== authority) throw fastify.httpErrors.badRequest(`Certificarea ${authority} nu poate sta pe o ștampilă ${s.authority}`);
+  return stampId;
 }
 
 async function employeeOrThrow(fastify: FastifyInstance, tenantId: string, employeeId: string) {
@@ -95,8 +128,10 @@ export async function createCertification(
   tenantId: string,
   employeeId: string,
   input: CertificationInput,
+  actorUserId: string | null = null,
 ) {
   await employeeOrThrow(fastify, tenantId, employeeId);
+  const stampId = await resolveStampId(fastify, tenantId, employeeId, input.type, input.stampId);
   const row = await fastify.prisma.employeeCertification.create({
     data: {
       tenantId,
@@ -108,9 +143,11 @@ export async function createCertification(
       issuedAt: toDate(input.issuedAt) ?? null,
       expiresAt: toDate(input.expiresAt) ?? null,
       notes: input.notes ?? null,
+      stampId: stampId ?? null,
     },
     select: certSelect,
   });
+  await logAudit(fastify, tenantId, actorUserId, "employee", employeeId, "certification.created", undefined, auditLabel(row));
   invalidateReadiness(tenantId);
   return present(row);
 }
@@ -121,11 +158,15 @@ export async function updateCertification(
   employeeId: string,
   certId: string,
   input: CertificationUpdate,
+  actorUserId: string | null = null,
 ) {
   const current = await certOrThrow(fastify, tenantId, employeeId, certId);
   const type = input.type ?? current.type;
   const label = input.label !== undefined ? input.label : current.label;
   if (type === "other" && !label) throw fastify.httpErrors.badRequest("Dă un nume certificării");
+  let stampId = await resolveStampId(fastify, tenantId, employeeId, type, input.stampId);
+  // Tipul s-a schimbat în altă autoritate: nu mai poate sta pe ștampila veche.
+  if (stampId === undefined && current.stampId && authorityOf(type) !== authorityOf(current.type)) stampId = null;
   const row = await fastify.prisma.employeeCertification.update({
     where: { id: certId },
     data: {
@@ -136,46 +177,26 @@ export async function updateCertification(
       ...(input.issuedAt !== undefined && { issuedAt: toDate(input.issuedAt) }),
       ...(input.expiresAt !== undefined && { expiresAt: toDate(input.expiresAt) }),
       ...(input.notes !== undefined && { notes: input.notes }),
+      ...(stampId !== undefined && { stampId }),
     },
     select: certSelect,
   });
+  await logAudit(fastify, tenantId, actorUserId, "employee", employeeId, "certification.updated", auditLabel(current), auditLabel(row));
   invalidateReadiness(tenantId);
   return present(row);
 }
 
-export async function deleteCertification(fastify: FastifyInstance, tenantId: string, employeeId: string, certId: string) {
-  const current = await certOrThrow(fastify, tenantId, employeeId, certId);
-  await fastify.prisma.employeeCertification.delete({ where: { id: certId } });
-  if (current.stampS3Key) await deleteFile(current.stampS3Key).catch(() => {});
-  invalidateReadiness(tenantId);
-  return { deleted: true };
-}
-
-/** Ștampila certificării (fundalul alb devine transparent, ca la ștampilele firmei). */
-export async function setCertificationStamp(
+export async function deleteCertification(
   fastify: FastifyInstance,
   tenantId: string,
   employeeId: string,
   certId: string,
-  image: Buffer,
+  actorUserId: string | null = null,
 ) {
   const current = await certOrThrow(fastify, tenantId, employeeId, certId);
-  const png = await removeWhiteBackground(image);
-  // Cheie nouă la fiecare încărcare: URL-urile vechi (cache) nu arată imaginea veche.
-  const key = `${tenantId}/employees/${employeeId}/cert-${certId}-${Date.now()}.png`;
-  await uploadFile(key, png, "image/png");
-  await fastify.prisma.employeeCertification.update({ where: { id: certId }, data: { stampS3Key: key } });
-  if (current.stampS3Key) await deleteFile(current.stampS3Key).catch(() => {});
+  // Imaginea ștampilei stă pe ștampilă (care poate include și alte certificări) — rămâne.
+  await fastify.prisma.employeeCertification.delete({ where: { id: certId } });
+  await logAudit(fastify, tenantId, actorUserId, "employee", employeeId, "certification.deleted", auditLabel(current));
   invalidateReadiness(tenantId);
-  return present({ ...current, stampS3Key: key });
-}
-
-export async function removeCertificationStamp(fastify: FastifyInstance, tenantId: string, employeeId: string, certId: string) {
-  const current = await certOrThrow(fastify, tenantId, employeeId, certId);
-  if (current.stampS3Key) {
-    await fastify.prisma.employeeCertification.update({ where: { id: certId }, data: { stampS3Key: null } });
-    await deleteFile(current.stampS3Key).catch(() => {});
-  }
-  invalidateReadiness(tenantId);
-  return present({ ...current, stampS3Key: null });
+  return { deleted: true };
 }

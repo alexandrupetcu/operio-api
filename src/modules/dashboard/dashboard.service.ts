@@ -628,7 +628,7 @@ export async function getActionFeed(
         tone: d < 0 ? "danger" : d <= 30 ? "warn" : "yellow",
         action: "Vezi angajat",
         actionPrimary: d < 0,
-        href: `/employees?id=${c.employee.id}`,
+        href: `/employees/${c.employee.id}`,
         priority: d < 0 ? 1 : d <= 30 ? 2 : 4,
         conditionRef: c.expiresAt.toISOString(),
       });

@@ -4,7 +4,8 @@ import {
   certDisplayName,
   certForRole,
   legacyCredentialsFromCerts,
-  stampFor,
+  stampOf,
+  authorityOf,
   type CertLike,
 } from "./certifications.js";
 
@@ -14,7 +15,6 @@ const cert = (type: string, over: Partial<CertLike> = {}): CertLike => ({
   domain: null,
   issuedAt: null,
   expiresAt: null,
-  stampS3Key: null,
   ...over,
 });
 
@@ -46,20 +46,20 @@ describe("certForRole", () => {
   });
 });
 
-describe("stampFor", () => {
-  it("ștampila de instalator, încărcată pe PGD, acoperă și EGIU-ul aceluiași om", () => {
-    const certs = [cert("anre_egiu"), cert("anre_pgd", { stampS3Key: "t/stamp-anre.png" })];
-    expect(stampFor(certs[0], certs)).toBe("t/stamp-anre.png");
+describe("stampOf", () => {
+  it("ștampila pe care e trecută certificarea; fără ștampilă sau fără imagine → null", () => {
+    expect(stampOf(cert("anre_egiu", { stamp: { s3Key: "t/anre.png" } }))).toBe("t/anre.png")
+    expect(stampOf(cert("iscir_rvt", { stamp: { s3Key: null } }))).toBeNull()
+    expect(stampOf(cert("iscir_rvt"))).toBeNull()
   });
+});
 
-  it("nu împrumută ștampila altei autorități (ANRE ≠ ISCIR)", () => {
-    const certs = [cert("iscir_rvt"), cert("anre_egiu", { stampS3Key: "t/anre.png" })];
-    expect(stampFor(certs[0], certs)).toBeNull();
-  });
-
-  it("ștampila proprie a certificării are prioritate", () => {
-    const certs = [cert("iscir_rvt", { stampS3Key: "t/rvt.png" }), cert("iscir_rsl", { stampS3Key: "t/rsl.png" })];
-    expect(stampFor(certs[1], certs)).toBe("t/rsl.png");
+describe("authorityOf", () => {
+  it("autoritatea vine din grupul catalogului", () => {
+    expect(authorityOf("anre_pgd")).toBe("ANRE");
+    expect(authorityOf("iscir_rsl")).toBe("ISCIR");
+    expect(authorityOf("rte")).toBe("Construcții");
+    expect(authorityOf("other")).toBe("Altele");
   });
 });
 

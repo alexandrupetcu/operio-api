@@ -6,7 +6,7 @@ import {
   SIGNATORY_ROLE_KEYS,
   certForRole,
   certTypesForRole,
-  stampFor,
+  stampOf,
   type SignatoryRole,
 } from "../../lib/certifications.js";
 
@@ -49,7 +49,7 @@ export async function getSignatories(db: Db, tenantId: string) {
       firstName: true,
       lastName: true,
       employeeType: true,
-      certifications: { select: { type: true, number: true, expiresAt: true, stampS3Key: true } },
+      certifications: { select: { type: true, number: true, expiresAt: true, stamp: { select: { s3Key: true } } } },
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
@@ -67,7 +67,7 @@ export async function getSignatories(db: Db, tenantId: string) {
             certType: cert.type,
             number: cert.number,
             expiresAt: cert.expiresAt,
-            hasStamp: !!stampFor(cert, e.certifications),
+            hasStamp: !!stampOf(cert),
           },
         ];
       });
@@ -152,7 +152,7 @@ export async function resolveSignatory(
         lastName: true,
         signatureS3Key: true,
         certifications: {
-          select: { type: true, number: true, domain: true, issuedAt: true, expiresAt: true, stampS3Key: true },
+          select: { type: true, number: true, domain: true, issuedAt: true, expiresAt: true, stamp: { select: { s3Key: true } } },
         },
       },
     });
@@ -165,7 +165,7 @@ export async function resolveSignatory(
       number: cert.number,
       issuedAt: cert.issuedAt,
       expiresAt: cert.expiresAt,
-      stampS3Key: stampFor(cert, e.certifications),
+      stampS3Key: stampOf(cert),
       signatureS3Key: e.signatureS3Key,
       source,
     };

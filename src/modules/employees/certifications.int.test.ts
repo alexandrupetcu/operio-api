@@ -16,6 +16,7 @@ vi.mock("../../lib/web-push.js", () => ({ sendWebPush: vi.fn(async () => ({ ok: 
 vi.mock("../../lib/expo-push.js", () => ({ sendExpoPush: vi.fn(async () => ({ ok: [], invalid: [] })), isValidExpoToken: () => true }));
 
 import * as certs from "./certifications.service.js";
+import * as stamps from "./stamps.service.js";
 import { sendCertificationExpiryNotifications, listExpiringAuthorizations } from "./certification-alerts.js";
 import { getSignatories, resolveSignatory, setSignatories } from "../tenant/signatories.js";
 
@@ -38,11 +39,9 @@ const person = (tenantId: string, firstName: string, over: Record<string, unknow
   prisma.employee.create({ data: { tenantId, firstName, lastName: "Test", ...over } });
 
 describe("certificările unui angajat", () => {
-  it("un om poate avea mai multe certificări; ștampila se pune pe una și primește cheie în folderul firmei", async () => {
+  it("un om poate avea mai multe certificări, cu datele lor", async () => {
     await certs.createCertification(app, f.a.id, f.a.employeeId, input({ expiresAt: "2026-08-09" }));
-    const pgd = await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "anre_pgd", number: "211180011" }));
-    const withStamp = await certs.setCertificationStamp(app, f.a.id, f.a.employeeId, pgd.id, Buffer.from("png"));
-    expect(withStamp.stampS3Key).toMatch(new RegExp(`^${f.a.id}/employees/${f.a.employeeId}/cert-`));
+    await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "anre_pgd", number: "211180011" }));
 
     const list = await certs.listCertifications(app, f.a.id, f.a.employeeId);
     expect(list.map((c) => c.type)).toEqual(["anre_egiu", "anre_pgd"]);
@@ -59,7 +58,7 @@ describe("certificările unui angajat", () => {
     expect((await expectReject(() => certs.createCertification(app, f.a.id, f.b.employeeId, input({})))).status).toBe(404);
     const theirs = await certs.createCertification(app, f.b.id, f.b.employeeId, input({}));
     expect((await expectReject(() => certs.deleteCertification(app, f.a.id, f.b.employeeId, theirs.id))).status).toBe(404);
-    expect((await expectReject(() => certs.setCertificationStamp(app, f.a.id, f.a.employeeId, theirs.id, Buffer.from("x")))).status).toBe(404);
+    expect((await expectReject(() => certs.updateCertification(app, f.a.id, f.b.employeeId, theirs.id, {}))).status).toBe(404);
     expect(await prisma.employeeCertification.count({ where: { id: theirs.id } })).toBe(1);
     expect(s3.uploaded).toHaveLength(0);
   });
@@ -115,12 +114,13 @@ describe("semnatari impliciți (instalator / RVT / RSL-IP)", () => {
     expect(await resolveSignatory(prisma, f.a.id, "rvt")).toBeNull();
   });
 
-  it("ștampila de instalator pusă pe PGD ajunge pe documentele semnate cu EGIU", async () => {
-    await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "anre_egiu" }));
+  it("ștampila de instalator care include EGIU + PGD ajunge pe documentele semnate cu EGIU", async () => {
+    const egiu = await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "anre_egiu" }));
     const pgd = await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "anre_pgd" }));
-    const stamped = await certs.setCertificationStamp(app, f.a.id, f.a.employeeId, pgd.id, Buffer.from("png"));
+    const s = await stamps.createStamp(app, f.a.id, f.a.employeeId, { name: "Ștampilă instalator", authority: "ANRE", certIds: [egiu.id, pgd.id] }, null);
+    const withImage = await stamps.setStampImage(app, f.a.id, f.a.employeeId, s.id, Buffer.from("png"), null);
     const r = await resolveSignatory(prisma, f.a.id, "instalator", { technicianEmployeeId: f.a.employeeId });
-    expect([r?.certType, r?.stampS3Key]).toEqual(["anre_egiu", stamped.stampS3Key]);
+    expect([r?.certType, r?.stampS3Key]).toEqual(["anre_egiu", withImage.s3Key]);
   });
 });
 
@@ -178,5 +178,66 @@ describe("autorizațiile firmei (ANRE / ISCIR) care expiră", () => {
   it("altă firmă nu primește alertele lui A", async () => {
     await setCompany({ anreExp: "08.12.2025" });
     expect(await listExpiringAuthorizations(prisma, f.b.id, 60, NOW)).toEqual([]);
+  });
+});
+
+describe("ștampilele unui angajat (o ștampilă include 1..n certificări)", () => {
+  const actor = () => f.a.admin.id;
+
+  it("o certificare se mută de pe o ștampilă pe alta; cea veche o pierde", async () => {
+    const rvt = await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "iscir_rvt" }));
+    const one = await stamps.createStamp(app, f.a.id, f.a.employeeId, { name: "ISCIR 1", authority: "ISCIR", certIds: [rvt.id] }, actor());
+    const two = await stamps.createStamp(app, f.a.id, f.a.employeeId, { name: "ISCIR 2", authority: "ISCIR" }, actor());
+    await stamps.updateStamp(app, f.a.id, f.a.employeeId, two.id, { certIds: [rvt.id] }, actor());
+
+    const list = await stamps.listStamps(app, f.a.id, f.a.employeeId);
+    expect(list.find((s) => s.id === one.id)!.certifications).toEqual([]);
+    expect(list.find((s) => s.id === two.id)!.certifications.map((c) => c.id)).toEqual([rvt.id]);
+  });
+
+  it("certificările altei autorități nu pot sta pe ștampilă (400)", async () => {
+    const egiu = await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "anre_egiu" }));
+    const err = await expectReject(() =>
+      stamps.createStamp(app, f.a.id, f.a.employeeId, { name: "ISCIR", authority: "ISCIR", certIds: [egiu.id] }, actor()),
+    );
+    expect(err.status).toBe(400);
+    const s = await stamps.createStamp(app, f.a.id, f.a.employeeId, { name: "ISCIR", authority: "ISCIR" }, actor());
+    expect((await expectReject(() => certs.updateCertification(app, f.a.id, f.a.employeeId, egiu.id, { stampId: s.id }))).status).toBe(400);
+  });
+
+  it("„Ștampilă nouă” din formularul certificării creează una a autorității ei", async () => {
+    const c = await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "iscir_rsl", stampId: "new" }));
+    expect(c.stamp?.name).toBe("Ștampilă ISCIR");
+    const [s] = await stamps.listStamps(app, f.a.id, f.a.employeeId);
+    expect([s.authority, s.certifications.map((x) => x.id)]).toEqual(["ISCIR", [c.id]]);
+  });
+
+  it("ștergerea ștampilei lasă certificările fără ștampilă; schimbarea tipului în altă autoritate o desprinde", async () => {
+    const rvt = await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "iscir_rvt", stampId: "new" }));
+    await stamps.deleteStamp(app, f.a.id, f.a.employeeId, rvt.stamp!.id, actor());
+    expect((await prisma.employeeCertification.findUnique({ where: { id: rvt.id } }))!.stampId).toBeNull();
+
+    const rsl = await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "iscir_rsl", stampId: "new" }));
+    const changed = await certs.updateCertification(app, f.a.id, f.a.employeeId, rsl.id, { type: "anre_egiu" });
+    expect(changed.stampId).toBeNull();
+  });
+
+  it("ștampila altei firme → 404; nimic urcat", async () => {
+    const theirs = await stamps.createStamp(app, f.b.id, f.b.employeeId, { name: "B", authority: "ANRE" }, null);
+    expect((await expectReject(() => stamps.setStampImage(app, f.a.id, f.b.employeeId, theirs.id, Buffer.from("x"), actor()))).status).toBe(404);
+    expect((await expectReject(() => stamps.deleteStamp(app, f.a.id, f.a.employeeId, theirs.id, actor()))).status).toBe(404);
+    expect(s3.uploaded).toHaveLength(0);
+  });
+
+  it("jurnalul angajatului înregistrează certificările și ștampilele, cu autorul", async () => {
+    const c = await certs.createCertification(app, f.a.id, f.a.employeeId, input({ type: "iscir_rvt" }), actor());
+    const s = await stamps.createStamp(app, f.a.id, f.a.employeeId, { name: "ISCIR", authority: "ISCIR", certIds: [c.id] }, actor());
+    await stamps.setStampImage(app, f.a.id, f.a.employeeId, s.id, Buffer.from("png"), actor());
+    const log = await prisma.auditLog.findMany({
+      where: { tenantId: f.a.id, entityType: "employee", entityId: f.a.employeeId },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(log.map((l) => l.action)).toEqual(["certification.created", "stamp.created", "stamp.image_set"]);
+    expect(log.every((l) => l.actorUserId === f.a.admin.id)).toBe(true);
   });
 });
