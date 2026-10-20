@@ -39,6 +39,33 @@ describe("certForRole", () => {
     expect(certForRole("instalator", [cert("anre_pgiu")])).toBeUndefined();
   });
 
+  it("două certificări de același tip: cea valabilă, nu cea expirată, oricare ar fi ordinea", () => {
+    const now = new Date("2026-10-20T10:00:00Z");
+    const old = cert("iscir_rsl", { number: "VECHI", expiresAt: new Date("2025-03-12") });
+    const renewed = cert("iscir_rsl", { number: "NOU", expiresAt: new Date("2030-03-12") });
+    expect(certForRole("rsl", [old, renewed], now)?.number).toBe("NOU");
+    expect(certForRole("rsl", [renewed, old], now)?.number).toBe("NOU");
+  });
+
+  it("dintre cele valabile, cea care expiră cel mai târziu; una fără dată după cele datate; doar expirate → cea mai recentă", () => {
+    const now = new Date("2026-10-20T10:00:00Z");
+    const a = cert("iscir_rvt", { number: "A", expiresAt: new Date("2027-01-01") });
+    const b = cert("iscir_rvt", { number: "B", expiresAt: new Date("2029-01-01") });
+    const undated = cert("iscir_rvt", { number: "FARA" });
+    expect(certForRole("rvt", [a, undated, b], now)?.number).toBe("B");
+    expect(certForRole("rvt", [undated, cert("iscir_rvt", { number: "EXP", expiresAt: new Date("2020-01-01") })], now)?.number).toBe("FARA");
+    const e1 = cert("iscir_rvt", { number: "E1", expiresAt: new Date("2020-01-01") });
+    const e2 = cert("iscir_rvt", { number: "E2", expiresAt: new Date("2024-01-01") });
+    expect(certForRole("rvt", [e1, e2], now)?.number).toBe("E2");
+  });
+
+  it("ordinea tipurilor rămâne prima regulă: EGIU (chiar expirat) înaintea EGD", () => {
+    const now = new Date("2026-10-20T10:00:00Z");
+    const egiu = cert("anre_egiu", { expiresAt: new Date("2026-08-09") });
+    const egd = cert("anre_egd", { expiresAt: new Date("2031-01-01") });
+    expect(certForRole("instalator", [egd, egiu], now)?.type).toBe("anre_egiu");
+  });
+
   it("RVT și RSL-IP sunt roluri separate, chiar dacă același om le are pe amândouă", () => {
     const certs = [cert("iscir_rsl"), cert("iscir_rvt")];
     expect(certForRole("rvt", certs)?.type).toBe("iscir_rvt");
@@ -79,6 +106,14 @@ describe("legacyCredentialsFromCerts — variabilele dosarelor de proiect", () =
     expect(
       legacyCredentialsFromCerts("sudor", [cert("iscir_sudor", { number: "OL-7", domain: "P12" }), cert("sudor_pe", { number: "PE-3" })]),
     ).toEqual({ autorizatie_ol_iscir: "OL-7", autorizatie_pe_iscir: "PE-3", poanson: "P12" });
+  });
+
+  it("atestat RTE reînnoit: dosarul primește cel valabil, nu cel expirat pus primul", () => {
+    const out = legacyCredentialsFromCerts("rte", [
+      cert("rte", { number: "VECHI", expiresAt: new Date("2020-01-01") }),
+      cert("rte", { number: "NOU", expiresAt: new Date("2099-01-01") }),
+    ]);
+    expect(out.atestat).toBe("NOU");
   });
 
   it("fără certificare potrivită → nimic (rămân valorile vechi din credentials)", () => {

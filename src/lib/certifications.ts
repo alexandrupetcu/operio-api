@@ -112,11 +112,33 @@ export function certTypesForRole(role: SignatoryRole): readonly string[] {
   return SIGNATORY_ROLES.find((r) => r.key === role)!.certTypes;
 }
 
-/** Prima certificare potrivită rolului, în ordinea preferinței din catalog. */
-export function certForRole<T extends Pick<CertLike, "type">>(role: SignatoryRole, certs: T[]): T | undefined {
-  for (const type of certTypesForRole(role)) {
-    const hit = certs.find((c) => c.type === type);
-    if (hit) return hit;
+/**
+ * Certificarea cu care semnează persoana pentru `role`. Întâi tipul, în ordinea
+ * preferinței din catalog (instalator: EGIU › EGD › …). Între mai multe de același
+ * tip (ex. atestatul vechi și cel reînnoit): o valabilă, cea care expiră cel mai
+ * târziu; apoi una fără dată de expirare; abia la urmă una expirată (cea mai recentă).
+ */
+export function certForRole<T extends Pick<CertLike, "type"> & { expiresAt?: Date | null }>(
+  role: SignatoryRole,
+  certs: T[],
+  now = new Date(),
+): T | undefined {
+  return bestOfTypes(certTypesForRole(role), certs, now);
+}
+
+/** Prima dintre `types` (în ordine) pe care persoana o are, aleasă ca în `certForRole`. */
+export function bestOfTypes<T extends Pick<CertLike, "type"> & { expiresAt?: Date | null }>(
+  types: readonly string[],
+  certs: T[],
+  now = new Date(),
+): T | undefined {
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  // Rang: 0 = valabilă (datată), 1 = fără dată, 2 = expirată; în rang, expirarea cea mai târzie.
+  const rank = (c: T) => (!c.expiresAt ? 1 : c.expiresAt.getTime() >= today ? 0 : 2);
+  for (const type of types) {
+    const same = certs.filter((c) => c.type === type);
+    if (same.length === 0) continue;
+    return [...same].sort((a, b) => rank(a) - rank(b) || (b.expiresAt?.getTime() ?? 0) - (a.expiresAt?.getTime() ?? 0))[0];
   }
   return undefined;
 }
@@ -151,7 +173,7 @@ export function legacyCredentialsFromCerts(position: string | null | undefined, 
   const put = (k: string, v: string | null | undefined) => {
     if (v && v.trim()) out[k] = v.trim();
   };
-  const pick = (types: string[]) => types.map((t) => certs.find((c) => c.type === t)).find(Boolean);
+  const pick = (types: string[]) => bestOfTypes(types, certs);
   const anreLike = (c: CertLike | undefined) => {
     if (!c) return;
     put("legitimatie", c.number);
