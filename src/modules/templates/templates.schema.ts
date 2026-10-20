@@ -17,6 +17,9 @@ export const updateTemplateSchema = z.object({
   content: z.string().optional(),
   sortOrder: z.number().int().optional(),
   isActive: z.boolean().optional(),
+  // Grupurile DOCX: codul distribuitorului (`Distributor.code`) pentru secțiunea „Dosare”.
+  distributorCode: z.string().trim().max(40).regex(/^[A-Z0-9_]*$/).nullable().optional()
+    .transform((v) => (v === "" ? null : v)),
 });
 
 // Template categories (platform-global, master admin only) — mirrors the

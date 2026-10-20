@@ -16,6 +16,7 @@ import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
 import clientsRoutes from "./modules/clients/clients.routes.js";
 import projectsRoutes from "./modules/projects/projects.routes.js";
+import dossiersRoutes from "./modules/dossiers/dossiers.routes.js";
 import projectTeamRoutes from "./modules/projects/project-team.routes.js";
 import projectTypesRoutes from "./modules/project-types/project-types.routes.js";
 import distributorsRoutes from "./modules/distributors/distributors.routes.js";
@@ -225,6 +226,7 @@ export async function buildServer() {
   await fastify.register(usersRoutes, { prefix: "/api/users" });
   await fastify.register(clientsRoutes, { prefix: "/api/clients" });
   await fastify.register(projectsRoutes, { prefix: "/api/projects" });
+  await fastify.register(dossiersRoutes, { prefix: "/api/dossiers" });
   await fastify.register(projectTeamRoutes, { prefix: "/api/projects" });
   await fastify.register(projectTypesRoutes, { prefix: "/api/project-types" });
   await fastify.register(distributorsRoutes, { prefix: "/api/distributors" });

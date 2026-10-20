@@ -16,6 +16,8 @@ import { completeStep, failStep } from "../lib/workflow-engine/step-completion.j
 import { OPERATIUNI_LABELS, MAT_KINDS, materialClass } from "../modules/appointments/instalatie-constants.js";
 import { resolveStampSlots, stampVarName } from "../lib/stamps.js";
 import { stampWithSignatureHtml } from "../lib/stamp-html.js";
+import { withAliases } from "../lib/dossier-fields.js";
+import { companyDocVars } from "../lib/company-doc-vars.js";
 import { resolveSignatory, type ResolvedSignatory } from "../modules/tenant/signatories.js";
 import { certType } from "../lib/certifications.js";
 import { readCompanySettings } from "../modules/tenant/company-settings.js";
@@ -192,7 +194,8 @@ function buildTenantData(tenant: TenantInput) {
     tenant_admin_name: tenant.adminName || "",
     tenant_iscir_number: tenant.iscirNumber || "",
     tenant_iscir_date: tenant.iscirDate || "",
-    tenant_iscir_exp: readCompanySettings(tenant.settingsJson).iscirExp,
+    // Autorizația ANRE, cod poștal, IBAN… din Setări → Firmă (ca pe calea HTML).
+    ...companyDocVars(tenant.settingsJson),
   };
   // Pass all 4 stamp slots + signature as image references for DOCX rendering.
   // Slot 1 → {{tenant_stamp}} (legacy), slots 2-4 → {{tenant_stamp_N}}.
@@ -931,19 +934,7 @@ export async function buildHtmlTemplateData(
     "tenant_iscir_number": tenant.iscirNumber || "",
     "tenant_iscir_date": tenant.iscirDate || "",
     // Firm-constant fields for official gas-installation docs (settingsJson.company)
-    ...(() => {
-      const c = readCompanySettings(tenant.settingsJson);
-      return {
-        "tenant_anre_nr": c.anreNr,
-        "tenant_anre_tip": c.anreTip,
-        "tenant_anre_data": c.anreData,
-        "tenant_anre_exp": c.anreExp,
-        "tenant_iscir_exp": c.iscirExp,
-        "tenant_iban": c.iban,
-        "tenant_bank": c.bank,
-        "tenant_operator_sistem": c.operatorSistem,
-      };
-    })(),
+    ...companyDocVars(tenant.settingsJson),
     // Date
     "date": new Date().toLocaleDateString("ro-RO"),
     "year": new Date().getFullYear().toString(),
@@ -1307,9 +1298,11 @@ async function processJob(job: Job<DocumentJobData>) {
       Object.assign(data, buildClientData(project.client));
       // User JSON: reserved keys (tenant_*, *_signature, registry nr…) and
       // `{s3Key}` image refs are stripped before it reaches the template data.
-      const meta = sanitizeTemplateInput(project.metadata);
+      const meta = withAliases(sanitizeTemplateInput(project.metadata)) as ReturnType<typeof sanitizeTemplateInput>;
       Object.assign(data, {
         project_name: project.name,
+        // FD 029 (Dosar ISCIR) folosește `{PROJECT_NAME}` cu majuscule.
+        PROJECT_NAME: project.name,
         project_type: project.projectType.name,
         project_address: project.address,
         project_city: project.city,

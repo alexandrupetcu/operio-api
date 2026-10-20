@@ -91,6 +91,7 @@ const updateCompanySchema = z.object({
   anreData: z.string().max(20).optional(),
   anreExp: z.string().max(20).optional(),
   iscirExp: z.string().max(20).optional(),
+  postalCode: z.string().max(12).optional(),
   iban: z.string().max(40).optional(),
   bank: z.string().max(80).optional(),
   operatorSistem: z.string().max(80).optional(),

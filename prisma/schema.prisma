@@ -513,21 +513,25 @@ model TemplateCategory {
 }
 
 model DocumentTemplate {
-  id           String           @id @default(cuid())
-  tenantId     String?
-  tenant       Tenant?          @relation(fields: [tenantId], references: [id])
-  categoryCode String
-  category     TemplateCategory @relation(fields: [categoryCode], references: [code])
-  name         String
-  description  String?
-  content      String?          @db.Text
-  s3Key        String?
-  fileName     String? // editable display/download filename (DOCX members); falls back to the s3Key segment
-  type         String           @default("single") // "single" (HTML or DOCX) | "group" (bundle of DOCX members)
-  sortOrder    Int              @default(0)
-  isActive     Boolean          @default(true)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id              String           @id @default(cuid())
+  tenantId        String?
+  tenant          Tenant?          @relation(fields: [tenantId], references: [id])
+  categoryCode    String
+  category        TemplateCategory @relation(fields: [categoryCode], references: [code])
+  name            String
+  description     String?
+  content         String?          @db.Text
+  s3Key           String?
+  fileName        String? // editable display/download filename (DOCX members); falls back to the s3Key segment
+  type            String           @default("single") // "single" (HTML or DOCX) | "group" (bundle of DOCX members)
+  /// Grupurile DOCX pentru un distribuitor anume (Distrigaz, MegaConstruct…): codul
+  /// `Distributor.code`, comun tuturor firmelor (grupurile de sistem sunt globale,
+  /// distribuitorii sunt pe firmă). `null` = fără distribuitor (ex. Dosar ISCIR).
+  distributorCode String?
+  sortOrder       Int              @default(0)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   // DOCX Group: a "group" parent owns ordered "single" DOCX members.
   parentGroupId        String?

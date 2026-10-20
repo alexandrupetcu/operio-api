@@ -10,7 +10,7 @@ import type {
   QuickDossierInput,
   UpdateQuickDossierInput,
 } from "./clients.schema.js";
-import { generate as documentsGenerate } from "../documents/documents.service.js";
+import * as dossiersService from "../dossiers/dossiers.service.js";
 import { getSampleClientId } from "../tenant/sample-settings.js";
 
 /** Columns the client list may be sorted by (allowlist for `sortBy`). */
@@ -571,128 +571,41 @@ export async function updateInstallation(
 }
 
 // === Quick-dossier (client-level rapid generation) ===
+// Rutele vechi din fișa clientului; logica e în modules/dossiers (secțiunea „Dosare”).
 
-/**
- * Map template-group category → projectType code. Lets us back the hidden
- * quick-dossier Project with the same projectType the equivalent full project
- * would use, so any code that already keys behavior off projectType keeps
- * working without special-casing kind="quick_dossier".
- */
-const CATEGORY_TO_PROJECT_TYPE_CODE: Record<string, string> = {
-  CARTE_BRANSAMENT: "bransament",
-  CARTE_CONDUCTA: "conducta",
-  DOSAR_ISCIR: "dosar_iscir",
-};
-
-const dossierInclude = {
-  templateGroup: { select: { id: true, name: true, categoryCode: true } },
-  teamMembers: {
-    include: {
-      employee: { select: { id: true, firstName: true, lastName: true, position: true } },
-    },
-  },
-  projectType: { select: { id: true, code: true, name: true } },
-} as const;
-
-export async function listDossiers(
-  fastify: FastifyInstance,
-  tenantId: string,
-  clientId: string
-) {
+async function assertDossierOfClient(fastify: FastifyInstance, tenantId: string, clientId: string, dossierId: string) {
   await getById(fastify, tenantId, clientId);
-  return fastify.prisma.project.findMany({
-    where: { tenantId, clientId, kind: "quick_dossier" },
-    include: dossierInclude,
-    orderBy: { createdAt: "desc" as const },
-    take: 200,
+  const d = await fastify.prisma.project.findFirst({
+    where: { id: dossierId, tenantId, clientId, kind: "quick_dossier" },
+    select: { id: true },
   });
+  if (!d) throw fastify.httpErrors.notFound("Dossier not found");
+}
+
+export async function listDossiers(fastify: FastifyInstance, tenantId: string, clientId: string) {
+  await getById(fastify, tenantId, clientId);
+  return dossiersService.list(fastify, tenantId, { clientId });
 }
 
 export async function createDossier(
   fastify: FastifyInstance,
   tenantId: string,
-  userId: string,
+  _userId: string,
   clientId: string,
   input: QuickDossierInput
 ) {
-  const client = await getById(fastify, tenantId, clientId);
-
-  // Resolve template group (must be a global or tenant-owned group).
-  const group = await fastify.prisma.documentTemplate.findFirst({
-    where: {
-      id: input.templateGroupId,
-      type: "group",
-      isActive: true,
-      OR: [{ tenantId }, { tenantId: null }],
-    },
+  await getById(fastify, tenantId, clientId);
+  const d = await dossiersService.create(fastify, tenantId, {
+    templateGroupId: input.templateGroupId,
+    client: { id: clientId },
+    name: input.name,
+    address: input.address,
+    city: input.city,
+    county: input.county,
+    metadata: stringMetadata(input.metadata),
   });
-  if (!group) throw fastify.httpErrors.notFound("Template group not found");
-
-  // Resolve the projectType that matches the template category. This keeps
-  // the underlying Project compatible with whatever project-type-driven logic
-  // exists elsewhere (e.g. registry series picker, workflow defaults).
-  const ptCode = CATEGORY_TO_PROJECT_TYPE_CODE[group.categoryCode];
-  if (!ptCode) {
-    throw fastify.httpErrors.badRequest(
-      `No projectType mapping for category ${group.categoryCode} — quick-dossier only supports CARTE_BRANSAMENT, CARTE_CONDUCTA, DOSAR_ISCIR.`,
-    );
-  }
-  const projectType = await fastify.prisma.projectType.findFirst({
-    where: { tenantId, code: ptCode },
-  });
-  if (!projectType) {
-    throw fastify.httpErrors.failedDependency(
-      `ProjectType "${ptCode}" not seeded for this tenant — run prisma seed.`,
-    );
-  }
-
-  const clientLabel = client.type === "COMPANY"
-    ? client.companyName ?? ""
-    : `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim();
-  const defaultName = `${group.name} — ${clientLabel || clientId.slice(-6)}`;
-
-  // Validate any provided employee IDs belong to this tenant before insert,
-  // so a 404 surfaces immediately instead of a confusing FK error mid-create.
-  const teamMembers = input.teamMembers ?? [];
-  if (teamMembers.length > 0) {
-    const empIds = teamMembers.filter((tm) => tm.employeeId).map((tm) => tm.employeeId!);
-    if (empIds.length > 0) {
-      const found = await fastify.prisma.employee.count({
-        where: { tenantId, id: { in: empIds } },
-      });
-      if (found !== empIds.length) {
-        throw fastify.httpErrors.badRequest("One or more team-member employees not found");
-      }
-    }
-  }
-
-  // Single create — Project + nested ProjectTeamMember rows together.
-  return fastify.prisma.project.create({
-    data: {
-      tenantId,
-      clientId,
-      projectTypeId: projectType.id,
-      kind: "quick_dossier",
-      templateGroupId: group.id,
-      name: input.name ?? defaultName,
-      address: input.address,
-      city: input.city,
-      county: input.county,
-      status: "draft",
-      metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
-      teamMembers: teamMembers.length > 0
-        ? {
-            create: teamMembers.map((tm) => ({
-              role: tm.role,
-              name: "", // legacy column — filled at render time from employee
-              employeeId: tm.employeeId ?? null,
-              credentials: (tm.credentials ?? {}) as Prisma.InputJsonValue,
-            })),
-          }
-        : undefined,
-    },
-    include: dossierInclude,
-  });
+  if (input.teamMembers?.length) return dossiersService.update(fastify, tenantId, d.id, { teamMembers: input.teamMembers });
+  return d;
 }
 
 export async function updateDossier(
@@ -702,39 +615,15 @@ export async function updateDossier(
   dossierId: string,
   input: UpdateQuickDossierInput
 ) {
-  await getById(fastify, tenantId, clientId);
-  const dossier = await fastify.prisma.project.findFirst({
-    where: { id: dossierId, tenantId, clientId, kind: "quick_dossier" },
-  });
-  if (!dossier) throw fastify.httpErrors.notFound("Dossier not found");
-
-  // Team-member updates use replace-all: delete + recreate. Simpler than
-  // computing a diff and acceptable because team is small (<10 rows typically).
-  if (input.teamMembers !== undefined) {
-    await fastify.prisma.projectTeamMember.deleteMany({ where: { projectId: dossierId } });
-  }
-
-  return fastify.prisma.project.update({
-    where: { id: dossierId },
-    data: {
-      ...(input.name !== undefined && { name: input.name }),
-      ...(input.address !== undefined && { address: input.address }),
-      ...(input.city !== undefined && { city: input.city }),
-      ...(input.county !== undefined && { county: input.county }),
-      ...(input.metadata !== undefined && { metadata: input.metadata as Prisma.InputJsonValue }),
-      ...(input.templateGroupId !== undefined && { templateGroupId: input.templateGroupId }),
-      ...(input.teamMembers !== undefined && input.teamMembers.length > 0 && {
-        teamMembers: {
-          create: input.teamMembers.map((tm) => ({
-            role: tm.role,
-            name: "",
-            employeeId: tm.employeeId ?? null,
-            credentials: (tm.credentials ?? {}) as Prisma.InputJsonValue,
-          })),
-        },
-      }),
-    },
-    include: dossierInclude,
+  await assertDossierOfClient(fastify, tenantId, clientId, dossierId);
+  return dossiersService.update(fastify, tenantId, dossierId, {
+    templateGroupId: input.templateGroupId,
+    name: input.name,
+    address: input.address,
+    city: input.city,
+    county: input.county,
+    metadata: stringMetadata(input.metadata),
+    teamMembers: input.teamMembers,
   });
 }
 
@@ -745,21 +634,8 @@ export async function generateDossier(
   clientId: string,
   dossierId: string
 ) {
-  await getById(fastify, tenantId, clientId);
-  const dossier = await fastify.prisma.project.findFirst({
-    where: { id: dossierId, tenantId, clientId, kind: "quick_dossier" },
-    select: { id: true, templateGroupId: true },
-  });
-  if (!dossier) throw fastify.httpErrors.notFound("Dossier not found");
-  if (!dossier.templateGroupId) {
-    throw fastify.httpErrors.badRequest("Dossier has no template group assigned");
-  }
-
-  // Generate the ONE template group as a single ZIP — the worker handles
-  // group expansion + per-member registry numbers + image embedding. Calling
-  // generate() with the group's templateId (not its member IDs) is the right
-  // path because the worker checks template.type==="group" and renders accordingly.
-  return documentsGenerate(fastify, tenantId, dossier.id, [dossier.templateGroupId], userId);
+  await assertDossierOfClient(fastify, tenantId, clientId, dossierId);
+  return dossiersService.generate(fastify, tenantId, userId, dossierId);
 }
 
 export async function removeDossier(
@@ -768,16 +644,15 @@ export async function removeDossier(
   clientId: string,
   dossierId: string
 ) {
-  await getById(fastify, tenantId, clientId);
-  const dossier = await fastify.prisma.project.findFirst({
-    where: { id: dossierId, tenantId, clientId, kind: "quick_dossier" },
-  });
-  if (!dossier) throw fastify.httpErrors.notFound("Dossier not found");
-  // Hard delete — cascade removes ProjectTeamMember + ProjectDocument joins.
-  // Documents themselves stay (they may have been downloaded/shared); they
-  // become orphan but still accessible via /api/documents/:id/download.
-  await fastify.prisma.project.delete({ where: { id: dossierId } });
-  return { success: true };
+  await assertDossierOfClient(fastify, tenantId, clientId, dossierId);
+  return dossiersService.remove(fastify, tenantId, dossierId);
+}
+
+function stringMetadata(meta: Record<string, unknown> | undefined): Record<string, string> | undefined {
+  if (!meta) return undefined;
+  return Object.fromEntries(
+    Object.entries(meta).filter(([, v]) => v !== null && v !== undefined).map(([k, v]) => [k, String(v)]),
+  );
 }
 
 // === Helpers ===

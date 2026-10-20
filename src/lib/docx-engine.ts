@@ -4,6 +4,19 @@ import ImageModule from "docxtemplater-image-module-free";
 
 const EMU_PER_PX = 9525; // matches docxtemplater-image-module-free convertPixelsToEmus
 
+/** Ce se tipărește pentru un câmp text necompletat: o linie de completat de mână. */
+export const EMPTY_FIELD = "..........";
+
+/**
+ * Valoarea unui tag fără date. Implicit docxtemplater tipărește „undefined”.
+ * Text → linie punctată; imagine (`{%…}`), buclă, raw XML → nimic.
+ */
+function nullGetter(part: { module?: string; value?: string; type?: string }): string {
+  if (part.module) return ""; // bucle, imagini (cu modulul încărcat), raw XML
+  if (typeof part.value === "string" && part.value.startsWith("%")) return ""; // imagine fără modul (firma n-are nicio imagine)
+  return EMPTY_FIELD;
+}
+
 export interface ImageRenderOptions {
   /** Fixed size in pixels per image tag, e.g. { tenant_signature: [200, 80] }. */
   sizes?: Record<string, [number, number]>;
@@ -68,6 +81,7 @@ export function renderDocx(
     paragraphLoop: true,
     linebreaks: true,
     modules,
+    nullGetter,
   });
 
   doc.render(data);
