@@ -150,7 +150,8 @@ describe("dosare — lista de distribuitori", () => {
     const r = await dossiers.getFields(app, f.a.id, g.id);
     const osd = r.fields.find((x) => x.key === "osd_denumire")!;
     expect(osd.type).toBe("select");
-    expect(osd.options!.slice(0, 2)).toEqual(["Distrigaz Sud Rețele", "delgaz grid s.a."]);
+    // Ordinea alfabetică românească, indiferent de colaționarea bazei (CI vs local).
+    expect(osd.options!.slice(0, 2)).toEqual(["delgaz grid s.a.", "Distrigaz Sud Rețele"]);
     expect(osd.options).toContain("Megaconstruct S.A.");
     expect(osd.options!.filter((o) => o.toLowerCase() === "delgaz grid s.a.")).toHaveLength(1);
   });

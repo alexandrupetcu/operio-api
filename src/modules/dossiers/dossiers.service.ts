@@ -106,8 +106,9 @@ export async function getFields(fastify: FastifyInstance, tenantId: string, grou
   const own = await fastify.prisma.distributor.findMany({
     where: { tenantId, isActive: true },
     select: { name: true },
-    orderBy: { name: "asc" },
   });
+  // Sortare în cod: ordinea din Postgres depinde de colaționarea bazei (C vs en_US).
+  own.sort((a, b) => a.name.localeCompare(b.name, "ro"));
   const optionsFor = (key: string, options: readonly string[] | undefined) => {
     if (key !== "osd_denumire") return options ? [...options] : null;
     const seen = new Set<string>();
