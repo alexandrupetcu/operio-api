@@ -547,7 +547,7 @@ export async function getActionFeed(
     meta: string;
     status?: string;
     tag: string;
-    tone: "danger" | "warn" | "yellow";
+    tone: "danger" | "warn" | "yellow" | "info";
     action: string;
     actionPrimary?: boolean;
     href: string | null;
@@ -587,24 +587,45 @@ export async function getActionFeed(
   // Ord. ANRE 179/2015, art. 9 alin. 6); afișare/urgent după pragurile firmei.
   const pendingOs = await listPendingOsRegistrations(fastify.prisma, tenantId, w.osRegistrationWorkingDays);
   for (const p of pendingOs) {
+    const os = p.installation?.distributorName || "OS";
+    // Depus: se așteaptă validarea și numărul de la OS — informativ, fără termen.
+    if (p.osSubmittedAt) {
+      items.push({
+        id: `os-registration-${p.id}`,
+        kind: "os_registration",
+        time: `depus ${p.osSubmittedAt.toLocaleDateString("ro-RO")}`,
+        title: `${clientDisplayName(p.client)} — ${p.type === "revizie" ? "raport revizie centrală" : `fișă ${WORK_LABEL[p.type] ?? p.type}`} depus la ${os}, se așteaptă numărul`,
+        meta: `Depus ${p.osSubmittedAt.toLocaleDateString("ro-RO")}${p.clientAddress?.address ? ` · ${p.clientAddress.address}` : ""}`,
+        tag: "Depus",
+        tone: "info",
+        action: "Adaugă nr.",
+        actionPrimary: false,
+        href: `/calendar?appt=${p.id}&date=${localIsoDate(p.date)}`,
+        phone: p.client?.phone ?? null,
+        priority: 4,
+        conditionRef: p.osSubmittedAt.toISOString(),
+        clientId: p.client?.id,
+        clientName: clientDisplayName(p.client),
+      });
+      continue;
+    }
     const d = daysUntil(p.deadline, now);
     const { show, overdue, urgent } = osFeedState(d, w);
     if (!show) continue;
-    const os = p.installation?.distributorName || "OS";
     items.push({
       id: `os-registration-${p.id}`,
       kind: "os_registration",
       time: relTime(d),
       title:
         p.type === "revizie"
-          ? `${clientDisplayName(p.client)} — raport revizie centrală de înregistrat la ${os}`
-          : `${clientDisplayName(p.client)} — fișă ${WORK_LABEL[p.type] ?? p.type} de înregistrat la ${os}`,
+          ? `${clientDisplayName(p.client)} — raport revizie centrală de depus la ${os}`
+          : `${clientDisplayName(p.client)} — fișă ${WORK_LABEL[p.type] ?? p.type} de depus la ${os}`,
       meta: `Finalizată ${p.completedAt.toLocaleDateString("ro-RO")} · termen ${p.deadline.toLocaleDateString("ro-RO")}${
         p.clientAddress?.address ? ` · ${p.clientAddress.address}` : ""
       }`,
       tag: relTag(d),
       tone: overdue ? "danger" : urgent ? "warn" : "yellow",
-      action: "Înregistrează",
+      action: "Depune",
       actionPrimary: overdue || urgent,
       // Calendarul deschide programarea, cu caseta „Înregistrare la OS”.
       href: `/calendar?appt=${p.id}&date=${localIsoDate(p.date)}`,

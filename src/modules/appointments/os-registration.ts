@@ -9,7 +9,7 @@ import { getTenantEventMap } from "../notifications/tenant-settings.js";
 import { dispatch } from "../notifications/dispatch.js";
 import { regenerateFisaForOsRegistration, regenerateIscirForOsRegistration } from "./appointments.service.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
-import type { OsRegistrationInput } from "./appointments.schema.js";
+import type { OsRegistrationInput, OsSubmissionInput } from "./appointments.schema.js";
 import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
 
 /** Tipurile de programare care produc o Fișă de evidență ce trebuie înregistrată la OS. */
@@ -71,7 +71,12 @@ export async function setOsRegistration(
   const registeredAt = input.registeredAt ? new Date(input.registeredAt) : new Date();
   const updated = await fastify.prisma.appointment.update({
     where: { id: appointmentId },
-    data: { osRegistrationNumber: input.number, osRegisteredAt: registeredAt },
+    data: {
+      osRegistrationNumber: input.number,
+      osRegisteredAt: registeredAt,
+      // Un număr de la OS înseamnă că raportul a fost depus (chiar dacă pasul n-a fost marcat).
+      ...(!appt.osSubmittedAt && { osSubmittedAt: registeredAt }),
+    },
     select: osSelect,
   });
   await invalidateDashboardCache(tenantId);
@@ -87,10 +92,43 @@ export async function setOsRegistration(
   return { ...updated, regenerationQueued: queued, willNotify: queued && willNotify, clientEmail };
 }
 
+/**
+ * Pasul intermediar: raportul / fișa a fost depus(ă) la OS și se așteaptă validarea
+ * (numărul vine ulterior, prin `setOsRegistration`). `submittedAt: null` anulează o
+ * marcare greșită — doar cât timp nu există încă număr.
+ */
+export async function setOsSubmission(
+  fastify: FastifyInstance,
+  tenantId: string,
+  appointmentId: string,
+  input: OsSubmissionInput,
+) {
+  const appt = await fastify.prisma.appointment.findFirst({
+    where: { id: appointmentId, tenantId, deletedAt: null },
+    select: { id: true, type: true, status: true, osRegistrationNumber: true },
+  });
+  if (!appt) throw fastify.httpErrors.notFound("Programarea nu există");
+  if (!(OS_REGISTRATION_TYPES as readonly string[]).includes(appt.type)) {
+    throw fastify.httpErrors.badRequest("Doar reviziile de centrală și reviziile / verificările de instalație se depun la OS");
+  }
+  if (appt.status !== "completed") throw fastify.httpErrors.badRequest("Se depune după finalizarea vizitei");
+  if (input.submittedAt === null && appt.osRegistrationNumber) {
+    throw fastify.httpErrors.badRequest("Are deja număr de la OS — șterge întâi numărul");
+  }
+  const updated = await fastify.prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { osSubmittedAt: input.submittedAt ? new Date(input.submittedAt) : null },
+    select: osSelect,
+  });
+  await invalidateDashboardCache(tenantId);
+  return updated;
+}
+
 const osSelect = {
   id: true,
   status: true,
   completedAt: true,
+  osSubmittedAt: true,
   osRegistrationNumber: true,
   osRegisteredAt: true,
   osClientNotifiedAt: true,
@@ -119,6 +157,7 @@ export async function listPendingOsRegistrations(db: PrismaClient, tenantId: str
       date: true,
       completedAt: true,
       updatedAt: true,
+      osSubmittedAt: true,
       client: { select: { id: true, companyName: true, firstName: true, lastName: true, phone: true } },
       clientAddress: { select: { address: true } },
       installation: { select: { distributorName: true } },
@@ -155,7 +194,8 @@ export async function sendOsRegistrationDigest(db: PrismaClient, tenantId: strin
   const pending = await listPendingOsRegistrations(db, tenantId, w.osRegistrationWorkingDays);
   const due = pending
     .map((p) => ({ ...p, d: daysUntil(p.deadline, now) }))
-    .filter((p) => osFeedState(p.d, w).urgent)
+    // Ce e deja depus așteaptă răspunsul OS — nu mai e de făcut nimic urgent.
+    .filter((p) => !p.osSubmittedAt && osFeedState(p.d, w).urgent)
     .sort((a, b) => a.d - b.d);
   if (due.length === 0) return 0;
 

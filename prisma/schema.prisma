@@ -1480,7 +1480,9 @@ model Appointment {
   completedAt          DateTime?
   // Înregistrarea Fișei de evidență la operatorul de sistem (Ord. ANRE 179/2015,
   // art. 9 alin. 6–7): nr. primit de la OS, data, și când a plecat către client
-  // exemplarul cu numărul de înregistrare. Doar pentru revizie/verificare instalație.
+  // exemplarul cu numărul de înregistrare. Revizie centrală (ISCIR) + revizie/verificare instalație.
+  // Fluxul: de depus → depus (`osSubmittedAt`, se așteaptă validarea) → înregistrat (nr.).
+  osSubmittedAt        DateTime?
   osRegistrationNumber String?
   osRegisteredAt       DateTime?
   osClientNotifiedAt   DateTime?

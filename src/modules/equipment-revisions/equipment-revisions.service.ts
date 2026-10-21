@@ -139,6 +139,20 @@ export async function listByEquipment(
       iscirDocumentId: true,
       sourceEmailId: true,
       createdAt: true,
+      // Vizita din care a rezultat revizia: depunerea / înregistrarea raportului la OS.
+      appointment: {
+        select: {
+          id: true,
+          type: true,
+          date: true,
+          status: true,
+          completedAt: true,
+          osSubmittedAt: true,
+          osRegistrationNumber: true,
+          osRegisteredAt: true,
+          osClientNotifiedAt: true,
+        },
+      },
     },
   });
 

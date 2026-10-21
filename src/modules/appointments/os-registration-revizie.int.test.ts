@@ -1,13 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../test/prisma.js";
-import { closeStub, serviceStub } from "../../test/stub.js";
+import { closeStub, expectReject, serviceStub } from "../../test/stub.js";
 import { seedTwoTenants, type TwoTenants } from "../../test/fixtures.js";
 import { enqueuedJobs } from "../../test/setup-int.js";
 
 vi.mock("../../lib/email.js", () => ({ sendNotificationEmail: vi.fn(async () => {}) }));
 
-import { listPendingOsRegistrations, setOsRegistration } from "./os-registration.js";
+import { listPendingOsRegistrations, setOsRegistration, setOsSubmission } from "./os-registration.js";
 
 /**
  * Revizia de centrală (ISCIR) se înregistrează și ea la distribuitor: după finalizare
@@ -78,5 +78,37 @@ describe("înregistrarea la OS — revizie centrală, fără e-mail", () => {
     const job = enqueuedJobs.find((j) => (j.data as { revisionId?: string }).revisionId === revisionId);
     const doc = await prisma.document.findUniqueOrThrow({ where: { id: (job!.data as { documentId: string }).documentId } });
     expect(doc.contextJson).toMatchObject({ osRegistrationNotify: false });
+  });
+});
+
+describe("depunerea la OS (așteaptă numărul)", () => {
+  it("marcată depusă → rămâne în listă, cu data depunerii; numărul o scoate din listă", async () => {
+    const sub = await setOsSubmission(app, f.a.id, apptId, { submittedAt: new Date(2026, 9, 21).toISOString() });
+    expect(sub.osSubmittedAt).toBeTruthy();
+    const pending = await listPendingOsRegistrations(prisma, f.a.id, 5);
+    expect(pending.find((p) => p.id === apptId)?.osSubmittedAt).toBeTruthy();
+
+    await setOsRegistration(app, f.a.id, apptId, { number: "OS-1" });
+    expect((await listPendingOsRegistrations(prisma, f.a.id, 5)).map((p) => p.id)).not.toContain(apptId);
+  });
+
+  it("numărul fără depunere marcată → se consideră și depusă", async () => {
+    await setOsRegistration(app, f.a.id, apptId, { number: "OS-2", registeredAt: new Date(2026, 9, 22).toISOString() });
+    const a = await prisma.appointment.findUniqueOrThrow({ where: { id: apptId } });
+    expect(a.osSubmittedAt).toEqual(new Date(2026, 9, 22));
+  });
+
+  it("anularea depunerii (marcată din greșeală); nu se poate după ce are număr", async () => {
+    await setOsSubmission(app, f.a.id, apptId, { submittedAt: new Date().toISOString() });
+    const undone = await setOsSubmission(app, f.a.id, apptId, { submittedAt: null });
+    expect(undone.osSubmittedAt).toBeNull();
+    await setOsRegistration(app, f.a.id, apptId, { number: "OS-3" });
+    const err = await expectReject(() => setOsSubmission(app, f.a.id, apptId, { submittedAt: null }));
+    expect(err.status).toBe(400);
+  });
+
+  it("programarea altei firme → 404", async () => {
+    const err = await expectReject(() => setOsSubmission(app, f.b.id, apptId, { submittedAt: new Date().toISOString() }));
+    expect(err.status).toBe(404);
   });
 });

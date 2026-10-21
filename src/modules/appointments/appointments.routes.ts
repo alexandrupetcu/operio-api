@@ -8,8 +8,9 @@ import {
   calendarQuerySchema,
   overlapQuerySchema,
   osRegistrationSchema,
+  osSubmissionSchema,
 } from "./appointments.schema.js";
-import { setOsRegistration } from "./os-registration.js";
+import { setOsRegistration, setOsSubmission } from "./os-registration.js";
 import * as appointmentsService from "./appointments.service.js";
 import { resolveApptScope, canSeeEmployee } from "./scope.js";
 import { NO_OVERLAP } from "./overlap.js";
@@ -243,6 +244,16 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     async (request) => {
       const body = osRegistrationSchema.parse(request.body);
       return setOsRegistration(fastify, request.tenantId, request.params.id, body);
+    }
+  );
+
+  // Pasul intermediar: depus la OS, se așteaptă validarea și numărul.
+  fastify.patch<{ Params: { id: string } }>(
+    "/:id/os-submission",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request) => {
+      const body = osSubmissionSchema.parse(request.body);
+      return setOsSubmission(fastify, request.tenantId, request.params.id, body);
     }
   );
 

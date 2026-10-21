@@ -314,3 +314,9 @@ export const osRegistrationSchema = z.object({
   notifyClient: z.boolean().optional(),
 });
 export type OsRegistrationInput = z.infer<typeof osRegistrationSchema>;
+
+/** Raportul a fost depus la OS (se așteaptă validarea și numărul); `null` = anulează. */
+export const osSubmissionSchema = z.object({
+  submittedAt: z.string().datetime().nullable(),
+});
+export type OsSubmissionInput = z.infer<typeof osSubmissionSchema>;
