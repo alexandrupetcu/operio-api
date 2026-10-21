@@ -161,8 +161,6 @@ export function parseRevisionText(rawText: string): ParsedRevision {
   // Analysis readings — label followed by whitespace then value, all on same line
   const readings: Record<string, string> = {};
   const analysisPatterns: [string, RegExp][] = [
-    ["tGaz", /T gaz\s+([\d.]+\s*°C)/],
-    ["tAer", /T aer\s+([\d.]+\s*°C)/],
     ["o2", /O2\s+([\d.]+\s*%)/],
     ["co2", /CO2\s+([\d.]+\s*%)/],
     ["co", /^.*(?<![(\w])CO\s+(\d+\s*ppm)/m],
@@ -170,7 +168,6 @@ export function parseRevisionText(rawText: string): ParsedRevision {
     ["ec", /Ec\s+([\d.]+\s*%)/],
     ["lambda", /l;n\s+([\d.]+)/],
     ["excessAir", /ExcesAer\s+(\d+\s*%)/],
-    ["dT", /dT\s+([\d.]+\s*°C)/],
     ["qs", /Qs\s+([\d.]+\s*%)/],
     ["es", /Es\s+([\d.]+\s*%)/],
     ["et", /Et\s+([\d.]+\s*%)/],
@@ -187,6 +184,18 @@ export function parseRevisionText(rawText: string): ParsedRevision {
   for (const [key, pattern] of analysisPatterns) {
     const value = extractField(rawText, pattern);
     if (value) readings[key] = value;
+  }
+
+  // Temperaturile: Chemist tipărește „52.7 ° C” (cu spațiu); acceptăm și „°C”
+  // lipit și valori sub zero (aer exterior iarna). Scrise uniform „52.7 °C”.
+  const temperaturePatterns: [string, RegExp][] = [
+    ["tGaz", /T gaz\s+(-?[\d.]+)\s*°\s*C/],
+    ["tAer", /T aer\s+(-?[\d.]+)\s*°\s*C/],
+    ["dT", /dT\s+(-?[\d.]+)\s*°\s*C/],
+  ];
+  for (const [key, pattern] of temperaturePatterns) {
+    const value = extractField(rawText, pattern);
+    if (value) readings[key] = `${value} °C`;
   }
 
   if (Object.keys(readings).length > 0) {
