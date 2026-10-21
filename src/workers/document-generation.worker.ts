@@ -18,6 +18,7 @@ import { resolveStampSlots, stampVarName } from "../lib/stamps.js";
 import { stampWithSignatureHtml } from "../lib/stamp-html.js";
 import { withAliases } from "../lib/dossier-fields.js";
 import { companyDocVars } from "../lib/company-doc-vars.js";
+import { osBoxData } from "../lib/os-box.js";
 import { resolveSignatory, type ResolvedSignatory } from "../modules/tenant/signatories.js";
 import { certType } from "../lib/certifications.js";
 import { readCompanySettings } from "../modules/tenant/company-settings.js";
@@ -1503,11 +1504,21 @@ async function processJob(job: Job<DocumentJobData>) {
           where: { id: job.data.revisionId, equipment: { client: { tenantId } } },
           include: {
             equipment: { select: { name: true, serial: true, fuel: true, deviceType: true, power: true, airSupply: true, feeding: true, location: true, fuelIscir: true, deviceAge: true } },
-            appointment: { select: { completionDataJson: true, employeeId: true } },
+            appointment: {
+              select: {
+                completionDataJson: true,
+                employeeId: true,
+                osRegistrationNumber: true,
+                osRegisteredAt: true,
+                installation: { select: { distributorName: true } },
+              },
+            },
           },
         });
         if (revision) {
           Object.assign(htmlData, buildRevisionData(revision, readAlertWindows(tenant.settingsJson).revisionIntervalYears));
+          // Caseta „Înregistrat la” a raportului ISCIR: distribuitorul și nr. primit de la el.
+          Object.assign(htmlData, osBoxData(revision.appointment, readCompanySettings(tenant.settingsJson).operatorSistem));
 
           let completionData = revision.appointment?.completionDataJson;
           if (!completionData && clientId) {
@@ -1563,10 +1574,7 @@ async function processJob(job: Job<DocumentJobData>) {
         });
         // Caseta „Înregistrare la OS” de pe fișă: completată după ce operatorul
         // introduce numărul primit de la distribuitor; până atunci rămâne linie.
-        htmlData.os_nr_inregistrare = appt?.osRegistrationNumber || "______________";
-        htmlData.os_data_inregistrare = appt?.osRegisteredAt
-          ? appt.osRegisteredAt.toLocaleDateString("ro-RO")
-          : "______________";
+        Object.assign(htmlData, osBoxData(appt, readCompanySettings(tenant.settingsJson).operatorSistem));
         if (appt?.completionDataJson) {
           // Instalatorul: cel ales în raport rămâne (fișele vechi nu-și schimbă
           // semnatarul); fără alegere → semnatarul implicit → tehnicianul vizitei,
@@ -1987,7 +1995,7 @@ async function notifyClientOsRegistration(tenantId: string, appointmentId: strin
       client: { select: { email: true, companyName: true, firstName: true, lastName: true } },
       clientAddress: { select: { address: true } },
       installation: { select: { distributorName: true } },
-      tenant: { select: { name: true } },
+      tenant: { select: { name: true, settingsJson: true } },
     },
   });
   if (!appt?.osRegistrationNumber || !appt.client?.email) return;
@@ -1998,7 +2006,8 @@ async function notifyClientOsRegistration(tenantId: string, appointmentId: strin
     clientName: clientDisplayName(appt.client),
     tenantName: appt.tenant.name,
     workLabel: WORK_LABEL[appt.type] ?? "verificare/revizie",
-    distributorName: appt.installation?.distributorName ?? null,
+    document: appt.type === "revizie" ? "iscir" : "fisa",
+    distributorName: appt.installation?.distributorName || readCompanySettings(appt.tenant.settingsJson).operatorSistem || null,
     registrationNumber: appt.osRegistrationNumber,
     registeredAt: appt.osRegisteredAt ?? new Date(),
     address: appt.clientAddress?.address ?? null,

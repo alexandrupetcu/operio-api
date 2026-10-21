@@ -595,7 +595,10 @@ export async function getActionFeed(
       id: `os-registration-${p.id}`,
       kind: "os_registration",
       time: relTime(d),
-      title: `${clientDisplayName(p.client)} — fișă ${WORK_LABEL[p.type] ?? p.type} de înregistrat la ${os}`,
+      title:
+        p.type === "revizie"
+          ? `${clientDisplayName(p.client)} — raport revizie centrală de înregistrat la ${os}`
+          : `${clientDisplayName(p.client)} — fișă ${WORK_LABEL[p.type] ?? p.type} de înregistrat la ${os}`,
       meta: `Finalizată ${p.completedAt.toLocaleDateString("ro-RO")} · termen ${p.deadline.toLocaleDateString("ro-RO")}${
         p.clientAddress?.address ? ` · ${p.clientAddress.address}` : ""
       }`,
@@ -603,7 +606,8 @@ export async function getActionFeed(
       tone: overdue ? "danger" : urgent ? "warn" : "yellow",
       action: "Înregistrează",
       actionPrimary: overdue || urgent,
-      href: p.client ? `/clients/${p.client.id}?tab=inst` : null,
+      // Calendarul deschide programarea, cu caseta „Înregistrare la OS”.
+      href: `/calendar?appt=${p.id}&date=${localIsoDate(p.date)}`,
       phone: p.client?.phone ?? null,
       priority: overdue ? 0 : urgent ? 1 : 3,
       conditionRef: p.completedAt.toISOString(),
@@ -1057,4 +1061,9 @@ export async function getMyTasks(
     ],
     take: 20,
   });
+}
+
+/** yyyy-mm-dd în ora României (data programării, pentru linkul spre calendar). */
+function localIsoDate(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Bucharest", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 }

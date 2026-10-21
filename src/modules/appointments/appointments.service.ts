@@ -147,7 +147,9 @@ async function prepareIscirDocument(
   db: Db,
   tenantId: string,
   revisionId: string,
-  sendToEmail?: string
+  sendToEmail?: string,
+  /** Înlocuiește `contextJson` (ex. regenerarea după înregistrarea la OS). */
+  replaceCtx?: Record<string, unknown>,
 ): Promise<GenerateJob[]> {
   // Find the revision and its equipment/client
   const revision = await db.equipmentRevision.findUnique({
@@ -169,7 +171,11 @@ async function prepareIscirDocument(
   // Reuse existing document if one is already linked to this revision
   let documentId = revision.iscirDocumentId;
 
-  const ctxJson = sendToEmail ? ({ sendToEmail } as Prisma.InputJsonValue) : undefined;
+  const ctxJson = replaceCtx
+    ? (replaceCtx as Prisma.InputJsonValue)
+    : sendToEmail
+      ? ({ sendToEmail } as Prisma.InputJsonValue)
+      : undefined;
 
   if (documentId) {
     await db.document.update({
@@ -200,6 +206,32 @@ async function prepareIscirDocument(
   }
 
   return [{ documentId, tenantId, clientId, templateId: iscirTemplate.id, revisionId: revision.id }];
+}
+
+/**
+ * După înregistrarea reviziei de centrală la OS: regenerează raportul ISCIR (caseta
+ * „Înregistrat la” primește distribuitorul și numărul) și, dacă `notifyClient`,
+ * worker-ul trimite clientului exemplarul cu numărul. Fără e-mailul generic de la
+ * finalizare (`sendToEmail` nu se păstrează).
+ */
+export async function regenerateIscirForOsRegistration(
+  fastify: FastifyInstance,
+  tenantId: string,
+  appointmentId: string,
+  notifyClient: boolean,
+): Promise<{ queued: boolean }> {
+  const appointment = await fastify.prisma.appointment.findFirst({
+    where: { id: appointmentId, tenantId },
+    select: { id: true, equipmentRevisionId: true },
+  });
+  if (!appointment?.equipmentRevisionId) return { queued: false };
+  const jobs = await prepareIscirDocument(fastify.prisma, tenantId, appointment.equipmentRevisionId, undefined, {
+    appointmentId: appointment.id,
+    osRegistrationNotify: notifyClient,
+  });
+  if (!jobs.length) return { queued: false };
+  await enqueueGenerateJobs(jobs);
+  return { queued: true };
 }
 
 // ── Revizie / Verificare instalație — finalize + document generation ─────────

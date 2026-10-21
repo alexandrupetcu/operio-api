@@ -45,7 +45,7 @@ export const TEMPLATE_HTML = `<style>
 <tr>
   <td colspan="3" class="c b" style="line-height:1.7 !important">{{tenant_name}}<br>Autorizație ISCIR<br>NR. {{tenant_iscir_number}} / DATA: {{tenant_iscir_date}}</td>
   <td colspan="5" class="c b"><div class="title" style="margin-bottom:6px">RAPORT DE VERIFICĂRI ÎNCERCĂRI ȘI PROBE</div>Nr. <span class="f">{{nr_inregistrare}}</span> / Data: <span class="f">{{revision_date}}</span></td>
-  <td colspan="3" class="sm" style="vertical-align:top !important;line-height:1.7 !important">Înregistrat la : {{tenant_name}}<br>Nr. înregistrare : <span class="f">{{nr_inregistrare}}</span></td>
+  <td colspan="3" class="sm" style="vertical-align:top !important;line-height:1.7 !important">Înregistrat la : <span class="f">{{os_denumire}}</span><br>Nr. înregistrare : <span class="f">{{os_nr_inregistrare}}</span><br>Data : <span class="f">{{os_data_inregistrare}}</span></td>
 </tr>
 
 <!-- ===== ADMITEREA FUNCTIONARII ===== -->

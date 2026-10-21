@@ -7,7 +7,7 @@ import { osFeedState } from "./os-feed-state.js";
 export { osFeedState };
 import { getTenantEventMap } from "../notifications/tenant-settings.js";
 import { dispatch } from "../notifications/dispatch.js";
-import { regenerateFisaForOsRegistration } from "./appointments.service.js";
+import { regenerateFisaForOsRegistration, regenerateIscirForOsRegistration } from "./appointments.service.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 import type { OsRegistrationInput } from "./appointments.schema.js";
 import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
@@ -15,7 +15,14 @@ import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-s
 /** Tipurile de programare care produc o Fișă de evidență ce trebuie înregistrată la OS. */
 export const INSTALATIE_APPT_TYPES = ["revizie_instalatie", "verificare_instalatie"] as const;
 
+/**
+ * Tot ce se înregistrează la distribuitor (OS) după finalizare: fișele de instalație
+ * și raportul ISCIR al reviziei de centrală. Anexa 6 ANRE rămâne doar pe instalații.
+ */
+export const OS_REGISTRATION_TYPES = ["revizie", ...INSTALATIE_APPT_TYPES] as const;
+
 export const WORK_LABEL: Record<string, string> = {
+  revizie: "revizie centrală (ISCIR)",
   revizie_instalatie: "revizie tehnică",
   verificare_instalatie: "verificare tehnică",
 };
@@ -43,8 +50,8 @@ export async function setOsRegistration(
     include: { client: { select: { id: true, email: true } } },
   });
   if (!appt) throw fastify.httpErrors.notFound("Programarea nu există");
-  if (!(INSTALATIE_APPT_TYPES as readonly string[]).includes(appt.type)) {
-    throw fastify.httpErrors.badRequest("Doar reviziile și verificările de instalație se înregistrează la OS");
+  if (!(OS_REGISTRATION_TYPES as readonly string[]).includes(appt.type)) {
+    throw fastify.httpErrors.badRequest("Doar reviziile de centrală și reviziile / verificările de instalație se înregistrează la OS");
   }
   if (appt.status !== "completed") {
     throw fastify.httpErrors.badRequest("Fișa se înregistrează după finalizarea vizitei");
@@ -71,7 +78,11 @@ export async function setOsRegistration(
 
   const clientEmail = appt.client?.email ?? null;
   const willNotify = !!clientEmail && input.notifyClient !== false;
-  const { queued } = await regenerateFisaForOsRegistration(fastify, tenantId, appointmentId, willNotify);
+  // Revizia de centrală: raportul ISCIR; instalația: fișa RT/FISA.
+  const { queued } =
+    appt.type === "revizie"
+      ? await regenerateIscirForOsRegistration(fastify, tenantId, appointmentId, willNotify)
+      : await regenerateFisaForOsRegistration(fastify, tenantId, appointmentId, willNotify);
 
   return { ...updated, regenerationQueued: queued, willNotify: queued && willNotify, clientEmail };
 }
@@ -98,7 +109,7 @@ export async function listPendingOsRegistrations(db: PrismaClient, tenantId: str
       tenantId,
       deletedAt: null,
       status: "completed",
-      type: { in: [...INSTALATIE_APPT_TYPES] },
+      type: { in: [...OS_REGISTRATION_TYPES] },
       osRegistrationNumber: null,
       ...excludeSampleAppointments(sampleClientId),
     },

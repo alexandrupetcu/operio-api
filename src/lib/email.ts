@@ -208,6 +208,8 @@ export async function sendFisaRegisteredEmail(opts: {
   registeredAt: Date;
   address: string | null;
   pdf?: { filename: string; buffer: Buffer } | null;
+  /** `iscir` = raportul reviziei de centrală (nu fișa ANRE a instalației). */
+  document?: "fisa" | "iscir";
 }): Promise<void> {
   const t = getTransporter();
   if (!t) {
@@ -216,24 +218,32 @@ export async function sendFisaRegisteredEmail(opts: {
   }
   const os = opts.distributorName || "operatorul de distribuție";
   const dateRo = opts.registeredAt.toLocaleDateString("ro-RO");
+  const iscir = opts.document === "iscir";
+  const at = opts.address ? ` de la adresa <strong>${escapeHtml(opts.address)}</strong>` : "";
+  const reg = `a fost înregistrat${iscir ? "" : "ă"} la <strong>${escapeHtml(os)}</strong> cu numărul <strong>${escapeHtml(opts.registrationNumber)}</strong> din ${dateRo}`;
+  const heading = iscir ? "Raportul de revizie a centralei a fost înregistrat" : `Fișa de ${escapeHtml(opts.workLabel)} a fost înregistrată`;
+  const body = iscir
+    ? `<p>Raportul de verificări, încercări și probe întocmit la revizia centralei termice${at} ${reg}.</p>`
+    : `<p>Fișa de evidență a lucrărilor de ${escapeHtml(opts.workLabel)} a instalației de utilizare a gazelor naturale${at} ${reg}.</p>`;
+  const footer = iscir
+    ? `Acest email a fost trimis automat de ${escapeHtml(opts.tenantName)}.`
+    : `Acest email a fost trimis automat de ${escapeHtml(opts.tenantName)}, conform art. 9 alin. (7) din Procedura aprobată prin Ordinul ANRE nr. 179/2015.`;
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
-      <h2 style="color:#1a1a1a;margin-bottom:16px">Fișa de ${escapeHtml(opts.workLabel)} a fost înregistrată</h2>
+      <h2 style="color:#1a1a1a;margin-bottom:16px">${heading}</h2>
       <p>Bună ziua, <strong>${escapeHtml(opts.clientName)}</strong>,</p>
-      <p>Fișa de evidență a lucrărilor de ${escapeHtml(opts.workLabel)} a instalației de utilizare a gazelor naturale${
-        opts.address ? ` de la adresa <strong>${escapeHtml(opts.address)}</strong>` : ""
-      } a fost înregistrată la <strong>${escapeHtml(os)}</strong> cu numărul <strong>${escapeHtml(opts.registrationNumber)}</strong> din ${dateRo}.</p>
-      ${opts.pdf ? `<p>Găsiți atașat exemplarul dumneavoastră. Vă recomandăm să îl păstrați împreună cu documentele instalației.</p>` : ""}
-      <p style="color:#888;font-size:12px;margin-top:24px">
-        Acest email a fost trimis automat de ${escapeHtml(opts.tenantName)}, conform art. 9 alin. (7) din Procedura aprobată prin Ordinul ANRE nr. 179/2015.
-      </p>
+      ${body}
+      ${opts.pdf ? `<p>Găsiți atașat exemplarul dumneavoastră. Vă recomandăm să îl păstrați împreună cu documentele ${iscir ? "centralei" : "instalației"}.</p>` : ""}
+      <p style="color:#888;font-size:12px;margin-top:24px">${footer}</p>
     </div>
   `;
   const info = await t.sendMail({
     from: env.SMTP_FROM,
     ...replyTo(),
     to: opts.to,
-    subject: `Fișa de ${opts.workLabel} — înregistrată la ${os} nr. ${opts.registrationNumber}`,
+    subject: iscir
+      ? `Raportul de revizie a centralei — înregistrat la ${os} nr. ${opts.registrationNumber}`
+      : `Fișa de ${opts.workLabel} — înregistrată la ${os} nr. ${opts.registrationNumber}`,
     html,
     attachments: opts.pdf
       ? [{ filename: opts.pdf.filename, content: opts.pdf.buffer, contentType: "application/pdf" }]
