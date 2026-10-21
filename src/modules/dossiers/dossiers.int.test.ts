@@ -135,6 +135,27 @@ describe("dosare — câmpuri și completare", () => {
   });
 });
 
+describe("dosare — lista de distribuitori", () => {
+  it("denumirea OSD e o listă: distribuitorii firmei întâi, apoi cei din România, fără dubluri", async () => {
+    const key = `test/${Date.now()}-${Math.random()}/osd.docx`;
+    files.set(key, docx("Către {osd_denumire}"));
+    const g = await prisma.documentTemplate.create({
+      data: { tenantId: null, categoryCode: "CARTE_BRANSAMENT", name: "Test dosar OSD", type: "group" },
+    });
+    await prisma.documentTemplate.create({
+      data: { tenantId: null, categoryCode: "CARTE_BRANSAMENT", name: "Test dosar Adresă", type: "single", s3Key: key, parentGroupId: g.id, memberOrder: 1 },
+    });
+    await prisma.distributor.create({ data: { tenantId: f.a.id, code: "DELGAZ", name: "delgaz grid s.a." } });
+
+    const r = await dossiers.getFields(app, f.a.id, g.id);
+    const osd = r.fields.find((x) => x.key === "osd_denumire")!;
+    expect(osd.type).toBe("select");
+    expect(osd.options!.slice(0, 2)).toEqual(["Distrigaz Sud Rețele", "delgaz grid s.a."]);
+    expect(osd.options).toContain("Megaconstruct S.A.");
+    expect(osd.options!.filter((o) => o.toLowerCase() === "delgaz grid s.a.")).toHaveLength(1);
+  });
+});
+
 describe("dosare — creare cu client nou", () => {
   it("clientul nou se creează împreună cu dosarul", async () => {
     const d = await dossiers.create(app, f.a.id, createDossierSchema.parse({

@@ -37,6 +37,32 @@ export const DOSSIER_STEPS: { key: DossierStep; label: string }[] = [
 
 const PRESSURE_UNIT = { DOSAR_ISCIR: "bar", default: "Pa" };
 
+/**
+ * Operatorii de distribuție a gazelor naturale (OSD) cu care lucrează firmele —
+ * denumirea legală, cum se scrie pe documente. Pagina pune întâi distribuitorii
+ * firmei (Setări → Distribuitori); se poate scrie și alt nume.
+ */
+export const GAS_DISTRIBUTORS = [
+  "Distrigaz Sud Rețele S.R.L.",
+  "Delgaz Grid S.A.",
+  "Premier Energy S.R.L.",
+  "Megaconstruct S.A.",
+  "Neogas Grid S.R.L.",
+  "Gaz Est S.A.",
+  "Gaz Vest S.A.",
+  "Distrigaz Vest S.A.",
+  "Congaz S.A.",
+  "Nord Gaz S.R.L.",
+  "Salgaz S.A.",
+  "Tulcea Gaz S.A.",
+  "Mehedinți Gaz S.A.",
+  "Hargaz Harghita Gaz S.A.",
+  "Prisma Serv Company S.R.L.",
+  "Amarad Distribuție S.R.L.",
+  "Cprog S.A.",
+  "Vital Gaz S.A.",
+];
+
 export const DOSSIER_FIELDS: DossierField[] = [
   // ── Lucrarea ──────────────────────────────────────────────────────────────
   { key: "project_name", label: "Denumirea lucrării", help: "Cum apare lucrarea pe documente, ex. „Branșament gaze naturale imobil P+1”.", step: "work", section: "Lucrarea", type: "text", source: "project", aliases: ["PROJECT_NAME"] },
@@ -54,7 +80,7 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "sapatura_latime", label: "Lățimea săpăturii", step: "work", section: "Săpătura", type: "number", unit: "m" },
 
   // ── Avize și numere ───────────────────────────────────────────────────────
-  { key: "osd_denumire", label: "Denumirea distribuitorului", help: "Se completează din distribuitorul ales; îl poți schimba.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
+  { key: "osd_denumire", label: "Denumirea distribuitorului", help: "Alege din listă sau „Alt distribuitor” ca să scrii numele.", step: "permits", section: "Distribuitorul (OSD)", type: "select", options: GAS_DISTRIBUTORS },
   { key: "osd_adresa", label: "Adresa agenției", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_directia", label: "Direcția", help: "ex. Direcția Operațională Muntenia Nord", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_punct_lucru", label: "Punctul de lucru", step: "permits", section: "Distribuitorul (OSD)", type: "text" },

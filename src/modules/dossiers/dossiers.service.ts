@@ -102,6 +102,22 @@ export async function groupPlan(
 /** Răspunsul pentru pagină: câmpurile grupului, cu unitatea pentru categoria lui. */
 export async function getFields(fastify: FastifyInstance, tenantId: string, groupId: string) {
   const plan = await groupPlan(fastify, tenantId, groupId);
+  // Distribuitorii firmei întâi, apoi lista generală (fără dubluri după nume).
+  const own = await fastify.prisma.distributor.findMany({
+    where: { tenantId, isActive: true },
+    select: { name: true },
+    orderBy: { name: "asc" },
+  });
+  const optionsFor = (key: string, options: readonly string[] | undefined) => {
+    if (key !== "osd_denumire") return options ? [...options] : null;
+    const seen = new Set<string>();
+    return [...own.map((d) => d.name), ...(options ?? [])].filter((n) => {
+      const k = n.trim().toLowerCase();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  };
   return {
     steps: DOSSIER_STEPS,
     fields: plan.fields.map(({ field, docs }) => ({
@@ -112,7 +128,7 @@ export async function getFields(fastify: FastifyInstance, tenantId: string, grou
       section: field.section,
       type: field.type,
       unit: unitFor(field, plan.group.categoryCode) ?? null,
-      options: field.options ?? null,
+      options: optionsFor(field.key, field.options),
       source: field.source ?? "metadata",
       docs,
     })),
