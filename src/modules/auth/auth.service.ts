@@ -1,4 +1,5 @@
 import { resolveEntitlements, serializeEntitlements } from "../../lib/entitlements/index.js";
+import { ensureDefaultProjectTypes } from "../../lib/default-project-types.js";
 import type { FastifyInstance } from "fastify";
 import { createHash, randomBytes } from "crypto";
 import { hashPassword, verifyPassword } from "../../lib/hash.js";
@@ -201,6 +202,9 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
         ...geo,
       },
     });
+
+    // Tipurile de proiect de bază (dosare, asistentul de proiect le caută după cod).
+    await ensureDefaultProjectTypes(tx, tenant.id);
 
     const user = await tx.user.create({
       data: {

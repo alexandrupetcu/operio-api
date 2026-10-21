@@ -12,6 +12,7 @@ import {
 } from "../../lib/dossier-fields.js";
 import { docxText } from "../tenant/stamp-text.js";
 import { readCompanySettings } from "../tenant/company-settings.js";
+import { ensureDefaultProjectTypes } from "../../lib/default-project-types.js";
 import { generate as documentsGenerate } from "../documents/documents.service.js";
 import type { CreateDossierInput, DossierTeamMemberInput, UpdateDossierInput } from "./dossiers.schema.js";
 
@@ -226,6 +227,17 @@ export async function get(fastify: FastifyInstance, tenantId: string, id: string
 
 // ── Creare / salvare ────────────────────────────────────────────────────────
 
+/** Tipul de proiect din spatele dosarului; firmele noi îl primesc la prima nevoie. */
+async function projectTypeFor(fastify: FastifyInstance, tenantId: string, code: string) {
+  const find = () => fastify.prisma.projectType.findFirst({ where: { tenantId, code }, select: { id: true } });
+  const found = await find();
+  if (found) return found;
+  await ensureDefaultProjectTypes(fastify.prisma, tenantId);
+  const created = await find();
+  if (!created) throw fastify.httpErrors.failedDependency(`Tipul de proiect „${code}” lipsește pentru firmă`);
+  return created;
+}
+
 async function resolveDistributor(fastify: FastifyInstance, tenantId: string, code: string | null) {
   if (!code) return null;
   return fastify.prisma.distributor.findFirst({ where: { tenantId, code }, select: { id: true, name: true, contactJson: true } });
@@ -255,8 +267,7 @@ export async function create(fastify: FastifyInstance, tenantId: string, input: 
   const group = await findGroup(fastify, tenantId, input.templateGroupId);
   const ptCode = CATEGORY_TO_PROJECT_TYPE_CODE[group.categoryCode];
   if (!ptCode) throw fastify.httpErrors.badRequest("Grupul ales nu e un dosar (Carte Branșament, Carte Conductă sau Dosar ISCIR)");
-  const projectType = await fastify.prisma.projectType.findFirst({ where: { tenantId, code: ptCode } });
-  if (!projectType) throw fastify.httpErrors.failedDependency(`Tipul de proiect „${ptCode}” lipsește pentru firmă`);
+  const projectType = await projectTypeFor(fastify, tenantId, ptCode);
   const distributor = await resolveDistributor(fastify, tenantId, group.distributorCode);
   const defaults = await initialMetadata(fastify, tenantId, distributor);
 
@@ -351,8 +362,8 @@ export async function update(fastify: FastifyInstance, tenantId: string, id: str
   if (input.templateGroupId) {
     const group = await findGroup(fastify, tenantId, input.templateGroupId);
     const ptCode = CATEGORY_TO_PROJECT_TYPE_CODE[group.categoryCode];
-    const pt = ptCode ? await fastify.prisma.projectType.findFirst({ where: { tenantId, code: ptCode }, select: { id: true } }) : null;
-    if (!pt) throw fastify.httpErrors.badRequest("Grupul ales nu e un dosar");
+    if (!ptCode) throw fastify.httpErrors.badRequest("Grupul ales nu e un dosar");
+    const pt = await projectTypeFor(fastify, tenantId, ptCode);
     const distributor = await resolveDistributor(fastify, tenantId, group.distributorCode);
     groupPatch = { templateGroupId: group.id, distributorId: distributor?.id ?? null, projectTypeId: pt.id };
   }

@@ -9,6 +9,7 @@ import { updateQuickDossierSchema } from "../clients/clients.schema.js";
 import * as dossiers from "./dossiers.service.js";
 import { createDossierSchema, updateDossierSchema } from "./dossiers.schema.js";
 import { expectReject } from "../../test/stub.js";
+import { ensureDefaultProjectTypes } from "../../lib/default-project-types.js";
 
 // Fișierele membrilor grupului: DOCX-uri construite în memorie, pe cheia S3.
 const files = vi.hoisted(() => new Map<string, Buffer>());
@@ -144,15 +145,24 @@ describe("dosare — creare cu client nou", () => {
     expect(d.address).toBe("Str. Nouă 3");
   });
 
-  it("fără tipul de proiect → 424, iar clientul nou NU rămâne creat", async () => {
+  it("firma fără tipuri de proiect (înregistrată după seed) → se creează automat, dosarul merge", async () => {
     await prisma.projectType.deleteMany({ where: { tenantId: f.a.id } });
-    const before = await prisma.client.count({ where: { tenantId: f.a.id } });
-    const err = await expectReject(() => dossiers.create(app, f.a.id, createDossierSchema.parse({
+    const d = await dossiers.create(app, f.a.id, createDossierSchema.parse({
       templateGroupId: groupId,
       client: { type: "PERSON", firstName: "X", lastName: "Y", phone: "0722000112", addresses: [{ address: "Str. Y 1" }] },
-    })));
-    expect(err.status).toBe(424);
-    expect(await prisma.client.count({ where: { tenantId: f.a.id } })).toBe(before);
+    }));
+    expect(d.clientName).toBe("X Y");
+    const types = await prisma.projectType.findMany({ where: { tenantId: f.a.id }, select: { code: true } });
+    expect(types.map((t) => t.code).sort()).toEqual(["bransament", "conducta", "dosar_iscir", "revizie_centrala"]);
+  });
+
+  it("ensureDefaultProjectTypes nu dublează și nu atinge tipurile existente", async () => {
+    await prisma.projectType.updateMany({ where: { tenantId: f.a.id, code: "bransament" }, data: { name: "Numele firmei" } });
+    await ensureDefaultProjectTypes(prisma, f.a.id);
+    await ensureDefaultProjectTypes(prisma, f.a.id);
+    const types = await prisma.projectType.findMany({ where: { tenantId: f.a.id } });
+    expect(types).toHaveLength(4);
+    expect(types.find((t) => t.code === "bransament")!.name).toBe("Numele firmei");
   });
 });
 
