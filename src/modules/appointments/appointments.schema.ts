@@ -281,8 +281,8 @@ const programareNouaBranch = z.object({
   }),
 });
 
-export const finalizeAppointmentSchema = z.discriminatedUnion("outcome", [
-  z.object({
+/** Raportul complet (centrală sau instalație) — și la `/finalize`, și la revizia fără programare. */
+export const raportCompletBranch = z.object({
     outcome: z.literal("raport_complet"),
     equipmentId: z.string().cuid().optional(),    // existing equipment (centrala)
     equipmentData: equipmentDataSchema.optional(), // create or update equipment fields
@@ -290,7 +290,10 @@ export const finalizeAppointmentSchema = z.discriminatedUnion("outcome", [
     installationData: gasInstallationInputSchema.optional(), // create/update installation
     // Centrala report OR gas-installation FISA report (disambiguated by reportKind / fields)
     reportData: z.union([reportDataSchema, instalatieReportSchema]),
-  }),
+});
+
+export const finalizeAppointmentSchema = z.discriminatedUnion("outcome", [
+  raportCompletBranch,
   revenireBranch,
   programareNouaBranch,
 ]);
