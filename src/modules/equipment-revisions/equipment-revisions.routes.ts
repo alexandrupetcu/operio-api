@@ -27,6 +27,11 @@ type SingleRevisionParams = {
 export default async function equipmentRevisionsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
+  // All revisions of a client, across equipments (client page → „Revizii” tab)
+  fastify.get<{ Params: { id: string } }>("/:id/revisions", async (request) => {
+    return revisionService.listByClient(fastify, request.tenantId, request.params.id);
+  });
+
   // List revisions for an equipment
   fastify.get<RevisionParams>(
     "/:id/equipment/:equipmentId/revisions",

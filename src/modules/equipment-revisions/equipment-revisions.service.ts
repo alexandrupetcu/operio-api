@@ -106,56 +106,49 @@ export async function verifyOwnership(
   return equipment;
 }
 
-export async function listByEquipment(
-  fastify: FastifyInstance,
-  tenantId: string,
-  clientId: string,
-  equipmentId: string
-) {
-  await verifyOwnership(fastify, tenantId, clientId, equipmentId);
-
-  const revisions = await fastify.prisma.equipmentRevision.findMany({
-    where: { equipmentId },
-    orderBy: { revisionDate: "desc" },
-    take: 500,
+/** Câmpurile unei revizii în liste (pe echipament sau pe tot clientul). */
+const revisionListSelect = {
+  id: true,
+  revisionDate: true,
+  status: true,
+  fileName: true,
+  operatorName: true,
+  operatorAddress: true,
+  operatorPhone: true,
+  operatorEmail: true,
+  analyzerName: true,
+  analyzerSerial: true,
+  location: true,
+  pdfEquipmentName: true,
+  pdfEquipmentSerial: true,
+  pdfClientAddress: true,
+  analysisData: true,
+  notes: true,
+  s3Key: true,
+  iscirDocumentId: true,
+  sourceEmailId: true,
+  createdAt: true,
+  // Vizita din care a rezultat revizia: depunerea / înregistrarea raportului la OS.
+  appointment: {
     select: {
       id: true,
-      revisionDate: true,
+      type: true,
+      date: true,
       status: true,
-      fileName: true,
-      operatorName: true,
-      operatorAddress: true,
-      operatorPhone: true,
-      operatorEmail: true,
-      analyzerName: true,
-      analyzerSerial: true,
-      location: true,
-      pdfEquipmentName: true,
-      pdfEquipmentSerial: true,
-      pdfClientAddress: true,
-      analysisData: true,
-      notes: true,
-      s3Key: true,
-      iscirDocumentId: true,
-      sourceEmailId: true,
-      createdAt: true,
-      // Vizita din care a rezultat revizia: depunerea / înregistrarea raportului la OS.
-      appointment: {
-        select: {
-          id: true,
-          type: true,
-          date: true,
-          status: true,
-          completedAt: true,
-          osSubmittedAt: true,
-          osRegistrationNumber: true,
-          osRegisteredAt: true,
-          osClientNotifiedAt: true,
-        },
-      },
+      completedAt: true,
+      osSubmittedAt: true,
+      osRegistrationNumber: true,
+      osRegisteredAt: true,
+      osClientNotifiedAt: true,
     },
-  });
+  },
+} as const;
 
+async function withIscirDocuments<T extends { iscirDocumentId: string | null; analysisData: unknown; analyzerName: string | null }>(
+  fastify: FastifyInstance,
+  tenantId: string,
+  revisions: T[]
+) {
   // Fetch linked ISCIR documents in one query
   const docIds = revisions.map((r) => r.iscirDocumentId).filter((id): id is string => !!id);
   const docs = docIds.length
@@ -171,6 +164,40 @@ export async function listByEquipment(
     source: revisionSource(r),
     iscirDocument: r.iscirDocumentId ? docMap.get(r.iscirDocumentId) ?? null : null,
   }));
+}
+
+export async function listByEquipment(
+  fastify: FastifyInstance,
+  tenantId: string,
+  clientId: string,
+  equipmentId: string
+) {
+  await verifyOwnership(fastify, tenantId, clientId, equipmentId);
+
+  const revisions = await fastify.prisma.equipmentRevision.findMany({
+    where: { equipmentId },
+    orderBy: { revisionDate: "desc" },
+    take: 500,
+    select: revisionListSelect,
+  });
+  return withIscirDocuments(fastify, tenantId, revisions);
+}
+
+/** Toate reviziile clientului, de pe toate echipamentele — tabul „Revizii” din fișa clientului. */
+export async function listByClient(fastify: FastifyInstance, tenantId: string, clientId: string) {
+  const client = await fastify.prisma.client.findFirst({ where: { id: clientId, tenantId }, select: { id: true } });
+  if (!client) throw fastify.httpErrors.notFound("Client not found");
+
+  const revisions = await fastify.prisma.equipmentRevision.findMany({
+    where: { equipment: { clientId } },
+    orderBy: { revisionDate: "desc" },
+    take: 500,
+    select: {
+      ...revisionListSelect,
+      equipment: { select: { id: true, name: true, internalName: true, serial: true, location: true } },
+    },
+  });
+  return withIscirDocuments(fastify, tenantId, revisions);
 }
 
 export async function getById(
