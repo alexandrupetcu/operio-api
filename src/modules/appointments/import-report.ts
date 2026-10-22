@@ -107,40 +107,24 @@ const readingsOf = (parsed: ParsedRevision): Record<string, unknown> =>
     ? (parsed.analysisData.readings as Record<string, unknown>)
     : {};
 
-export async function importAppointmentReport(
+/**
+ * Extragerea datelor din fișierul analizorului, fără nicio scriere: strategia firmei
+ * pentru tipul de vizită, sursa (configurată sau detectată), parsarea. Orice excepție
+ * din detect/parse (fișier ostil, parser căzut) degradează la „doar atașare" cu motivul
+ * în `_warning`. Folosită și la import (cu salvare), și la precompletarea din web,
+ * înainte ca vizita să existe.
+ */
+export async function parseReportFile(
   fastify: FastifyInstance,
-  documentQueue: Queue,
   tenantId: string,
-  appointmentId: string,
-  scope: ApptScope,
+  appointmentType: string,
   file: { buffer: Buffer; filename: string; mimetype: string },
-): Promise<ImportReportResult> {
-  const appointment = await fastify.prisma.appointment.findFirst({
-    where: { id: appointmentId, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
-    select: {
-      id: true,
-      type: true,
-      date: true,
-      clientId: true,
-      employeeId: true,
-      equipmentId: true,
-      equipmentRevisionId: true,
-      completionDataJson: true,
-    },
-  });
-  if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
-  if (!canSeeEmployee(scope, appointment.employeeId)) {
-    throw fastify.httpErrors.forbidden("Nu poți importa raportul pentru programarea altui tehnician");
-  }
-
+  appointmentId: string | null = null,
+) {
   const settings = await getReportSourcesSettings(fastify.prisma, tenantId);
-  const cfg = getReportTypeConfig(settings, appointment.type);
+  const cfg = getReportTypeConfig(settings, appointmentType);
   if (!cfg) throw fastify.httpErrors.badRequest("Tipul programării nu acceptă import de raport");
 
-  // 1. Textul + sursa. Strategia „attach" nu extrage nimic; altfel cea
-  //    configurată sau detecția. Orice excepție din detect/parse (fișier ostil,
-  //    parser căzut) degradează la „doar atașare" cu motivul în `_warning` —
-  //    raportul se păstrează oricum.
   const fileKind = reportFileKind(file.filename, file.mimetype) ?? "pdf";
   let text = "";
   try {
@@ -174,6 +158,59 @@ export async function importAppointmentReport(
     parsed.analysisData._warning = "parse_failed";
   }
   parsed.analysisData._source = source.id;
+  return { cfg, settings, fileKind, source, score, parsed };
+}
+
+/** Precompletarea din web, înainte ca vizita să existe: doar citirile și valorile pentru wizard. */
+export async function previewReportFile(
+  fastify: FastifyInstance,
+  tenantId: string,
+  appointmentType: string,
+  file: { buffer: Buffer; filename: string; mimetype: string },
+) {
+  const { cfg, source, score, parsed } = await parseReportFile(fastify, tenantId, appointmentType, file);
+  return {
+    strategy: cfg.strategy,
+    sourceId: source.id,
+    sourceLabel: source.label,
+    score,
+    revisionDate: parsed.revisionDate,
+    equipmentName: parsed.equipmentName,
+    equipmentSerial: parsed.equipmentSerial,
+    analyzer: parsed.analyzer,
+    readings: readingsOf(parsed),
+    prefill: prefillFromAnalysisData(parsed.analysisData),
+    warning: typeof parsed.analysisData._warning === "string" ? parsed.analysisData._warning : null,
+  };
+}
+
+export async function importAppointmentReport(
+  fastify: FastifyInstance,
+  documentQueue: Queue,
+  tenantId: string,
+  appointmentId: string,
+  scope: ApptScope,
+  file: { buffer: Buffer; filename: string; mimetype: string },
+): Promise<ImportReportResult> {
+  const appointment = await fastify.prisma.appointment.findFirst({
+    where: { id: appointmentId, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
+    select: {
+      id: true,
+      type: true,
+      date: true,
+      clientId: true,
+      employeeId: true,
+      equipmentId: true,
+      equipmentRevisionId: true,
+      completionDataJson: true,
+    },
+  });
+  if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
+  if (!canSeeEmployee(scope, appointment.employeeId)) {
+    throw fastify.httpErrors.forbidden("Nu poți importa raportul pentru programarea altui tehnician");
+  }
+
+  const { cfg, settings, fileKind, source, score, parsed } = await parseReportFile(fastify, tenantId, appointment.type, file, appointmentId);
 
   // 2. Fișierul în S3 abia după ce parsarea (sau rezerva) a reușit — o excepție
   //    mai sus nu lasă un obiect orfan. Content-type canonic după extensie.
