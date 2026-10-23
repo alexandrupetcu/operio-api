@@ -73,29 +73,3 @@ export function daysUntil(deadline: Date, now = new Date()): number {
   const b = new Date(now); b.setHours(0, 0, 0, 0);
   return Math.round((a.getTime() - b.getTime()) / 86_400_000);
 }
-
-/**
- * Zile lucrătoare rămase până la termen: zilele lucrătoare de după azi, până la ziua
- * termenului inclusiv (0 = termenul e azi sau a trecut azi). Negativ = zilele lucrătoare
- * cu care s-a depășit. Așa se citește termenul legal („5 zile lucrătoare”), nu în zile
- * calendaristice, unde un weekend îl face să pară mai lung.
- */
-export function workingDaysUntil(deadline: Date, now = new Date()): number {
-  const a = new Date(deadline); a.setHours(0, 0, 0, 0);
-  const b = new Date(now); b.setHours(0, 0, 0, 0);
-  let n = 0;
-  if (a >= b) {
-    const d = new Date(b);
-    while (d < a) {
-      d.setDate(d.getDate() + 1);
-      if (isWorkingDay(d)) n += 1;
-    }
-    return n;
-  }
-  const d = new Date(a);
-  while (d < b) {
-    d.setDate(d.getDate() + 1);
-    if (isWorkingDay(d)) n -= 1;
-  }
-  return n;
-}

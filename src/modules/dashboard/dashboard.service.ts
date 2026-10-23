@@ -7,7 +7,7 @@ import { getAlertWindows, type AlertWindows } from "../tenant/alert-settings.js"
 import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
 import { listPendingOsRegistrations, osFeedState, clientDisplayName, WORK_LABEL } from "../appointments/os-registration.js";
 import { listExpiringCertifications, listExpiringAuthorizations } from "../employees/certification-alerts.js";
-import { daysUntil, workingDaysUntil } from "../../lib/working-days.js";
+import { daysUntil } from "../../lib/working-days.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 
 // Warning windows are tenant-configurable (settingsJson.alertWindows); the
@@ -615,13 +615,10 @@ export async function getActionFeed(
     const d = daysUntil(p.deadline, now);
     const { show, overdue, urgent } = osFeedState(d, w);
     if (!show) continue;
-    // Termenul e în zile lucrătoare (Ord. ANRE 179/2015), deci așa se și afișează —
-    // în zile calendaristice un weekend l-ar face să pară mai lung („7 zile” pentru 5).
-    const wd = workingDaysUntil(p.deadline, now);
     items.push({
       id: `os-registration-${p.id}`,
       kind: "os_registration",
-      time: wd < 0 ? relTime(d) : wd === 0 ? "azi" : `în ${wd} zile lucr.`,
+      time: relTime(d),
       title:
         p.type === "revizie"
           ? `${clientDisplayName(p.client)} — raport revizie centrală de depus la ${os}`
@@ -629,7 +626,7 @@ export async function getActionFeed(
       meta: `Finalizată ${p.completedAt.toLocaleDateString("ro-RO")} · termen ${p.deadline.toLocaleDateString("ro-RO")}${
         p.clientAddress?.address ? ` · ${p.clientAddress.address}` : ""
       }`,
-      tag: wd < 0 ? "Întârziat" : wd === 0 ? "Expiră azi" : `Expiră în ${wd} z.l.`,
+      tag: relTag(d),
       tone: overdue ? "danger" : urgent ? "warn" : "yellow",
       action: "Depune",
       actionPrimary: overdue || urgent,
