@@ -79,6 +79,12 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // Single appointment (mobile detail refresh / client history)
+  fastify.get<{ Params: { id: string } }>("/:id", async (request) => {
+    const scope = await resolveApptScope(fastify, request);
+    return appointmentsService.getById(fastify, request.tenantId, request.params.id, scope);
+  });
+
   // Update appointment
   fastify.patch<{ Params: { id: string } }>(
     "/:id",

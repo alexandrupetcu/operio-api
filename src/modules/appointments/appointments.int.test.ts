@@ -40,6 +40,17 @@ afterAll(async () => {
 // Izolarea între firme la creare
 // ───────────────────────────────────────────────────────────────────────────
 
+describe("o singură programare (GET /:id)", () => {
+  it("a firmei → cu client, angajat și instalație; a firmei B → 404; tehnicianul vede doar ce e al lui", async () => {
+    const own = await appointments.getById(app, f.a.id, f.a.appointmentId);
+    expect(own.client?.id).toBe(f.a.clientId);
+    expect(own.employee?.id).toBe(f.a.employeeId);
+    expect((await expectReject(() => appointments.getById(app, f.a.id, f.b.appointmentId))).status).toBe(404);
+    const colleague = await prisma.employee.create({ data: { tenantId: f.a.id, firstName: "Coleg", lastName: "A" } });
+    expect((await expectReject(() => appointments.getById(app, f.a.id, f.a.appointmentId, { kind: "own", employeeId: colleague.id }))).status).toBe(404);
+  });
+});
+
 describe("izolarea între firme — crearea unei programări", () => {
   it("clientId-ul firmei B → 400 „Clientul nu aparține firmei”", async () => {
     const err = await expectReject(() => appointments.create(app, f.a.id, createInput({ clientId: f.b.clientId })));

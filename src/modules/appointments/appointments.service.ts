@@ -774,9 +774,21 @@ export async function instalatiePrefill(
 
 const listInclude = {
   project: { select: { id: true, name: true, status: true } },
+  // Distribuitorul instalației — pentru eticheta „De depus la <OS>” pe telefon.
+  installation: { select: { id: true, distributorName: true } },
   client: { select: { id: true, companyName: true, firstName: true, lastName: true, phone: true, email: true, addresses: { select: { address: true, isPrimary: true, city: { select: { name: true } }, state: { select: { name: true } } }, orderBy: { isPrimary: "desc" as const } } } },
   employee: { select: { id: true, firstName: true, lastName: true } },
 } as const;
+
+/** O singură programare (detaliul de pe telefon: reîncărcare, deschidere din istoricul clientului). */
+export async function getById(fastify: FastifyInstance, tenantId: string, id: string, scope: ApptScope = { kind: "all" }) {
+  const appt = await fastify.prisma.appointment.findFirst({
+    where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
+    include: listInclude,
+  });
+  if (!appt) throw fastify.httpErrors.notFound("Appointment not found");
+  return appt;
+}
 
 export async function listByProject(
   fastify: FastifyInstance,
