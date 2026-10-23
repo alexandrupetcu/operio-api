@@ -139,8 +139,15 @@ const osSelect = {
  * Întoarce și termenul: `workingDays` zile lucrătoare de la finalizare (setarea firmei,
  * implicit 5 — Ord. ANRE 179/2015).
  */
-export async function listPendingOsRegistrations(db: PrismaClient, tenantId: string, workingDays: number) {
-  // Fișa clientului de exemplu (onboarding) nu se înregistrează nicăieri.
+export async function listPendingOsRegistrations(
+  db: PrismaClient,
+  tenantId: string,
+  workingDays: number,
+  /** Și fișele clientului de exemplu (panoul principal le arată marcate „Exemplu”; e-mailul și exporturile nu). */
+  { includeSample = false }: { includeSample?: boolean } = {},
+) {
+  // Fișa clientului de exemplu (onboarding) nu se înregistrează nicăieri: nu intră în
+  // rezumatul zilnic și în exporturi; pe panou apare doar ca să arate fluxul.
   const sampleClientId = await getSampleClientId(db, tenantId);
   const rows = await db.appointment.findMany({
     where: {
@@ -149,7 +156,7 @@ export async function listPendingOsRegistrations(db: PrismaClient, tenantId: str
       status: "completed",
       type: { in: [...OS_REGISTRATION_TYPES] },
       osRegistrationNumber: null,
-      ...excludeSampleAppointments(sampleClientId),
+      ...(includeSample ? {} : excludeSampleAppointments(sampleClientId)),
     },
     select: {
       id: true,
@@ -167,7 +174,12 @@ export async function listPendingOsRegistrations(db: PrismaClient, tenantId: str
   });
   return rows.map((r) => {
     const completedAt = r.completedAt ?? r.updatedAt;
-    return { ...r, completedAt, deadline: osRegistrationDeadline(completedAt, workingDays) };
+    return {
+      ...r,
+      completedAt,
+      deadline: osRegistrationDeadline(completedAt, workingDays),
+      sample: !!sampleClientId && r.client?.id === sampleClientId,
+    };
   });
 }
 

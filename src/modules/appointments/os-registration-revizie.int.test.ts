@@ -54,6 +54,14 @@ describe("înregistrarea la OS — revizie centrală", () => {
   it("revizia finalizată apare la „de înregistrat”", async () => {
     const pending = await listPendingOsRegistrations(prisma, f.a.id, 5);
     expect(pending.map((p) => p.id)).toContain(apptId);
+    expect(pending.find((p) => p.id === apptId)?.sample).toBe(false);
+  });
+
+  it("clientul de exemplu: lipsește din lista implicită (rezumat, exporturi), apare marcat pe panou", async () => {
+    await prisma.tenant.update({ where: { id: f.a.id }, data: { settingsJson: { sample: { clientId: f.a.clientId } } } });
+    expect((await listPendingOsRegistrations(prisma, f.a.id, 5)).map((p) => p.id)).not.toContain(apptId);
+    const onDashboard = await listPendingOsRegistrations(prisma, f.a.id, 5, { includeSample: true });
+    expect(onDashboard.find((p) => p.id === apptId)?.sample).toBe(true);
   });
 
   it("numărul OS se salvează, raportul ISCIR se regenerează și pleacă la client", async () => {

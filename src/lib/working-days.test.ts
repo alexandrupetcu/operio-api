@@ -7,6 +7,7 @@ import {
   orthodoxEaster,
   osRegistrationDeadline,
   romanianPublicHolidays,
+  workingDaysUntil,
 } from "./working-days.js";
 
 /** Data locală (fără UTC), ca în modul: comparațiile se fac pe zi calendaristică. */
@@ -169,5 +170,19 @@ describe("osRegistrationDeadline — termen configurabil pe firmă", () => {
     const vineri = d(2026, 10, 16);
     expect(iso(osRegistrationDeadline(vineri))).toBe("2026-10-23");
     expect(iso(osRegistrationDeadline(vineri, 10))).toBe("2026-10-30");
+  });
+});
+
+describe("workingDaysUntil", () => {
+  it("revizie joi 23.10.2026 → termen joi 30.10: 5 zile lucrătoare, deși sunt 7 calendaristice", () => {
+    const deadline = osRegistrationDeadline(d(2026, 10, 23, 9), 5);
+    expect(iso(deadline)).toBe("2026-10-30");
+    expect(daysUntil(deadline, d(2026, 10, 23))).toBe(7);
+    expect(workingDaysUntil(deadline, d(2026, 10, 23))).toBe(5);
+    expect(workingDaysUntil(deadline, d(2026, 10, 26))).toBe(4); // luni
+    expect(workingDaysUntil(deadline, d(2026, 10, 30))).toBe(0); // în ziua termenului
+  });
+  it("depășit: zilele lucrătoare de după termen, negative", () => {
+    expect(workingDaysUntil(d(2026, 10, 30), d(2026, 11, 3))).toBe(-2); // vineri 31.10 + luni 2.11
   });
 });
