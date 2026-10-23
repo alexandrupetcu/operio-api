@@ -12,6 +12,9 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(secretMin),
   JWT_ACCESS_EXPIRY: z.string().default("15m"),
   JWT_REFRESH_EXPIRY: z.string().default("7d"),
+  // Sesiunile mobile: telefonul e legat de cont și poate fi blocat cu Face ID / amprentă,
+  // deci parola se cere mai rar decât pe web.
+  JWT_REFRESH_EXPIRY_MOBILE: z.string().default("30d"),
 
   S3_ENDPOINT: z.string().url().optional(),
   S3_ACCESS_KEY: z.string(),

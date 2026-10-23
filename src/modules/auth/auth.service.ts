@@ -62,7 +62,7 @@ async function issueTokens(
       token: hashRefreshToken(refreshToken),
       client: session.client,
       deviceId: session.deviceId ?? null,
-      expiresAt: parseExpiry(env.JWT_REFRESH_EXPIRY),
+      expiresAt: parseExpiry(refreshExpiryFor(session.client)),
     },
   });
   return { accessToken, refreshToken };
@@ -113,6 +113,11 @@ function generateRefreshToken(): string {
  */
 function hashRefreshToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+/** Cât trăiește refresh token-ul: pe mobil (dispozitiv legat, blocare biometrică) mai mult decât pe web. */
+export function refreshExpiryFor(client: ClientKind): string {
+  return client === "mobile" ? env.JWT_REFRESH_EXPIRY_MOBILE : env.JWT_REFRESH_EXPIRY;
 }
 
 function parseExpiry(expiry: string): Date {
