@@ -29,6 +29,8 @@ const envSchema = z.object({
     .default("development"),
 
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
+  // Adresa publică a API-ului, pentru linkurile trimise clienților (ex. https://api.operio.ro).
+  API_PUBLIC_URL: z.string().url().default("http://localhost:3001"),
 
   OPENAI_API_KEY: z.string().optional(),
   // Modelele (vezi lib/openai-models.ts): documente scanate vs. text. Se pot schimba fără deploy.

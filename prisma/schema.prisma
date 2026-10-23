@@ -597,11 +597,31 @@ model Document {
   clients         ClientDocument[]
   signingSessions SigningSession[]
   registryEntries RegistryEntry[]
+  shareLinks      DocumentShareLink[]
 
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, workflowStepInstanceId])
   @@index([tenantId, appointmentId])
+}
+
+/// Link public, cu termen, către un document generat (trimis clientului pe WhatsApp / e-mail).
+/// Token-ul e secretul; fără autentificare, dar doar pe documente finalizate, până la `expiresAt`.
+model DocumentShareLink {
+  id           String    @id @default(cuid())
+  tenantId     String
+  documentId   String
+  document     Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  token        String    @unique
+  expiresAt    DateTime
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  revokedAt    DateTime?
+  openedCount  Int       @default(0)
+  lastOpenedAt DateTime?
+
+  @@index([documentId])
+  @@index([tenantId])
 }
 
 model ProjectDocument {

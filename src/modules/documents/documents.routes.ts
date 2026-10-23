@@ -7,6 +7,7 @@ import {
   generateClientDocumentsSchema,
 } from "./documents.schema.js";
 import * as documentsService from "./documents.service.js";
+import * as shareService from "./documents-share.service.js";
 import * as documentParseService from "./documents-parse.service.js";
 
 export default async function documentsRoutes(fastify: FastifyInstance) {
@@ -32,6 +33,19 @@ export default async function documentsRoutes(fastify: FastifyInstance) {
       request.params.id
     );
   });
+
+  // Link public, cu termen, pentru trimiterea documentului clientului (WhatsApp / e-mail).
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/share-link",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request) => shareService.createShareLink(fastify, request.tenantId, request.user.sub, request.params.id)
+  );
+
+  fastify.delete<{ Params: { id: string; linkId: string } }>(
+    "/:id/share-link/:linkId",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request) => shareService.revokeShareLink(fastify, request.tenantId, request.params.linkId)
+  );
 
   // Get download URL
   fastify.get<{ Params: { id: string } }>(
