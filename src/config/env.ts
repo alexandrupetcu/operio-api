@@ -28,6 +28,9 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
 
   OPENAI_API_KEY: z.string().optional(),
+  // Modelele (vezi lib/openai-models.ts): documente scanate vs. text. Se pot schimba fără deploy.
+  OPENAI_MODEL_VISION: z.string().default("gpt-5.4"),
+  OPENAI_MODEL_TEXT: z.string().default("gpt-5.4-mini"),
 
   // SMTP (optional — signing invitations)
   SMTP_HOST: z.string().optional(),

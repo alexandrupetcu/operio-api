@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { chatParams } from "../openai-models.js";
 import { env } from "../../config/env.js";
 import {
   ANALYSIS_META_FIELDS,
@@ -177,9 +178,7 @@ export const genericAiPdfSource: ReportSource = {
         ? `\n\nEtichete cunoscute pe acest tip de raport (folosește-le exact așa în "readings" când le întâlnești): ${Object.keys(mapping).join(", ")}.`
         : "";
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      temperature: 0,
-      max_tokens: 2000,
+      ...chatParams(env.OPENAI_MODEL_TEXT, { temperature: 0, maxTokens: 2000 }),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },

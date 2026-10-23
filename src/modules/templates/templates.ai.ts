@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { chatParams } from "../../lib/openai-models.js";
 import { env } from "../../config/env.js";
 import type { FastifyInstance } from "fastify";
 
@@ -156,13 +157,12 @@ export async function generateTemplateContent(
   }
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4.1-mini",
+    // Generare de conținut, nu extragere: efort mediu, să nu iasă șabloane sărace.
+    ...chatParams(env.OPENAI_MODEL_TEXT, { temperature: 0.5, maxTokens: 8000, effort: "medium" }),
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: customPrompt || categoryPrompt },
     ],
-    temperature: 0.5,
-    max_tokens: 8000,
   });
 
   let content = response.choices[0]?.message?.content;

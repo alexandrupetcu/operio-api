@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { responsesParams } from "../../lib/openai-models.js";
 import { Prisma } from "@prisma/client";
 import type { MultipartFile } from "@fastify/multipart";
 import type { FastifyInstance } from "fastify";
@@ -190,7 +191,10 @@ export async function parsePermits(
   const fileData = `data:${file.mimetype};base64,${base64}`;
 
   const response = await openai.responses.create({
-    model: "gpt-4.1",
+    // Long certificates can produce a lot of JSON — the SDK's default cap
+    // (~2048 in some builds) truncates mid-object, which then fails JSON.parse
+    // and looks like "the model returned garbage". Give it generous headroom.
+    ...responsesParams(env.OPENAI_MODEL_VISION, { temperature: 0.1, maxOutputTokens: 8000 }),
     input: [
       {
         role: "user",
@@ -208,11 +212,6 @@ export async function parsePermits(
       },
     ],
     instructions: SYSTEM_PROMPT,
-    temperature: 0.1,
-    // Long certificates can produce a lot of JSON — the SDK's default cap
-    // (~2048 in some builds) truncates mid-object, which then fails JSON.parse
-    // and looks like "the model returned garbage". Give it generous headroom.
-    max_output_tokens: 8000,
   });
 
   const rawText = collectOutputText(response);
@@ -329,12 +328,10 @@ export async function parseAuthorization(
       ];
 
   const response = await openai.responses.create({
-    model: "gpt-4.1",
+    ...responsesParams(env.OPENAI_MODEL_VISION, { temperature: 0.1, maxOutputTokens: 1000 }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     input: [{ role: "user", content: content as any }],
     instructions: AUTH_SYSTEM_PROMPT,
-    temperature: 0.1,
-    max_output_tokens: 1000,
   });
 
   const rawText = collectOutputText(response);
@@ -505,12 +502,10 @@ export async function parseGasBill(
       ];
 
   const response = await openai.responses.create({
-    model: "gpt-4.1",
+    ...responsesParams(env.OPENAI_MODEL_VISION, { temperature: 0.1, maxOutputTokens: 2000 }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     input: [{ role: "user", content: content as any }],
     instructions: GAS_BILL_SYSTEM_PROMPT,
-    temperature: 0.1,
-    max_output_tokens: 2000,
   });
 
   const rawText = collectOutputText(response);
