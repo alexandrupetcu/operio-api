@@ -331,3 +331,30 @@ describe("tehnicianul implicit la creare", () => {
     expect(await requesterEmployeeId(app, asRequest(f.a.operator.id, f.b.id))).toBeNull();
   });
 });
+
+describe("calendar — raportul analizorului deja atașat", () => {
+  it("analyzerReportAttached: true când revizia legată are fișier sau există un document „Raport analizor”; altfel false", async () => {
+    const from = new Date("2026-10-19T00:00:00.000Z");
+    const to = new Date("2026-10-22T00:00:00.000Z");
+    const before = await appointments.calendar(app, f.a.id, from, to);
+    expect(before.find((a) => a.id === f.a.appointmentId)?.analyzerReportAttached).toBe(false);
+
+    // Centrală: revizia legată de programare are PDF-ul analizorului.
+    const rev = await prisma.equipmentRevision.create({
+      data: { equipmentId: f.a.equipmentId, revisionDate: new Date("2026-10-20T09:00:00.000Z"), s3Key: "reports/x.pdf" },
+      select: { id: true },
+    });
+    await prisma.appointment.update({ where: { id: f.a.appointmentId }, data: { equipmentRevisionId: rev.id } });
+
+    // Instalație: raportul stă ca document pe programare.
+    const inst = await prisma.appointment.create({
+      data: { tenantId: f.a.id, clientId: f.a.clientId, installationId: f.a.installationId, type: "verificare_instalatie", title: "Verificare", date: new Date("2026-10-21T09:00:00.000Z"), duration: 60 },
+      select: { id: true },
+    });
+    await prisma.document.create({ data: { tenantId: f.a.id, name: "Raport analizor (PDF) — Seitron", status: "COMPLETED", s3Key: "reports/y.pdf", appointmentId: inst.id } });
+
+    const after = await appointments.calendar(app, f.a.id, from, to);
+    expect(after.find((a) => a.id === f.a.appointmentId)?.analyzerReportAttached).toBe(true);
+    expect(after.find((a) => a.id === inst.id)?.analyzerReportAttached).toBe(true);
+  });
+});

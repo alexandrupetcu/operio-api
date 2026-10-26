@@ -817,7 +817,7 @@ export async function calendar(
   scope: ApptScope = { kind: "all" },
   employeeIdFilter?: string
 ) {
-  return fastify.prisma.appointment.findMany({
+  const rows = await fastify.prisma.appointment.findMany({
     where: {
       tenantId,
       deletedAt: null,
@@ -843,6 +843,32 @@ export async function calendar(
     orderBy: { date: "asc" },
     take: 500,
   });
+  return withAnalyzerReportFlag(fastify, rows);
+}
+
+/**
+ * `analyzerReportAttached`: vizita are deja PDF-ul analizorului — revizia legată are
+ * fișier (centrale) sau există un document „Raport analizor” pe programare (instalații).
+ * Pe telefon, ecranul „La ce programare îl atașezi?” îl arată ca să nu se suprascrie din greșeală.
+ */
+async function withAnalyzerReportFlag<T extends { id: string; equipmentRevisionId: string | null }>(
+  fastify: FastifyInstance,
+  rows: T[]
+): Promise<(T & { analyzerReportAttached: boolean })[]> {
+  if (rows.length === 0) return [];
+  const revisionIds = rows.map((r) => r.equipmentRevisionId).filter((id): id is string => !!id);
+  const [revisions, documents] = await Promise.all([
+    revisionIds.length
+      ? fastify.prisma.equipmentRevision.findMany({ where: { id: { in: revisionIds }, s3Key: { not: null } }, select: { id: true } })
+      : Promise.resolve([] as { id: string }[]),
+    fastify.prisma.document.findMany({
+      where: { appointmentId: { in: rows.map((r) => r.id) }, s3Key: { not: null }, name: { startsWith: "Raport analizor" } },
+      select: { appointmentId: true },
+    }),
+  ]);
+  const withPdf = new Set(revisions.map((r) => r.id));
+  const withDoc = new Set(documents.map((d) => d.appointmentId));
+  return rows.map((r) => ({ ...r, analyzerReportAttached: (!!r.equipmentRevisionId && withPdf.has(r.equipmentRevisionId)) || withDoc.has(r.id) }));
 }
 
 export async function create(
