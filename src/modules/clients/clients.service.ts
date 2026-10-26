@@ -92,6 +92,7 @@ export async function list(
         { phone: { contains: query.search, mode: "insensitive" as const } },
         { email: { contains: query.search, mode: "insensitive" as const } },
         { cui: { contains: query.search, mode: "insensitive" as const } },
+        { addresses: { some: { address: { contains: query.search, mode: "insensitive" as const } } } },
         { addresses: { some: { city: { name: { contains: query.search, mode: "insensitive" as const } } } } },
         { addresses: { some: { state: { name: { contains: query.search, mode: "insensitive" as const } } } } },
       ],

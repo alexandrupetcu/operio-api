@@ -5,6 +5,7 @@ import { closeStub, expectReject, serviceStub } from "../../test/stub.js";
 import { seedTwoTenants, type TwoTenants } from "../../test/fixtures.js";
 import * as clientsService from "./clients.service.js";
 import { equipmentInputSchema, updateClientSchema } from "./clients.schema.js";
+import { paginationSchema } from "../../lib/pagination.js";
 
 let app: FastifyInstance;
 let f: TwoTenants;
@@ -177,5 +178,12 @@ describe("echipamente — câmpurile tehnice de pe fișa din teren", () => {
     expect(upd2.power).toBe("28");
     expect(upd2.feeding).toBe("manuala");
     expect(upd2.deviceType).toBe("MURALA");
+  });
+});
+
+describe("căutare clienți", () => {
+  it("găsește clientul și după strada din adresă", async () => {
+    const res = await clientsService.list(app, f.a.id, paginationSchema.parse({ search: "Str. Fixture" }));
+    expect(res.data.some((c) => c.id === f.a.clientId)).toBe(true);
   });
 });
