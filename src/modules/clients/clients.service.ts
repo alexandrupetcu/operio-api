@@ -449,7 +449,7 @@ export async function addEquipment(
   fastify: FastifyInstance,
   tenantId: string,
   clientId: string,
-  input: { type?: string; internalName: string; fuel?: string; serial?: string; clientAddressId?: string | null }
+  input: EquipmentInput & { internalName: string }
 ) {
   await getById(fastify, tenantId, clientId);
   await assertAddressOfClient(fastify, clientId, input.clientAddressId);
@@ -461,6 +461,7 @@ export async function addEquipment(
       fuel: input.fuel,
       serial: input.serial,
       clientAddressId: input.clientAddressId ?? null,
+      ...pickTechnical(input),
     },
     include: {
       clientAddress: { select: { id: true, label: true, address: true } },
@@ -473,7 +474,7 @@ export async function updateEquipment(
   tenantId: string,
   clientId: string,
   equipmentId: string,
-  input: { type?: string; internalName?: string; fuel?: string; serial?: string; clientAddressId?: string | null }
+  input: EquipmentInput
 ) {
   await getById(fastify, tenantId, clientId);
   const eq = await fastify.prisma.equipment.findFirst({
@@ -489,11 +490,35 @@ export async function updateEquipment(
       ...(input.fuel !== undefined && { fuel: input.fuel }),
       ...(input.serial !== undefined && { serial: input.serial }),
       ...(input.clientAddressId !== undefined && { clientAddressId: input.clientAddressId }),
+      ...pickTechnical(input),
     },
     include: {
       clientAddress: { select: { id: true, label: true, address: true } },
     },
   });
+}
+
+type EquipmentInput = {
+  type?: string;
+  internalName?: string;
+  fuel?: string;
+  serial?: string;
+  clientAddressId?: string | null;
+  deviceType?: string | null;
+  power?: string | null;
+  airSupply?: string | null;
+  feeding?: string | null;
+  location?: string | null;
+  deviceAge?: string | null;
+};
+
+const TECHNICAL_FIELDS = ["deviceType", "power", "airSupply", "feeding", "location", "deviceAge"] as const;
+
+/** Doar câmpurile tehnice trimise (undefined = neatins; null = golit). */
+function pickTechnical(input: EquipmentInput) {
+  const out: Partial<Record<(typeof TECHNICAL_FIELDS)[number], string | null>> = {};
+  for (const k of TECHNICAL_FIELDS) if (input[k] !== undefined) out[k] = input[k];
+  return out;
 }
 
 export async function removeEquipment(
@@ -669,4 +694,20 @@ function ensurePrimary<T extends { isPrimary?: boolean }>(addresses: T[]): T[] {
     addresses[0] = { ...addresses[0], isPrimary: true };
   }
   return addresses;
+}
+
+/**
+ * Acordul GDPR deja existent al clientului (document din categoria GDPR, finalizat sau
+ * semnat) — ca wizard-ul de pe teren să nu mai ceară încă unul. `consentedAt` = data
+ * celui mai vechi acord valabil, `null` dacă nu există.
+ */
+export async function gdprConsent(fastify: FastifyInstance, tenantId: string, clientId: string): Promise<{ consentedAt: Date | null }> {
+  const client = await fastify.prisma.client.findFirst({ where: { id: clientId, tenantId }, select: { id: true } });
+  if (!client) throw fastify.httpErrors.notFound("Client not found");
+  const doc = await fastify.prisma.document.findFirst({
+    where: { tenantId, status: { in: ["COMPLETED", "SIGNED"] }, template: { categoryCode: "GDPR" }, clients: { some: { clientId } } },
+    orderBy: { createdAt: "asc" },
+    select: { createdAt: true },
+  });
+  return { consentedAt: doc?.createdAt ?? null };
 }

@@ -848,8 +848,13 @@ export async function calendar(
 export async function create(
   fastify: FastifyInstance,
   tenantId: string,
-  input: CreateAppointmentInput
+  input: CreateAppointmentInput,
+  /** `defaultEmployeeId`: angajatul celui care creează — folosit doar când body-ul nu repartizează pe nimeni. */
+  opts: { defaultEmployeeId?: string | null } = {}
 ) {
+  // Un body fără `employeeId` înseamnă „pe mine” (vizită din teren), nu „nerepartizată”:
+  // repartizarea către altcineva se face explicit, din dashboard.
+  const employeeId = input.employeeId ?? opts.defaultEmployeeId ?? undefined;
   // Verify project belongs to tenant (if provided)
   let project: { clientId: string | null } | null = null;
   if (input.projectId) {
@@ -864,7 +869,7 @@ export async function create(
   // și ale clientului programării, iar adresa a clientului (cel dat explicit sau
   // cel al proiectului).
   await assertClientInTenant(fastify, tenantId, input.clientId);
-  await assertEmployeeInTenant(fastify, tenantId, input.employeeId);
+  await assertEmployeeInTenant(fastify, tenantId, employeeId);
   await assertVehicleInTenant(fastify, tenantId, input.vehicleId);
   await assertEquipmentInTenant(fastify, tenantId, input.equipmentId, input.clientId);
   await assertInstallationInTenant(fastify, tenantId, input.installationId, input.clientId);
@@ -882,7 +887,7 @@ export async function create(
       projectId: input.projectId ?? null,
       clientId: input.clientId ?? null,
       clientAddressId: input.clientAddressId ?? null,
-      employeeId: input.employeeId,
+      employeeId,
       equipmentId: input.equipmentId ?? null,
       installationId: input.installationId ?? null,
       vehicleId: input.vehicleId ?? null,

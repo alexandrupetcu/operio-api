@@ -140,11 +140,27 @@ const revisionListSelect = {
       osRegistrationNumber: true,
       osRegisteredAt: true,
       osClientNotifiedAt: true,
+      // Doar pentru `decision` (vezi `withIscirDocuments`); raportul întreg nu pleacă în listă.
+      completionDataJson: true,
     },
   },
 } as const;
 
-async function withIscirDocuments<T extends { iscirDocumentId: string | null; analysisData: unknown; analyzerName: string | null }>(
+/** Decizia din raportul de revizie centrală (`conclusions.decision`), dacă vizita are unul. */
+export function decisionOf(report: unknown): "admis" | "respins" | null {
+  const d = report && typeof report === "object" ? (report as { conclusions?: { decision?: unknown } }).conclusions?.decision : null;
+  return d === "admis" || d === "respins" ? d : null;
+}
+
+type ApptWithReport = { completionDataJson?: unknown } | null | undefined;
+/** Vizita din listă: `completionDataJson` înlocuit cu `decision`. */
+function slimAppointment<A extends ApptWithReport>(appt: A) {
+  if (!appt) return appt as Exclude<A, { completionDataJson?: unknown }> | null;
+  const { completionDataJson, ...rest } = appt;
+  return { ...rest, decision: decisionOf(completionDataJson) };
+}
+
+async function withIscirDocuments<T extends { iscirDocumentId: string | null; analysisData: unknown; analyzerName: string | null; appointment?: ApptWithReport }>(
   fastify: FastifyInstance,
   tenantId: string,
   revisions: T[]
@@ -161,6 +177,7 @@ async function withIscirDocuments<T extends { iscirDocumentId: string | null; an
 
   return revisions.map((r) => ({
     ...r,
+    appointment: slimAppointment(r.appointment),
     source: revisionSource(r),
     iscirDocument: r.iscirDocumentId ? docMap.get(r.iscirDocumentId) ?? null : null,
   }));

@@ -247,7 +247,14 @@ const TITLE_BY_TYPE: Record<RevisionType, string> = {
  * abia creată se șterge, ca să nu rămână o vizită „programată” în trecut. Aceeași cheie
  * de idempotență retrimisă întoarce programarea deja creată, fără una nouă.
  */
-export async function createDirect(fastify: FastifyInstance, tenantId: string, input: CreateDirectRevisionInput, idempotencyKey: string | null) {
+export async function createDirect(
+  fastify: FastifyInstance,
+  tenantId: string,
+  input: CreateDirectRevisionInput,
+  idempotencyKey: string | null,
+  /** Vezi `appointmentsService.create`: fără `employeeId` în body, vizita e a celui care o înregistrează. */
+  opts: { defaultEmployeeId?: string | null } = {},
+) {
   if (idempotencyKey) {
     const existing = await fastify.prisma.appointment.findFirst({
       where: { tenantId, deletedAt: null, completionDataJson: { path: ["_idempotencyKey"], equals: idempotencyKey } },
@@ -272,7 +279,7 @@ export async function createDirect(fastify: FastifyInstance, tenantId: string, i
     employeeId: input.employeeId ?? undefined,
     equipmentId: input.equipmentId ?? undefined,
     installationId: input.installationId ?? undefined,
-  });
+  }, opts);
 
   try {
     return await appointmentsService.finalize(fastify, tenantId, created.id, input.report, { kind: "all" }, idempotencyKey);

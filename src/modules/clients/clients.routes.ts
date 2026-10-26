@@ -126,6 +126,11 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
     return clientsService.getById(fastify, request.tenantId, request.params.id);
   });
 
+  // Acordul GDPR existent (wizard-ul mobil nu mai cere unul nou dacă e deja semnat).
+  fastify.get<{ Params: { id: string } }>("/:id/gdpr-consent", async (request) => {
+    return clientsService.gdprConsent(fastify, request.tenantId, request.params.id);
+  });
+
   fastify.post(
     "/",
     { onRequest: [requireRole("ADMIN", "MANAGER")] },
@@ -142,7 +147,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { id: string } }>(
     "/:id",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request) => {
       const body = updateClientSchema.parse(request.body);
       return clientsService.update(
@@ -156,7 +161,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { id: string } }>(
     "/:id",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request) => {
       return clientsService.remove(
         fastify,
@@ -170,7 +175,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { id: string } }>(
     "/:id/addresses",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request, reply) => {
       const body = clientAddressInputSchema.parse(request.body);
       const addr = await clientsService.addAddress(
@@ -185,7 +190,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { id: string; addressId: string } }>(
     "/:id/addresses/:addressId",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request) => {
       const body = clientAddressInputSchema.partial().parse(request.body);
       return clientsService.updateAddress(
@@ -200,7 +205,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { id: string; addressId: string } }>(
     "/:id/addresses/:addressId",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request) => {
       return clientsService.removeAddress(
         fastify,
@@ -230,7 +235,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Params: { id: string } }>(
     "/:id/equipment",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request, reply) => {
       const body = equipmentInputSchema.parse(request.body);
       const eq = await clientsService.addEquipment(
@@ -245,7 +250,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { id: string; equipmentId: string } }>(
     "/:id/equipment/:equipmentId",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request) => {
       const body = equipmentInputSchema.partial().parse(request.body);
       return clientsService.updateEquipment(
@@ -260,7 +265,7 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { id: string; equipmentId: string } }>(
     "/:id/equipment/:equipmentId",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request) => {
       return clientsService.removeEquipment(
         fastify,

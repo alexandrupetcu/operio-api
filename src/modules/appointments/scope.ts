@@ -60,6 +60,22 @@ export async function resolveApptScope(
   return remember({ kind: "own", employeeId: employee?.id ?? null });
 }
 
+/**
+ * Angajatul legat de contul cererii, în firma cererii — tehnicianul „implicit” al unei
+ * vizite create din teren fără `employeeId`. `null` = cont fără persoană legată (sau
+ * MASTER_ADMIN, care nu are firmă).
+ */
+export async function requesterEmployeeId(fastify: FastifyInstance, request: FastifyRequest): Promise<string | null> {
+  if (!request.tenantId || !request.user?.sub) return null;
+  // Doar din teren (aplicația mobilă): pe web, câmpul lăsat gol de coordonator înseamnă „nerepartizat”.
+  if (request.user.client !== "mobile") return null;
+  const employee = await fastify.prisma.employee.findFirst({
+    where: { userId: request.user.sub, tenantId: request.tenantId },
+    select: { id: true },
+  });
+  return employee?.id ?? null;
+}
+
 /** Fragmentul de `where` care descrie ce poate vedea cererea curentă. */
 export function apptVisibilityWhere(scope: ApptScope): Prisma.AppointmentWhereInput {
   if (scope.kind === "all") return {};

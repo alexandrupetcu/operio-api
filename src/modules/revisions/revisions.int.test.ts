@@ -160,3 +160,21 @@ describe("revizie fără programare", () => {
     expect(await prisma.appointment.count({ where: { tenantId: f.a.id, type: "revizie" } })).toBe(1); // doar cea din fixture
   });
 });
+
+describe("revizie directă — tehnicianul implicit", () => {
+  it("fără employeeId, vizita creată pe loc e a celui care o înregistrează", async () => {
+    const body = createDirectRevisionSchema.parse({
+      type: "verificare_instalatie",
+      clientId: f.a.clientId,
+      clientAddressId: f.a.addressId,
+      date: "2026-10-16T08:00:00.000Z",
+      report: {
+        outcome: "raport_complet",
+        installationData: { distributorName: "Distrigaz Sud Rețele", codTehnicPOD: "POD-EMP", clientAddressId: f.a.addressId },
+        reportData: { reportKind: "verificare_instalatie", decizie: "admis", nextDate: "16.10.2028" },
+      },
+    });
+    const appt = await revisions.createDirect(app, f.a.id, body, "direct-emp", { defaultEmployeeId: f.a.employeeId });
+    expect(appt.employee?.id).toBe(f.a.employeeId);
+  });
+});

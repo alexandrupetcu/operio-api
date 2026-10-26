@@ -4,7 +4,7 @@ import { prisma } from "../../test/prisma.js";
 import { closeStub, expectReject, serviceStub } from "../../test/stub.js";
 import { seedTwoTenants, type TwoTenants } from "../../test/fixtures.js";
 import * as clientsService from "./clients.service.js";
-import { updateClientSchema } from "./clients.schema.js";
+import { equipmentInputSchema, updateClientSchema } from "./clients.schema.js";
 
 let app: FastifyInstance;
 let f: TwoTenants;
@@ -132,5 +132,50 @@ describe("izolarea între firme — clienți", () => {
     const err = await expectReject(() => clientsService.removeAddress(app, f.a.id, f.a.clientId, f.b.addressId));
     expect(err.status).toBe(404);
     expect(await prisma.clientAddress.count({ where: { id: f.b.addressId } })).toBe(1);
+  });
+});
+
+describe("acordul GDPR existent al clientului", () => {
+  it("fără document GDPR → null; cu un acord finalizat → data lui; clientul firmei A din firma B → 404", async () => {
+    expect(await clientsService.gdprConsent(app, f.a.id, f.a.clientId)).toEqual({ consentedAt: null });
+
+    await prisma.templateCategory.upsert({ where: { code: "GDPR" }, update: {}, create: { code: "GDPR", name: "GDPR" } });
+    const template = await prisma.documentTemplate.create({ data: { tenantId: f.a.id, categoryCode: "GDPR", name: "Acord GDPR", content: "<p>x</p>" } });
+    const when = new Date(2026, 2, 3, 9);
+    await prisma.document.create({
+      data: { tenantId: f.a.id, templateId: template.id, name: "Acord GDPR - auto", status: "COMPLETED", createdAt: when, clients: { create: { clientId: f.a.clientId } } },
+    });
+    expect(await clientsService.gdprConsent(app, f.a.id, f.a.clientId)).toEqual({ consentedAt: when });
+    expect((await expectReject(() => clientsService.gdprConsent(app, f.b.id, f.a.clientId))).status).toBe(404);
+  });
+});
+
+describe("echipamente — câmpurile tehnice de pe fișa din teren", () => {
+  it("tip aparat, putere, aer, alimentare, loc, vârstă se salvează la creare și la modificare", async () => {
+    const eq = await clientsService.addEquipment(
+      app,
+      f.a.id,
+      f.a.clientId,
+      equipmentInputSchema.parse({
+        internalName: "Centrală bucătărie",
+        serial: "VL-1",
+        deviceType: "MURALA",
+        power: "24",
+        airSupply: "insuflat",
+        feeding: "automata",
+        location: "BUCĂTĂRIE",
+        deviceAge: "nou",
+      }),
+    );
+    expect(eq.deviceType).toBe("MURALA");
+    expect(eq.power).toBe("24");
+    expect(eq.airSupply).toBe("insuflat");
+    expect(eq.location).toBe("BUCĂTĂRIE");
+    expect(eq.deviceAge).toBe("nou");
+
+    const upd2 = await clientsService.updateEquipment(app, f.a.id, f.a.clientId, eq.id, equipmentInputSchema.partial().parse({ power: "28", feeding: "manuala" }));
+    expect(upd2.power).toBe("28");
+    expect(upd2.feeding).toBe("manuala");
+    expect(upd2.deviceType).toBe("MURALA");
   });
 });

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireRole } from "../../lib/rbac.js";
-import { resolveApptScope } from "../appointments/scope.js";
+import { resolveApptScope, requesterEmployeeId } from "../appointments/scope.js";
 import { previewReportFile } from "../appointments/import-report.js";
 import { reportFileKind, ACCEPTED_REPORT_FILES_MESSAGE, REPORT_FILE_CANONICAL_MIME } from "../../lib/report-sources/index.js";
 import * as revisionsService from "./revisions.service.js";
@@ -45,7 +45,9 @@ export default async function revisionsRoutes(fastify: FastifyInstance) {
     const body = createDirectRevisionSchema.parse(request.body);
     const rawKey = request.headers["idempotency-key"];
     const idempotencyKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
-    const appt = await revisionsService.createDirect(fastify, request.tenantId, body, idempotencyKey?.trim() || null);
+    const appt = await revisionsService.createDirect(fastify, request.tenantId, body, idempotencyKey?.trim() || null, {
+      defaultEmployeeId: body.employeeId == null ? await requesterEmployeeId(fastify, request) : undefined,
+    });
     return reply.status(201).send(appt);
   });
 }

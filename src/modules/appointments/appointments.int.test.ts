@@ -301,3 +301,33 @@ describe("followup — pe o programare finalizată", () => {
     expect(await prisma.appointment.count({ where: { tenantId: f.a.id } })).toBe(2);
   });
 });
+
+// ───────────────────────────────────────────────────────────────────────────
+// Tehnicianul implicit: o vizită creată din teren fără `employeeId` e a celui care o creează
+// ───────────────────────────────────────────────────────────────────────────
+
+describe("tehnicianul implicit la creare", () => {
+  it("fără employeeId în body → programarea e repartizată pe angajatul celui care o creează", async () => {
+    const created = await appointments.create(app, f.a.id, createInput({ clientId: f.a.clientId }), { defaultEmployeeId: f.a.employeeId });
+    expect(created.employee?.id).toBe(f.a.employeeId);
+  });
+
+  it("employeeId explicit în body are prioritate; fără angajat legat rămâne nerepartizată", async () => {
+    const colleague = await prisma.employee.create({ data: { tenantId: f.a.id, firstName: "Coleg", lastName: "B" } });
+    const explicit = await appointments.create(app, f.a.id, createInput({ clientId: f.a.clientId, employeeId: colleague.id }), { defaultEmployeeId: f.a.employeeId });
+    expect(explicit.employee?.id).toBe(colleague.id);
+    const unassigned = await appointments.create(app, f.a.id, createInput({ clientId: f.a.clientId }), { defaultEmployeeId: null });
+    expect(unassigned.employee).toBeNull();
+  });
+
+  it("requesterEmployeeId: angajatul legat de contul cererii, în firma cererii", async () => {
+    const { requesterEmployeeId } = await import("./scope.js");
+    const asRequest = (sub: string, tenantId: string, client: "mobile" | "web" = "mobile") => ({ user: { sub, client }, tenantId }) as never;
+    // Pe web câmpul gol înseamnă „nerepartizat”, deci nu se completează implicit.
+    expect(await requesterEmployeeId(app, asRequest(f.a.operator.id, f.a.id, "web"))).toBeNull();
+    expect(await requesterEmployeeId(app, asRequest(f.a.operator.id, f.a.id))).toBe(f.a.employeeId);
+    expect(await requesterEmployeeId(app, asRequest(f.a.admin.id, f.a.id))).toBeNull();
+    // Contul firmei A nu „devine” angajat în firma B.
+    expect(await requesterEmployeeId(app, asRequest(f.a.operator.id, f.b.id))).toBeNull();
+  });
+});

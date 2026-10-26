@@ -12,7 +12,7 @@ import {
 } from "./appointments.schema.js";
 import { setOsRegistration, setOsSubmission } from "./os-registration.js";
 import * as appointmentsService from "./appointments.service.js";
-import { resolveApptScope, canSeeEmployee } from "./scope.js";
+import { resolveApptScope, canSeeEmployee, requesterEmployeeId } from "./scope.js";
 import { NO_OVERLAP } from "./overlap.js";
 import { getSchedulingSettings } from "../tenant/scheduling-settings.js";
 import { importAppointmentReport } from "./import-report.js";
@@ -70,11 +70,9 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request, reply) => {
       const body = createAppointmentSchema.parse(request.body);
-      const appointment = await appointmentsService.create(
-        fastify,
-        request.tenantId,
-        body
-      );
+      const appointment = await appointmentsService.create(fastify, request.tenantId, body, {
+        defaultEmployeeId: body.employeeId === undefined ? await requesterEmployeeId(fastify, request) : undefined,
+      });
       return reply.status(201).send(appointment);
     }
   );

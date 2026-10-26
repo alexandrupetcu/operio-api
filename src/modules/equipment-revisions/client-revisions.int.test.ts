@@ -75,3 +75,29 @@ describe("reviziile unui client — instalații", () => {
     expect(visit.osRegisteredAt).toBeInstanceOf(Date);
   });
 });
+
+describe("reviziile unui client — decizia raportului", () => {
+  it("decizia din raportul vizitei (conclusions.decision) vine pe `appointment.decision`, fără tot raportul", async () => {
+    const rev = await prisma.equipmentRevision.create({ data: { equipmentId: f.a.equipmentId, revisionDate: new Date(2026, 9, 5) } });
+    await prisma.appointment.update({
+      where: { id: f.a.appointmentId },
+      data: {
+        equipmentRevisionId: rev.id,
+        status: "completed",
+        completedAt: new Date(2026, 9, 5, 10),
+        completionDataJson: { conclusions: { decision: "respins", nextRevisionDate: "2028-10-05" }, functionalVerifications: { grounding: "DA" } },
+      },
+    });
+    const rows = await revisionService.listByClient(app, f.a.id, f.a.clientId);
+    const row = rows.find((r) => r.id === rev.id)!;
+    expect(row.appointment?.decision).toBe("respins");
+    expect((row.appointment as Record<string, unknown>).completionDataJson).toBeUndefined();
+  });
+
+  it("vizită fără raport sau cu altă structură → decision null", async () => {
+    const rev = await prisma.equipmentRevision.create({ data: { equipmentId: f.a.equipmentId, revisionDate: new Date(2026, 9, 6) } });
+    await prisma.appointment.update({ where: { id: f.a.appointmentId }, data: { equipmentRevisionId: rev.id, completionDataJson: { outcome: "revenire" } } });
+    const rows = await revisionService.listByClient(app, f.a.id, f.a.clientId);
+    expect(rows.find((r) => r.id === rev.id)!.appointment?.decision).toBeNull();
+  });
+});

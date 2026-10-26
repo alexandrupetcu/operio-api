@@ -25,6 +25,13 @@ export const equipmentInputSchema = z.object({
   fuel: z.string().optional(),
   serial: z.string().optional(),
   clientAddressId: z.string().optional().nullable(),
+  // Datele tehnice ale aparatului (le completează tehnicianul din fișa clientului / raport).
+  deviceType: z.string().max(60).optional().nullable(),
+  power: z.string().max(20).optional().nullable(),
+  airSupply: z.string().max(30).optional().nullable(),
+  feeding: z.string().max(30).optional().nullable(),
+  location: z.string().max(120).optional().nullable(),
+  deviceAge: z.string().max(20).optional().nullable(),
 });
 
 // Consumer appliance on a gas installation (FISA "aparate consumatoare").

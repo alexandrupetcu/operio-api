@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { searchCities, searchStates } from "./geography.service.js";
 import { z } from "zod";
 
 const searchSchema = z.object({
@@ -106,15 +107,7 @@ export default async function geographyRoutes(fastify: FastifyInstance) {
       if (isNaN(countryId)) throw fastify.httpErrors.badRequest("Invalid country ID");
 
       const { q, limit } = searchSchema.parse(request.query);
-      return fastify.prisma.state.findMany({
-        where: {
-          countryId,
-          ...(q ? { name: { contains: q, mode: "insensitive" } } : {}),
-        },
-        select: { id: true, name: true, stateCode: true },
-        orderBy: { name: "asc" },
-        take: limit,
-      });
+      return searchStates(fastify.prisma, countryId, q, limit);
     }
   );
 
@@ -126,15 +119,7 @@ export default async function geographyRoutes(fastify: FastifyInstance) {
       if (isNaN(stateId)) throw fastify.httpErrors.badRequest("Invalid state ID");
 
       const { q, limit } = searchSchema.parse(request.query);
-      return fastify.prisma.city.findMany({
-        where: {
-          stateId,
-          ...(q ? { name: { contains: q, mode: "insensitive" } } : {}),
-        },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-        take: limit,
-      });
+      return searchCities(fastify.prisma, stateId, q, limit);
     }
   );
 
