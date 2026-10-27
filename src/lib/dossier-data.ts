@@ -16,6 +16,7 @@ const OSD_CONTACT_KEYS: [string, string][] = [
   ["osd_sector", "sector"],
   ["osd_telefon", "phone"],
   ["osd_fax", "fax"],
+  ["osd_director", "director"],
 ];
 
 /**
@@ -38,6 +39,90 @@ export function distributorDocVars(distributor: { name: string; contactJson: unk
   return out;
 }
 
+// ── Câmpuri-tabel (materialele și sudurile din dosarele NEOGAS) ──
+
+export interface DossierTableColumn {
+  key: string;
+  label: string;
+}
+export interface DossierTable {
+  columns: DossierTableColumn[];
+  /** Rândurile tipărite când tabelul e necompletat (prima coloană), ca să se scrie de mână. */
+  rows?: string[];
+}
+
+const MATERIAL_COLUMNS: DossierTableColumn[] = [
+  { key: "denumire", label: "Material" },
+  { key: "diametru", label: "Diametru" },
+  { key: "cantitate", label: "Cantitate" },
+  { key: "furnizor", label: "Furnizor" },
+  { key: "certificat", label: "Certificat calitate nr./data" },
+  { key: "declaratie", label: "Declarație conformitate nr./data" },
+];
+
+/**
+ * Tabelele din pagina Dosare. Valoarea se păstrează ca text (metadata e doar text):
+ * un rând pe linie, celulele despărțite prin „|”. În șabloane: `{#materiale}{denumire}…{/materiale}`.
+ */
+export const DOSSIER_TABLES: Record<string, DossierTable> = {
+  materiale: {
+    columns: MATERIAL_COLUMNS,
+    rows: [
+      "Capăt branșament PE-OL",
+      "Țeavă PE",
+      "Mufă electrofuziune",
+      "Armătură închidere OL",
+      "Tub protecție OL/PVC",
+      "Teu branșament OL",
+      "Fir trasor",
+      "Nisip",
+      "Cămin armături",
+      "Răsuflători SV",
+      "Capace GN",
+    ],
+  },
+  materiale_srm: {
+    columns: MATERIAL_COLUMNS,
+    rows: ["Țeavă PE", "Armătură închidere OL", "Regulator de presiune", "Contor", "Firidă"],
+  },
+  schema_materiale: {
+    columns: [
+      { key: "denumire", label: "Material" },
+      { key: "cantitate", label: "m / buc" },
+      { key: "nr_suduri", label: "Nr. ordine sudură" },
+    ],
+    rows: ["Teu branșament OL", "Piesă de tranziție OL-PE", "Mufă EF", "Țeavă PE", "Cap de branșament", "Robinet cu bilă"],
+  },
+  suduri_tabel: {
+    columns: [
+      { key: "cod", label: "Sudura" },
+      { key: "sudor", label: "Sudor" },
+      { key: "autorizatie", label: "Poanson / autorizație" },
+      { key: "procedeu", label: "Tip / procedeu" },
+      { key: "omologare", label: "Fișă omologare procedeu" },
+    ],
+  },
+};
+
+/** Text de tabel → rânduri `{nr_crt, coloană: valoare}`; gol → rândurile implicite. */
+export function parseDossierTable(table: DossierTable, value: unknown): Record<string, string>[] {
+  const lines = str(value)
+    .split(/\r?\n/)
+    .filter((l) => l.replace(/\|/g, "").trim() !== "");
+  const cells = lines.length ? lines.map((l) => l.split("|").map((c) => c.trim())) : (table.rows ?? []).map((r) => [r]);
+  return cells.map((row, i) => {
+    const out: Record<string, string> = { nr_crt: String(i + 1) };
+    table.columns.forEach((c, j) => (out[c.key] = row[j] ?? ""));
+    return out;
+  });
+}
+
+/** „04.08.2025” / „2025-08-04” → „2025”. */
+function yearOf(v: unknown): string | null {
+  const s = str(v);
+  return /\b(\d{4})-\d{2}-\d{2}\b/.exec(s)?.[1] ?? /\b\d{1,2}[./]\d{1,2}[./](\d{4})\b/.exec(s)?.[1] ?? null;
+}
+
 /** „2,00” / „2.00” / 2 → 2; altfel null. */
 function num(v: unknown): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
@@ -55,10 +140,13 @@ function decimals(v: unknown): number {
 /**
  * Câmpuri calculate din metadata dosarului:
  * - `bransament_lungime_totala` = lungime + reiser, când omul n-a completat-o;
- * - `suduri[]` + `total_suduri` din `suduri_lista` („S79, S80, S81”).
+ * - `suduri[]` + `total_suduri` din tabelul sudurilor (NEOGAS) sau din `suduri_lista` („S79, S80, S81”);
+ * - tabelele (`materiale[]`…), lungimea în km, anul certificatelor țevii, firma RTE;
+ * - `project_street` din strada salvată în pagina Dosare (`lucrare_strada`).
  */
 export function derivedDossierVars(meta: Meta): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  if (!filled(meta.project_street) && filled(meta.lucrare_strada)) out.project_street = str(meta.lucrare_strada);
   if (!filled(meta.bransament_lungime_totala)) {
     const len = num(meta.project_length);
     const reiser = num(meta.bransament_lungime_reiser);
@@ -67,12 +155,30 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
       out.bransament_lungime_totala = (len + reiser).toFixed(d);
     }
   }
-  const codes = str(meta.suduri_lista)
-    .split(/[,;\n]+/)
-    .map((c) => c.trim())
-    .filter(Boolean);
-  out.suduri = codes.map((cod, i) => ({ nr_crt: String(i + 1), cod, rezultat: "ADMIS" }));
-  out.total_suduri = codes.length ? String(codes.length) : "";
+  const total = num(out.bransament_lungime_totala ?? meta.bransament_lungime_totala);
+  if (total !== null) out.project_length_km = (total / 1000).toFixed(3).replace(".", ",");
+
+  for (const [key, table] of Object.entries(DOSSIER_TABLES)) {
+    if (key !== "suduri_tabel") out[key] = parseDossierTable(table, meta[key]);
+  }
+  if (filled(meta.suduri_tabel)) {
+    out.suduri = parseDossierTable(DOSSIER_TABLES.suduri_tabel, meta.suduri_tabel).map((r) => ({ ...r, rezultat: "ADMIS" }));
+  } else {
+    const codes = str(meta.suduri_lista)
+      .split(/[,;\n]+/)
+      .map((c) => c.trim())
+      .filter(Boolean);
+    out.suduri = codes.map((cod, i) => ({ nr_crt: String(i + 1), cod, rezultat: "ADMIS" }));
+  }
+  const n = (out.suduri as unknown[]).length;
+  out.total_suduri = n ? String(n) : "";
+
+  for (const k of ["teava_cc", "teava_dc"] as const) {
+    const y = yearOf(meta[`${k}_data`]);
+    if (y) out[`${k}_an`] = y;
+  }
+  // RTE-ul poate fi al altei firme (NEOGAS: „Executant (RTE), ACTIVITATI DE INGINERIE…”).
+  if (!filled(meta.rte_firma) && filled(meta.tenant_name)) out.rte_firma = str(meta.tenant_name);
   // Durata probelor se completează în minute; documentele o scriu „1 oră și 20 min”.
   for (const k of ["proba_rezistenta", "proba_etanseitate"] as const) {
     const text = durationText(meta[`${k}_timp`]);
@@ -96,6 +202,9 @@ function durationText(v: unknown): string | null {
 export interface TeamMemberLike {
   role: string;
   name: string;
+  /** Din fișa angajatului; lipsesc pentru un nume scris de mână. */
+  firstName?: string | null;
+  lastName?: string | null;
   /** Câmpurile persoanei: `credentials` vechi ← certificări ← alocarea pe dosar. */
   creds: Record<string, string>;
   signatureS3Key?: string | null;
@@ -148,8 +257,21 @@ export function teamDocVars(members: TeamMemberLike[]): Record<string, unknown> 
     };
   });
 
+  // „Tabel sudori autorizați”: un rând pe autorizație (sudorul PE are câte una pe procedeu).
+  const split = (v: string | undefined) => (v ?? "").split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
+  data.sudori_autorizatii = sudori
+    .flatMap((m) => {
+      const auts = [...split(m.creds.autorizatii_ol ?? m.creds.autorizatie_ol_iscir), ...split(m.creds.autorizatii_pe ?? m.creds.autorizatie_pe_iscir)];
+      return (auts.length ? auts : [""]).map((autorizatie) => ({ nume: m.name, autorizatie }));
+    })
+    .map((r, i) => ({ nr_crt: String(i + 1), ...r }));
+
   for (const m of members) {
     data[`${m.role}_nume`] = m.name;
+    // Nume și prenume în coloane separate. Un nume scris de mână urmează ordinea de pe documente (familia întâi).
+    const [family, ...given] = m.name.trim().split(/\s+/);
+    data[`${m.role}_nume_familie`] = m.lastName?.trim() || (m.firstName ? "" : family ?? "");
+    data[`${m.role}_prenume`] = m.firstName?.trim() || (m.lastName ? "" : given.join(" "));
     for (const f of ROLE_FIELDS) data[`${m.role}_${f}`] = m.creds[f] ?? "";
     if (m.signatureS3Key) data[`${m.role}_signature`] = { s3Key: m.signatureS3Key, mimetype: "image/png" };
   }

@@ -18,7 +18,7 @@ export const dossierTeamMemberSchema = z.object({
 });
 
 /** Valorile de completat: string-uri; `null` șterge cheia. */
-const metadataPatchSchema = z.record(z.string().max(80), z.union([z.string().max(2000), z.null()]));
+const metadataPatchSchema = z.record(z.string().max(80), z.union([z.string().max(8000), z.null()]));
 
 export const createDossierSchema = z.object({
   templateGroupId: z.string().cuid(),

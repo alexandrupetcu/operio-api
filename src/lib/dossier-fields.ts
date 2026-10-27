@@ -8,11 +8,14 @@
  * numerele de registratură) se completează singure din date existente.
  */
 
-import { derivedDossierVars } from "./dossier-data.js";
+import { DOSSIER_TABLES, derivedDossierVars, type DossierTableColumn } from "./dossier-data.js";
 
 export type DossierStep = "work" | "permits" | "materials";
-/** `textarea` = text pe mai multe rânduri (ex. lista documentelor materialelor). */
-export type DossierFieldType = "text" | "textarea" | "date" | "number" | "select";
+/**
+ * `textarea` = text pe mai multe rânduri (ex. lista documentelor materialelor);
+ * `table` = rânduri cu coloane (`columns`), păstrat ca text: o linie pe rând, celule cu „|”.
+ */
+export type DossierFieldType = "text" | "textarea" | "date" | "number" | "select" | "table";
 
 export interface DossierField {
   /** Cheia din șablon (și din `Project.metadata`). */
@@ -30,7 +33,12 @@ export interface DossierField {
   default?: string;
   /** `project` = coloană a dosarului (nume, adresă), nu `metadata`. */
   source?: "metadata" | "project";
+  /** Doar pentru `table`: coloanele și rândurile implicite (prima coloană). */
+  columns?: DossierTableColumn[];
+  rows?: string[];
 }
+
+const table = (key: keyof typeof DOSSIER_TABLES & string) => ({ type: "table" as const, columns: DOSSIER_TABLES[key].columns, rows: DOSSIER_TABLES[key].rows });
 
 export const DOSSIER_STEPS: { key: DossierStep; label: string }[] = [
   { key: "work", label: "Lucrarea" },
@@ -38,7 +46,8 @@ export const DOSSIER_STEPS: { key: DossierStep; label: string }[] = [
   { key: "materials", label: "Materiale și probe" },
 ];
 
-const PRESSURE_UNIT = { DOSAR_ISCIR: "bar", default: "Pa" };
+// Unitatea după categorie sau după distribuitorul grupului (NEOGAS scrie probele în bari).
+const PRESSURE_UNIT = { DOSAR_ISCIR: "bar", NEOGAS_GRID: "bar", default: "Pa" };
 
 /**
  * Operatorii de distribuție a gazelor naturale (OSD) cu care lucrează firmele —
@@ -50,7 +59,7 @@ export const GAS_DISTRIBUTORS = [
   "Delgaz Grid S.A.",
   "Premier Energy S.R.L.",
   "Megaconstruct S.A.",
-  "Neogas Grid S.R.L.",
+  "Neogas Grid S.A.",
   "Gaz Est S.A.",
   "Gaz Vest S.A.",
   "Distrigaz Vest S.A.",
@@ -76,7 +85,7 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "project_address", label: "Adresa completă", help: "Adresa așa cum apare în antetul documentelor.", step: "work", section: "Adresa lucrării", type: "text", source: "project" },
   { key: "project_city", label: "Localitatea", step: "work", section: "Adresa lucrării", type: "text", source: "project" },
   { key: "project_county", label: "Județul", step: "work", section: "Adresa lucrării", type: "text", source: "project" },
-  { key: "project_dn", label: "Diametrul conductei (DN)", help: "ex. 32 sau Dn 32", step: "work", section: "Conducta", type: "text" },
+  { key: "project_dn", label: "Diametrul conductei (DN)", help: "Doar numărul, ex. 32 — documentele scriu „Dn 32 mm”.", step: "work", section: "Conducta", type: "text" },
   { key: "project_material", label: "Materialul conductei", step: "work", section: "Conducta", type: "select", options: ["PE 100", "PE 80", "OL", "Cupru"] },
   { key: "project_length", label: "Lungimea conductei", step: "work", section: "Conducta", type: "number", unit: "m" },
   { key: "bransament_lungime_reiser", label: "Lungimea reiserului", step: "work", section: "Conducta", type: "number", unit: "m" },
@@ -86,6 +95,12 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "distanta_limita", label: "Distanța față de limita de proprietate", help: "ex. „1 m dreapta”", step: "work", section: "Lucrarea", type: "text" },
   { key: "sapatura_adancime", label: "Adâncimea săpăturii", step: "work", section: "Săpătura", type: "number", unit: "m" },
   { key: "sapatura_latime", label: "Lățimea săpăturii", step: "work", section: "Săpătura", type: "number", unit: "m" },
+  { key: "mod_pozare", label: "Modul de pozare", help: "ex. „îngropat / foraj”", step: "work", section: "Fișa tehnică", type: "text" },
+  { key: "tub_protectie_diametru", label: "Tubul de protecție — diametru", step: "work", section: "Fișa tehnică", type: "text" },
+  { key: "tub_protectie_lungime", label: "Tubul de protecție — lungime", step: "work", section: "Fișa tehnică", type: "text" },
+  { key: "tub_protectie_material", label: "Tubul de protecție — material", step: "work", section: "Fișa tehnică", type: "text" },
+  { key: "robinet_diametru", label: "Robinetul — diametru", help: "ex. 1”", step: "work", section: "Fișa tehnică", type: "text" },
+  { key: "robinet_bucati", label: "Robinetul — bucăți", step: "work", section: "Fișa tehnică", type: "number" },
 
   // ── Avize și numere ───────────────────────────────────────────────────────
   { key: "osd_denumire", label: "Denumirea distribuitorului", help: "Alege din listă sau „Alt distribuitor” ca să scrii numele.", step: "permits", section: "Distribuitorul (OSD)", type: "select", options: GAS_DISTRIBUTORS },
@@ -96,12 +111,14 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "osd_fax", label: "Faxul agenției", help: "Din Setări → Distribuitori; completează aici doar ca să schimbi valoarea pe acest dosar.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_directia", label: "Direcția", help: "ex. Direcția Operațională Muntenia Nord", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_punct_lucru", label: "Punctul de lucru", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
+  { key: "osd_director", label: "Directorul care aprobă recepția", help: "ex. „IONIȚĂ Ion – Director Executiv”. Din Setări → Distribuitori; completează aici doar ca să schimbi valoarea pe acest dosar.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "cod_atr", label: "Număr ATR / aviz tehnic de racordare", step: "permits", section: "Acte și avize", type: "text" },
   { key: "ordin_lucru", label: "Ordin de lucru — număr", step: "permits", section: "Acte și avize", type: "text" },
   { key: "data_ol", label: "Ordin de lucru — data", step: "permits", section: "Acte și avize", type: "date" },
   { key: "autorizatie_construire_nr", label: "Autorizație de construire / acord — număr", step: "permits", section: "Acte și avize", type: "text" },
   { key: "autorizatie_construire_data", label: "Autorizație de construire / acord — data", step: "permits", section: "Acte și avize", type: "date" },
   { key: "autorizatie_construire_emitent", label: "Autorizație de construire — emisă de", help: "ex. Primăria Ploiești", step: "permits", section: "Acte și avize", type: "text" },
+  { key: "autorizatie_construire_valabilitate", label: "Autorizație de construire — valabilă până la", step: "permits", section: "Acte și avize", type: "date" },
   { key: "cod_sap", label: "Cod SAP", step: "permits", section: "Acte și avize", type: "text" },
   { key: "proiect_nr", label: "Numărul proiectului", step: "permits", section: "Proiect", type: "text", aliases: ["proiect_nr_documentatie"] },
   { key: "proiect_montaj", label: "Proiectul de montaj", step: "permits", section: "Proiect", type: "text" },
@@ -111,6 +128,19 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "data_finalizare_lucrari", label: "Data finalizării lucrărilor", step: "permits", section: "Termene", type: "date" },
   { key: "data_programare_receptie", label: "Data programării recepției", step: "permits", section: "Termene", type: "date" },
   { key: "data_pv_rt", label: "Data procesului-verbal de recepție tehnică", step: "permits", section: "Termene", type: "date" },
+  { key: "data_incepere_executie", label: "Data începerii execuției", step: "permits", section: "Termene", type: "date" },
+  { key: "data_pif", label: "Data punerii în funcțiune", step: "permits", section: "Termene", type: "date" },
+  { key: "data_receptie_finala", label: "Data recepției finale", help: "Lasă gol dacă nu s-a făcut încă.", step: "permits", section: "Termene", type: "date" },
+  { key: "pv_receptie_nr", label: "PV de recepție la terminarea lucrărilor — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "pv_control_calitate_nr", label: "PV de control al calității (fază determinantă) — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "pv_rt_br_nr", label: "PV de recepție tehnică a racordului — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "pv_rt_srm_nr", label: "PV de recepție tehnică a postului de reglare — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "pv_pif_nr", label: "PV de punere în funcțiune a racordului — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "pv_pif_srm_nr", label: "PV de punere în funcțiune a postului de reglare — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "pv_lucrari_ascunse_nr", label: "PV de lucrări ascunse — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "fisa_racord_nr", label: "Fișa tehnică a racordului — nr.", help: "ex. 1 / 2025", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "fisa_srm_nr", label: "Fișa tehnică a postului de reglare — nr.", help: "ex. 2 / 2025", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "rte_firma", label: "Firma responsabilului tehnic cu execuția", help: "Lasă gol dacă RTE-ul e al firmei care execută.", step: "permits", section: "Echipa", type: "text" },
   { key: "nr_comunicare_incepere", label: "Nr. comunicare de începere a lucrărilor", step: "permits", section: "ISCIR", type: "text" },
   { key: "nr_program_control", label: "Nr. program de control al calității", step: "permits", section: "ISCIR", type: "text" },
 
@@ -124,12 +154,19 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "reiser_furnizor", label: "Furnizorul reiserului", help: "ex. EUROMILLING", step: "materials", section: "Reiser și firidă", type: "text" },
   { key: "reiser_lot", label: "Lotul reiserului", help: "ex. 2373/2024", step: "materials", section: "Reiser și firidă", type: "text" },
   { key: "firida_tip", label: "Tipul firidei", help: "ex. PRM S300", step: "materials", section: "Reiser și firidă", type: "text" },
+  { key: "materiale", label: "Materialele racordului", help: "Câte un rând pe material: furnizor, certificat de calitate și declarație de conformitate.", step: "materials", section: "Materialele racordului", ...table("materiale") },
+  { key: "materiale_srm", label: "Materialele postului de reglare", step: "materials", section: "Materialele postului de reglare", ...table("materiale_srm") },
   { key: "documente_materiale", label: "Documentele materialelor", help: "Facturi, certificate de calitate, declarații de conformitate — câte unul pe rând.", step: "materials", section: "Documentele materialelor", type: "textarea" },
   { key: "regulator_tip", label: "Tipul regulatorului", step: "materials", section: "Regulator", type: "text" },
   { key: "regulator_sn", label: "Seria regulatorului", step: "materials", section: "Regulator", type: "text" },
   { key: "procedeu_sudura", label: "Procedeul de sudură", step: "materials", section: "Sudura", type: "select", options: ["Electrofuziune", "Cap la cap", "Electrofuziune și cap la cap", "Sudură electrică cu arc"] },
   { key: "suduri_lista", label: "Sudurile executate", help: "Codurile sudurilor, despărțite prin virgulă, ex. „S79, S80, S81”. Tabelul și totalul se completează singure.", step: "materials", section: "Sudura", type: "text" },
+  { key: "suduri_tabel", label: "Sudurile executate", help: "Câte un rând pe sudură, în ordinea din schema izometrică. Tabelul, buletinul de examinare și totalul se completează din el.", step: "materials", section: "Sudura", ...table("suduri_tabel") },
+  { key: "schema_materiale", label: "Materialele din schema izometrică", step: "materials", section: "Sudura", ...table("schema_materiale") },
   { key: "aparat_sudura", label: "Aparatul de sudură", help: "Marca și seria aparatului.", step: "materials", section: "Sudura", type: "text" },
+  { key: "aparat_sudura_ol", label: "Aparatul de sudură OL", help: "Marca și seria, ex. „AOTAI DURAARC 200 seria: 531200-00116”.", step: "materials", section: "Sudura", type: "text" },
+  { key: "procedeu_omologare_pe", label: "Omologarea procedeului PE", help: "ex. 052-946 / 04.09.2024", step: "materials", section: "Sudura", type: "text" },
+  { key: "procedeu_omologare_ol", label: "Omologarea procedeului OL", help: "ex. 89C-1150", step: "materials", section: "Sudura", type: "text" },
   { key: "bon_predare", label: "Bon de predare — număr", step: "materials", section: "Predare", type: "text" },
   { key: "bon_predare_data", label: "Bon de predare — data", step: "materials", section: "Predare", type: "date" },
   { key: "alocare_cont", label: "Alocare cont", step: "materials", section: "Predare", type: "text" },
@@ -163,7 +200,11 @@ export const ASSIGNMENT_FIELDS = ["decizie_nr", "decizie_data"] as const;
  * curente, registratura, imaginile, tabelul sudorilor și cel al sudurilor
  * (`{#suduri}{nr_crt} {cod} {rezultat}{/suduri}`, derivat din „Sudurile executate”).
  */
-const AUTO_KEY = /^(tenant_|client_|current_|nr_inregistrare|data_inregistrare|project_(type|status|street)$|project_drawing$|project_sudori$|nr_crt$|sudor_(ol|pe)_|suduri$|total_suduri$|cod$|rezultat$)/;
+const AUTO_KEY = /^(tenant_|client_|current_|nr_inregistrare|data_inregistrare|project_(type|status|street)$|project_drawing$|project_sudori$|project_length_km$|teava_(cc|dc)_an$|nr_crt$|sudor_(ol|pe)_|sudori_autorizatii$|suduri$|total_suduri$|cod$|rezultat$|year$)/;
+/** Coloanele tabelelor (și ale buclei `sudori_autorizatii`) — nu se cer separat. */
+const TABLE_COLUMN_KEYS = new Set([...Object.values(DOSSIER_TABLES).flatMap((t) => t.columns.map((c) => c.key)), "nume"]);
+/** Coloane care există doar în tabelul sudurilor NEOGAS — o buclă `suduri` care le folosește cere tabelul. */
+const SUDURI_TABEL_ONLY = ["sudor", "procedeu", "omologare"];
 const ROLE_KEY = new RegExp(`^(${DOSSIER_ROLES.join("|")})_([a-z_]+)$`);
 
 const BY_KEY = new Map<string, DossierField>();
@@ -173,9 +214,9 @@ export function fieldForKey(key: string): DossierField | undefined {
   return BY_KEY.get(key);
 }
 
-export function unitFor(field: DossierField, categoryCode: string | null | undefined): string | undefined {
+export function unitFor(field: DossierField, categoryCode: string | null | undefined, distributorCode?: string | null): string | undefined {
   if (typeof field.unit === "string" || !field.unit) return field.unit;
-  return (categoryCode && field.unit[categoryCode]) || field.unit.default;
+  return (distributorCode && field.unit[distributorCode]) || (categoryCode && field.unit[categoryCode]) || field.unit.default;
 }
 
 /** Placeholderele dintr-un text de DOCX (fără tag-uri): `{x}`, `{#x}`, `{/x}`, `{%x}`. */
@@ -218,7 +259,7 @@ export function fieldsForPlaceholders(docs: { name: string; placeholders: Set<st
       const key = raw.replace(/^[#/^%]/, "");
       if (raw.startsWith("/")) continue;
       if (key === "project_drawing") needsDrawing = true;
-      if (key === "project_sudori") {
+      if (key === "project_sudori" || key === "sudori_autorizatii") {
         usesSudoriTable = true;
         addRole("sudor", doc.name);
         continue;
@@ -227,15 +268,17 @@ export function fieldsForPlaceholders(docs: { name: string; placeholders: Set<st
         addRole("sudor", doc.name);
         continue;
       }
-      // Tabelul de suduri și totalul vin din „Sudurile executate”.
-      const field = BY_KEY.get(key === "suduri" || key === "total_suduri" ? "suduri_lista" : key);
+      // Tabelul de suduri și totalul vin din „Sudurile executate”: tabelul complet
+      // (NEOGAS: sudor, procedeu, omologare) sau doar lista codurilor (Distrigaz).
+      const sudKey = SUDURI_TABEL_ONLY.some((c) => doc.placeholders.has(c)) ? "suduri_tabel" : "suduri_lista";
+      const field = BY_KEY.get(key === "suduri" || key === "total_suduri" ? sudKey : key);
       if (field) {
         const e = fieldDocs.get(field.key) ?? { field, docs: new Set() };
         e.docs.add(doc.name);
         fieldDocs.set(field.key, e);
         continue;
       }
-      if (AUTO_KEY.test(key) || raw.startsWith("%")) continue;
+      if (AUTO_KEY.test(key) || raw.startsWith("%") || TABLE_COLUMN_KEYS.has(key)) continue;
       const role = ROLE_KEY.exec(key);
       if (role) {
         const [, r, suffix] = role;

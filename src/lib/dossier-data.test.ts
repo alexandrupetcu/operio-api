@@ -28,6 +28,10 @@ describe("distributorDocVars — agenția OSD din Setări → Distribuitori", ()
     expect(distributorDocVars(null, {})).toEqual({});
   });
 
+  it("directorul OSD (PVRTL NEOGAS: „Aprob admiterea”)", () => {
+    expect(distributorDocVars({ name: "Neogas Grid S.A.", contactJson: { director: "IONITA Ion – Director Executiv" } }, {}).osd_director).toBe("IONITA Ion – Director Executiv");
+  });
+
   it("contactJson incomplet sau stricat → doar ce există", () => {
     expect(distributorDocVars({ name: "Neogas Grid S.A.", contactJson: "x" }, {})).toEqual({ osd_denumire: "Neogas Grid S.A." });
   });
@@ -58,7 +62,54 @@ describe("derivedDossierVars — câmpuri calculate", () => {
   });
 
   it("fără listă de suduri → buclă goală, total gol", () => {
-    expect(derivedDossierVars({})).toEqual({ suduri: [], total_suduri: "" });
+    expect(derivedDossierVars({})).toMatchObject({ suduri: [], total_suduri: "" });
+  });
+});
+
+describe("derivedDossierVars — dosarul NEOGAS (contract 28.10, partea a doua)", () => {
+  it("strada salvată din pagina Dosare (lucrare_strada) ajunge în {project_street}", () => {
+    expect(derivedDossierVars({ project_street: "", lucrare_strada: "Sabarului" }).project_street).toBe("Sabarului");
+    expect(derivedDossierVars({ project_street: "Unirii", lucrare_strada: "Sabarului" }).project_street).toBeUndefined();
+  });
+
+  it("câmpurile-tabel: un rând pe linie, celulele despărțite prin „|”, cu nr_crt", () => {
+    const v = derivedDossierVars({ materiale: "Țeavă PE | 32 | 4 | TEHNO WORLD S.R.L. | 25387663 / 04.08.2025 | 25097383 / 04.08.2025\nNisip |  |  | PREDI TRANS S.R.L. |  | 20288-CPR" });
+    expect(v.materiale).toEqual([
+      { nr_crt: "1", denumire: "Țeavă PE", diametru: "32", cantitate: "4", furnizor: "TEHNO WORLD S.R.L.", certificat: "25387663 / 04.08.2025", declaratie: "25097383 / 04.08.2025" },
+      { nr_crt: "2", denumire: "Nisip", diametru: "", cantitate: "", furnizor: "PREDI TRANS S.R.L.", certificat: "", declaratie: "20288-CPR" },
+    ]);
+  });
+
+  it("tabel necompletat → rândurile implicite, cu celulele goale (se scriu de mână)", () => {
+    const rows = derivedDossierVars({}).materiale as Record<string, string>[];
+    expect(rows.length).toBeGreaterThan(5);
+    expect(rows[0]).toMatchObject({ nr_crt: "1", denumire: "Capăt branșament PE-OL", furnizor: "" });
+  });
+
+  it("tabelul sudurilor completat → bucla suduri[] cu sudor, autorizație, procedeu, omologare", () => {
+    const v = derivedDossierVars({ suduri_tabel: "S1 | Ivan Florin | 567380 | 111/BW | 89C-1150\nS3-46 | Mihaescu Florin | 568856 | SRM/SW | 052-946 / 04.09.2024", suduri_lista: "S79" });
+    expect(v.suduri).toEqual([
+      { nr_crt: "1", cod: "S1", sudor: "Ivan Florin", autorizatie: "567380", procedeu: "111/BW", omologare: "89C-1150", rezultat: "ADMIS" },
+      { nr_crt: "2", cod: "S3-46", sudor: "Mihaescu Florin", autorizatie: "568856", procedeu: "SRM/SW", omologare: "052-946 / 04.09.2024", rezultat: "ADMIS" },
+    ]);
+    expect(v.total_suduri).toBe("2");
+  });
+
+  it("lungimea în km pentru anexa PVRTL: 5.00 m → „0,005”", () => {
+    expect(derivedDossierVars({ project_length: "4.00", bransament_lungime_reiser: "1.00" }).project_length_km).toBe("0,005");
+    expect(derivedDossierVars({ bransament_lungime_totala: "12,5" }).project_length_km).toBe("0,013");
+    expect(derivedDossierVars({}).project_length_km).toBeUndefined();
+  });
+
+  it("anul certificatelor țevii, din data lor", () => {
+    const v = derivedDossierVars({ teava_cc_data: "04.08.2025", teava_dc_data: "2024-12-30" });
+    expect(v.teava_cc_an).toBe("2025");
+    expect(v.teava_dc_an).toBe("2024");
+  });
+
+  it("firma RTE: implicit firma care execută; completată pe dosar rămâne", () => {
+    expect(derivedDossierVars({ tenant_name: "PIC TERMO INSTAL GAZ S.R.L." }).rte_firma).toBe("PIC TERMO INSTAL GAZ S.R.L.");
+    expect(derivedDossierVars({ tenant_name: "PIC", rte_firma: "ACTIVITATI DE INGINERIE SI CONSULTANTA S.R.L." }).rte_firma).toBeUndefined();
   });
 });
 
@@ -108,6 +159,33 @@ describe("teamDocVars — echipa dosarului", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ nr_crt: "1", sudor_pe_nume: "Mihaescu Florin", sudor_pe_aut_iscir: "568855", sudor_ol_aut_iscir: "" });
     expect(rows[1]).toMatchObject({ nr_crt: "2", sudor_ol_nume: "Ivan Florin", sudor_ol_aut_iscir: "567380", sudor_pe_aut_iscir: "" });
+  });
+
+  it("numele de familie și prenumele separat (PV de predare a amplasamentului)", () => {
+    const v = teamDocVars([
+      { role: "diriginte", name: "Ion Daniel Rauta", firstName: "Ion Daniel", lastName: "Rauta", creds: {} },
+      member("rte", "Coman Gabriel"),
+    ]);
+    expect(v.diriginte_nume_familie).toBe("Rauta");
+    expect(v.diriginte_prenume).toBe("Ion Daniel");
+    // Fără angajat (nume scris de mână): ca pe documente — întâi numele de familie.
+    expect(v.rte_nume_familie).toBe("Coman");
+    expect(v.rte_prenume).toBe("Gabriel");
+  });
+
+  it("tabelul sudorilor autorizați: un rând pe autorizație (OL, apoi PE)", () => {
+    const v = teamDocVars([
+      member("sudor", "Ivan Florin", { autorizatii_ol: "567380" }),
+      member("sudor", "Mihaescu Florin", { autorizatii_pe: "568855, 568856, 568857" }),
+      member("sudor", "Pop Ion"),
+    ]);
+    expect(v.sudori_autorizatii).toEqual([
+      { nr_crt: "1", nume: "Ivan Florin", autorizatie: "567380" },
+      { nr_crt: "2", nume: "Mihaescu Florin", autorizatie: "568855" },
+      { nr_crt: "3", nume: "Mihaescu Florin", autorizatie: "568856" },
+      { nr_crt: "4", nume: "Mihaescu Florin", autorizatie: "568857" },
+      { nr_crt: "5", nume: "Pop Ion", autorizatie: "" },
+    ]);
   });
 
   it("semnătura angajatului ajunge ca imagine", () => {

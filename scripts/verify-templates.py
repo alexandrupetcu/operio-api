@@ -48,7 +48,7 @@ _spec.loader.exec_module(tv2)
 # ───────────── known variables ─────────────
 
 ROLES = ["instalator", "proiectant", "rte", "sef_santier", "cq", "diriginte", "verificator", "sudor", "rts"]
-ROLE_FIELDS = ["nume", "legitimatie", "legitimatie_data", "tip", "autorizatie", "autorizatii", "poanson", "valabilitate",
+ROLE_FIELDS = ["nume", "nume_familie", "prenume", "legitimatie", "legitimatie_data", "tip", "autorizatie", "autorizatii", "poanson", "valabilitate",
                "atestat", "atestat_data", "domeniu", "decizie_nr", "decizie_data", "signature"]
 STATIC = """
 tenant_name tenant_cui tenant_reg_com tenant_address tenant_city tenant_county tenant_phone tenant_email tenant_admin_name
@@ -68,6 +68,9 @@ nr_crt cod rezultat
 sudor_ol_nume sudor_ol_aut_intern sudor_ol_aut_iscir sudor_ol_poanson sudor_ol_autorizatii sudor_ol_aut_data
 sudor_pe_nume sudor_pe_aut_intern sudor_pe_aut_iscir sudor_pe_poanson sudor_pe_autorizatii sudor_pe_aut_data
 rts_atestat_data proba_rezistenta_durata_text proba_etanseitate_durata_text
+year osd_director project_length_km teava_cc_an teava_dc_an
+materiale materiale_srm schema_materiale denumire diametru cantitate furnizor certificat declaratie nr_suduri
+sudor autorizatie procedeu omologare sudori_autorizatii nume
 """.split()
 
 

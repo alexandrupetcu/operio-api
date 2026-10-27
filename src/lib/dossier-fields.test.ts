@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dossierCompletion, fieldsForPlaceholders, placeholdersIn, unitFor, fieldForKey, withAliases } from "./dossier-fields.js";
+import { GAS_DISTRIBUTORS, dossierCompletion, fieldsForPlaceholders, placeholdersIn, unitFor, fieldForKey, withAliases } from "./dossier-fields.js";
 
 describe("dossier fields", () => {
   it("extracts placeholders including loops and images", () => {
@@ -28,6 +28,27 @@ describe("dossier fields", () => {
     const f = fieldForKey("proba_rezistenta_presiune")!;
     expect(unitFor(f, "DOSAR_ISCIR")).toBe("bar");
     expect(unitFor(f, "CARTE_BRANSAMENT")).toBe("Pa");
+    // NEOGAS scrie probele în bari.
+    expect(unitFor(f, "CARTE_BRANSAMENT", "NEOGAS_GRID")).toBe("bar");
+  });
+
+  it("câmpurile-tabel: bucla cere tabelul, coloanele lui nu apar ca „Alte câmpuri”", () => {
+    const plan = fieldsForPlaceholders([
+      { name: "PV RT BR", placeholders: new Set(["#materiale", "denumire", "furnizor", "certificat", "/materiale", "#suduri", "sudor", "omologare", "/suduri", "#sudori_autorizatii", "nume", "autorizatie", "/sudori_autorizatii"]) },
+    ]);
+    const keys = plan.fields.map((f) => f.field.key);
+    expect(keys).toContain("materiale");
+    expect(keys).toContain("suduri_tabel");
+    expect(keys).not.toContain("suduri_lista");
+    expect(keys).not.toContain("denumire");
+    expect(keys).not.toContain("nume");
+    expect(plan.fields.find((f) => f.field.key === "materiale")!.field.type).toBe("table");
+    expect(plan.roles.map((r) => r.role)).toContain("sudor");
+  });
+
+  it("NEOGAS e scris cu forma de pe documente", () => {
+    expect(GAS_DISTRIBUTORS).toContain("Neogas Grid S.A.");
+    expect(GAS_DISTRIBUTORS).not.toContain("Neogas Grid S.R.L.");
   });
 
   it("writes values under aliases both ways without overwriting", () => {

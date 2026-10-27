@@ -1355,6 +1355,8 @@ async function processJob(job: Job<DocumentJobData>) {
           project.teamMembers.map((tm) => ({
             role: tm.role,
             name: nameOf(tm),
+            firstName: tm.employee?.firstName,
+            lastName: tm.employee?.lastName,
             creds: credsOf(tm),
             signatureS3Key: tm.employee?.signatureS3Key,
           })),

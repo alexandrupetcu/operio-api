@@ -20,7 +20,12 @@ const prisma = new PrismaClient();
 
 const CATEGORY_CODE = "CARTE_BRANSAMENT";
 const GROUP_NAME = "Dosar Bransament NEOGAS GRID";
-const FOLDER = join(process.cwd(), "..", "documente", "Carte constructie bransament GN NEOGAS GRID S.A.");
+// TEMPLATES_DIR: folderul cu șabloanele de încărcat (ex. documente/Bransament/Neogas-v2, refăcute din
+// originalele clientului cu scripts/templatize-v2.py). Implicit, vechiul folder din iunie.
+const FOLDER = process.env.TEMPLATES_DIR ?? join(process.cwd(), "..", "documente", "Carte constructie bransament GN NEOGAS GRID S.A.");
+// Protocolul de sudură e exportul aparatului pentru o lucrare anume, nu un șablon:
+// nu intră în grup, iar membrul vechi se scoate (se atașează per lucrare).
+const NOT_TEMPLATES = /protocol suduri/i;
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function cleanName(file: string): string {
@@ -69,7 +74,7 @@ async function main() {
   }
 
   const files = readdirSync(FOLDER)
-    .filter((f) => f.toLowerCase().endsWith(".docx") && !f.startsWith("~$") && !f.startsWith("_"))
+    .filter((f) => f.toLowerCase().endsWith(".docx") && !f.startsWith("~$") && !f.startsWith("_") && !f.startsWith(".") && !NOT_TEMPLATES.test(f))
     .sort((a, b) => {
       const numOf = (s: string) => {
         const m = s.match(/^(\d+)(?:\.\s*(\d+))?/);
@@ -82,6 +87,23 @@ async function main() {
       if (asub !== bsub) return asub - bsub;
       return a.localeCompare(b);
     });
+
+  const stale = await prisma.documentTemplate.findMany({
+    where: { parentGroupId: group.id },
+    select: { id: true, name: true, description: true, s3Key: true, _count: { select: { documents: true } } },
+  });
+  for (const m of stale.filter((m) => NOT_TEMPLATES.test(m.description ?? m.name))) {
+    if (m._count.documents > 0) {
+      await prisma.documentTemplate.update({ where: { id: m.id }, data: { isActive: false } });
+      console.log(`  − deactivated (has documents): ${m.name}`);
+      continue;
+    }
+    await prisma.documentTemplate.delete({ where: { id: m.id } });
+    if (m.s3Key) {
+      try { await deleteFile(m.s3Key); } catch { /* best-effort */ }
+    }
+    console.log(`  − removed: ${m.name}`);
+  }
 
   const last = await prisma.documentTemplate.findFirst({
     where: { parentGroupId: group.id },

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Datele agenției distribuitorului (OSD) folosite pe documentele de dosar
- * ({osd_adresa}, {osd_regiune}, {osd_sector}, {osd_telefon}, {osd_fax}).
+ * ({osd_adresa}, {osd_regiune}, {osd_sector}, {osd_telefon}, {osd_fax}, {osd_director}).
  * Câmpurile necunoscute se păstrează (`passthrough`), ca datele vechi să nu se piardă.
  */
 export const distributorContactSchema = z
@@ -12,6 +12,7 @@ export const distributorContactSchema = z
     sector: z.string().trim().max(80).optional(),
     phone: z.string().trim().max(60).optional(),
     fax: z.string().trim().max(60).optional(),
+    director: z.string().trim().max(120).optional(),
   })
   .passthrough();
 

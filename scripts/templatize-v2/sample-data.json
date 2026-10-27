@@ -74,21 +74,42 @@
   "suduri": [
     {
       "nr_crt": "1",
-      "cod": "S12",
+      "cod": "S1",
+      "sudor": "Toma Vlad",
+      "autorizatie": "567999",
+      "procedeu": "111/BW",
+      "omologare": "89C-2000",
       "rezultat": "ADMIS"
     },
     {
       "nr_crt": "2",
-      "cod": "S13",
+      "cod": "S2",
+      "sudor": "Toma Vlad",
+      "autorizatie": "567999",
+      "procedeu": "111/BW",
+      "omologare": "89C-2000",
       "rezultat": "ADMIS"
     },
     {
       "nr_crt": "3",
-      "cod": "S14",
+      "cod": "S3-46",
+      "sudor": "Matei Florin",
+      "autorizatie": "EXG 03/571002",
+      "procedeu": "SRM / SW",
+      "omologare": "052-999 / 01.02.2026",
+      "rezultat": "ADMIS"
+    },
+    {
+      "nr_crt": "4",
+      "cod": "S4-47",
+      "sudor": "Matei Florin",
+      "autorizatie": "EXG 03/571003",
+      "procedeu": "SRM / SW",
+      "omologare": "052-999 / 01.02.2026",
       "rezultat": "ADMIS"
     }
   ],
-  "total_suduri": "3",
+  "total_suduri": "4",
   "nr_inregistrare": "512",
   "data_inregistrare": "05.08.2026",
   "instalator_nume": "Vasile Ion Cătălin",
@@ -125,5 +146,266 @@
     }
   ],
   "proba_rezistenta_durata_text": "1 oră și 20 min",
-  "proba_etanseitate_durata_text": "24 ore și 5 min"
+  "proba_etanseitate_durata_text": "24 ore și 5 min",
+  "year": "2026",
+  "osd_director": "POPA Ion – Director Executiv",
+  "rte_firma": "S.C. Exemplu Consultanță S.R.L.",
+  "tenant_autorizatie_data": "08.12.2025",
+  "project_street": "TEILOR",
+  "project_length_km": "0,004",
+  "teava_cc_an": "2026",
+  "teava_dc_an": "2026",
+  "autorizatie_construire_valabilitate": "15.06.2027",
+  "data_pv_rt": "05.08.2026",
+  "data_pif": "06.08.2026",
+  "data_incepere_executie": "01.07.2026",
+  "data_receptie_finala": "",
+  "pv_receptie_nr": "12",
+  "pv_control_calitate_nr": "13",
+  "pv_rt_br_nr": "14",
+  "pv_rt_srm_nr": "15",
+  "pv_pif_nr": "4/2026",
+  "pv_pif_srm_nr": "17",
+  "pv_lucrari_ascunse_nr": "18",
+  "fisa_racord_nr": "3 / 2026",
+  "fisa_srm_nr": "4 / 2026",
+  "mod_pozare": "îngropat / foraj",
+  "tub_protectie_diametru": "110 mm",
+  "tub_protectie_lungime": "1 m",
+  "tub_protectie_material": "PVC",
+  "robinet_diametru": "1”",
+  "robinet_bucati": "1",
+  "aparat_sudura_ol": "AOTAI 200 seria: 1111-222",
+  "procedeu_omologare_pe": "052-999 / 01.02.2026",
+  "procedeu_omologare_ol": "89C-2000",
+  "manometru_verif_metrologica": "P-020-01.06.2026",
+  "instalator_valabilitate": "17.11.2030",
+  "rte_atestat_data": "22.09.2027",
+  "diriginte_legitimatie_data": "12.02.2019",
+  "diriginte_domeniu": "9.4",
+  "verificator_valabilitate": "08.08.2029",
+  "verificator_domeniu": "VGd",
+  "rts_atestat": "DISPR/I/12000",
+  "rts_atestat_data": "24.02.2026",
+  "cq_nume": "Ilie Carmen Maria",
+  "sudor_pe_aut_data": "17.10.2024",
+  "sudor_ol_nume": "Toma Vlad",
+  "sudor_ol_autorizatii": "567999",
+  "sudor_ol_aut_data": "08.01.2024",
+  "diriginte_nume_familie": "Stan",
+  "diriginte_prenume": "Cristian Andrei",
+  "proiectant_nume_familie": "Georgescu",
+  "proiectant_prenume": "Dan Florin",
+  "sef_santier_nume_familie": "Dumitru",
+  "sef_santier_prenume": "Radu Ștefan",
+  "rte_nume_familie": "Marin",
+  "rte_prenume": "Alexandru",
+  "materiale": [
+    {
+      "nr_crt": "1",
+      "denumire": "Capăt branșament PE-OL",
+      "diametru": "32",
+      "cantitate": "1",
+      "furnizor": "EXEMPLU PIPE S.R.L.",
+      "certificat": "26-1001/02.06.2026",
+      "declaratie": "1001 / 02.06.2026"
+    },
+    {
+      "nr_crt": "2",
+      "denumire": "Țeavă PE",
+      "diametru": "32",
+      "cantitate": "2.5",
+      "furnizor": "TEHNOPIPE S.R.L.",
+      "certificat": "26011223 / 02.06.2026",
+      "declaratie": "26011999 / 02.06.2026"
+    },
+    {
+      "nr_crt": "3",
+      "denumire": "Mufă electrofuziune",
+      "diametru": "32",
+      "cantitate": "2",
+      "furnizor": "FITINGS S.R.L.",
+      "certificat": "9001/14.01.2026",
+      "declaratie": "9001/14.01.2026"
+    },
+    {
+      "nr_crt": "4",
+      "denumire": "Armătură închidere OL",
+      "diametru": "1\"",
+      "cantitate": "1",
+      "furnizor": "ROBINETE S.R.L.",
+      "certificat": "27000/13.03.2026",
+      "declaratie": "27000/13.03.2026"
+    },
+    {
+      "nr_crt": "5",
+      "denumire": "Tub protecție OL/PVC",
+      "diametru": "110",
+      "cantitate": "1",
+      "furnizor": "TEHNOPIPE S.R.L.",
+      "certificat": "26011300/18.06.2026",
+      "declaratie": "26011301/18.06.2026"
+    },
+    {
+      "nr_crt": "6",
+      "denumire": "Teu branșament OL",
+      "diametru": "2”- 1”",
+      "cantitate": "1",
+      "furnizor": "-",
+      "certificat": "-",
+      "declaratie": "-"
+    },
+    {
+      "nr_crt": "7",
+      "denumire": "Fir trasor",
+      "diametru": "1.5",
+      "cantitate": "4",
+      "furnizor": "BRICO S.R.L.",
+      "certificat": "-",
+      "declaratie": "RC 1111/03.10.2025"
+    },
+    {
+      "nr_crt": "8",
+      "denumire": "Nisip",
+      "diametru": "-",
+      "cantitate": "-",
+      "furnizor": "AGREGATE S.R.L.",
+      "certificat": "",
+      "declaratie": "20300-CPR"
+    },
+    {
+      "nr_crt": "9",
+      "denumire": "Cămin armături",
+      "diametru": "-",
+      "cantitate": "-",
+      "furnizor": "-",
+      "certificat": "-",
+      "declaratie": "-"
+    },
+    {
+      "nr_crt": "10",
+      "denumire": "Răsuflători SV",
+      "diametru": "-",
+      "cantitate": "-",
+      "furnizor": "-",
+      "certificat": "-",
+      "declaratie": "-"
+    },
+    {
+      "nr_crt": "11",
+      "denumire": "Capace GN",
+      "diametru": "-",
+      "cantitate": "-",
+      "furnizor": "-",
+      "certificat": "-",
+      "declaratie": "-"
+    }
+  ],
+  "materiale_srm": [
+    {
+      "nr_crt": "1",
+      "denumire": "Țeavă PE",
+      "diametru": "32",
+      "cantitate": "3.7",
+      "furnizor": "TEHNOPIPE S.R.L.",
+      "certificat": "26011223 / 02.06.2026",
+      "declaratie": "26011999 / 02.06.2026"
+    },
+    {
+      "nr_crt": "2",
+      "denumire": "Armătură închidere OL",
+      "diametru": "1\"",
+      "cantitate": "1",
+      "furnizor": "ROBINETE S.R.L.",
+      "certificat": "27000/13.03.2026",
+      "declaratie": "27000/13.03.2026"
+    },
+    {
+      "nr_crt": "3",
+      "denumire": "Regulator de presiune",
+      "diametru": "25mm/1\"",
+      "cantitate": "1",
+      "furnizor": "REGULATOARE S.R.L.",
+      "certificat": "",
+      "declaratie": "-"
+    },
+    {
+      "nr_crt": "4",
+      "denumire": "Contor",
+      "diametru": "-",
+      "cantitate": "-",
+      "furnizor": "-",
+      "certificat": "",
+      "declaratie": "-"
+    },
+    {
+      "nr_crt": "5",
+      "denumire": "Firidă",
+      "diametru": "-",
+      "cantitate": "1",
+      "furnizor": "REGULATOARE S.R.L.",
+      "certificat": "",
+      "declaratie": "-"
+    }
+  ],
+  "schema_materiale": [
+    {
+      "nr_crt": "1",
+      "denumire": "Teu branșament OL Ø 2”- Ø 1”",
+      "cantitate": "1",
+      "nr_suduri": "S1"
+    },
+    {
+      "nr_crt": "2",
+      "denumire": "Piesă de tranziție OL 1”- PE DN32mm",
+      "cantitate": "1",
+      "nr_suduri": "S2"
+    },
+    {
+      "nr_crt": "3",
+      "denumire": "Mufă EF Dn 32mm",
+      "cantitate": "2",
+      "nr_suduri": "S3, S4"
+    },
+    {
+      "nr_crt": "4",
+      "denumire": "Țeavă Dn 32 mm",
+      "cantitate": "2.50 ml",
+      "nr_suduri": "-"
+    },
+    {
+      "nr_crt": "5",
+      "denumire": "Cap de branșament DN32mm",
+      "cantitate": "1",
+      "nr_suduri": "-"
+    },
+    {
+      "nr_crt": "6",
+      "denumire": "Robinet cu bilă 1”",
+      "cantitate": "1",
+      "nr_suduri": "-"
+    }
+  ],
+  "sudori_autorizatii": [
+    {
+      "nr_crt": "1",
+      "nume": "Toma Vlad",
+      "autorizatie": "567999"
+    },
+    {
+      "nr_crt": "2",
+      "nume": "Matei Florin",
+      "autorizatie": "571001"
+    },
+    {
+      "nr_crt": "3",
+      "nume": "Matei Florin",
+      "autorizatie": "571002"
+    },
+    {
+      "nr_crt": "4",
+      "nume": "Matei Florin",
+      "autorizatie": "571003"
+    }
+  ]
 }
