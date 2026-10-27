@@ -46,8 +46,8 @@ export const DOSSIER_STEPS: { key: DossierStep; label: string }[] = [
   { key: "materials", label: "Materiale și probe" },
 ];
 
-// Unitatea după categorie sau după distribuitorul grupului (NEOGAS scrie probele în bari).
-const PRESSURE_UNIT = { DOSAR_ISCIR: "bar", NEOGAS_GRID: "bar", default: "Pa" };
+// Unitatea după categorie sau după distribuitorul grupului (NEOGAS și MegaConstruct scriu probele în bari).
+const PRESSURE_UNIT = { DOSAR_ISCIR: "bar", NEOGAS_GRID: "bar", MEGACONSTRUCT: "bar", default: "Pa" };
 
 /**
  * Operatorii de distribuție a gazelor naturale (OSD) cu care lucrează firmele —
@@ -82,6 +82,7 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "project_street_type", label: "Tip arteră", step: "work", section: "Adresa lucrării", type: "select", options: ["Str", "Bd", "Calea", "Aleea", "Șos", "Piața", "Intr", "Sat"], default: "Str" },
   { key: "lucrare_strada", label: "Strada", help: "Doar numele străzii, fără „Str.”.", step: "work", section: "Adresa lucrării", type: "text" },
   { key: "project_street_number", label: "Număr", step: "work", section: "Adresa lucrării", type: "text" },
+  { key: "adresa_detalii", label: "Detalii adresă", help: "Opțional: număr vechi, număr cadastral — ex. „(Nr. vechi 432) – NC 20995”. Se tipăresc după număr.", step: "work", section: "Adresa lucrării", type: "text" },
   { key: "project_address", label: "Adresa completă", help: "Adresa așa cum apare în antetul documentelor.", step: "work", section: "Adresa lucrării", type: "text", source: "project" },
   { key: "project_city", label: "Localitatea", step: "work", section: "Adresa lucrării", type: "text", source: "project" },
   { key: "project_county", label: "Județul", step: "work", section: "Adresa lucrării", type: "text", source: "project" },
@@ -90,7 +91,8 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "project_length", label: "Lungimea conductei", step: "work", section: "Conducta", type: "number", unit: "m" },
   { key: "bransament_lungime_reiser", label: "Lungimea reiserului", step: "work", section: "Conducta", type: "number", unit: "m" },
   { key: "bransament_lungime_totala", label: "Lungimea totală a branșamentului", help: "Lasă gol: se calculează lungimea conductei + reiserul.", step: "work", section: "Conducta", type: "number", unit: "m" },
-  { key: "teu_dn", label: "Teul de branșament (DN)", help: "ex. 63/32", step: "work", section: "Conducta", type: "text" },
+  { key: "teu_dn", label: "Teul de branșament (DN)", help: "ex. 63/32 — primul număr e diametrul conductei stradale.", step: "work", section: "Conducta", type: "text" },
+  { key: "bransament_presiune", label: "Regimul de presiune", step: "work", section: "Conducta", type: "select", options: ["Redusă presiune", "Medie presiune"] },
   { key: "zona_afectata", label: "Zona afectată", help: "Ce s-a spart și se readuce la starea inițială, ex. „Pietriș”, „Asfalt”.", step: "work", section: "Lucrarea", type: "text" },
   { key: "distanta_limita", label: "Distanța față de limita de proprietate", help: "ex. „1 m dreapta”", step: "work", section: "Lucrarea", type: "text" },
   { key: "sapatura_adancime", label: "Adâncimea săpăturii", step: "work", section: "Săpătura", type: "number", unit: "m" },
@@ -101,6 +103,8 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "tub_protectie_material", label: "Tubul de protecție — material", step: "work", section: "Fișa tehnică", type: "text" },
   { key: "robinet_diametru", label: "Robinetul — diametru", help: "ex. 1”", step: "work", section: "Fișa tehnică", type: "text" },
   { key: "robinet_bucati", label: "Robinetul — bucăți", step: "work", section: "Fișa tehnică", type: "number" },
+  { key: "rasuflatori_cu_capace", label: "Răsuflători cu capace GN — bucăți", step: "work", section: "Fișa tehnică", type: "text" },
+  { key: "rasuflatori_fara_capace", label: "Răsuflători fără capace GN — bucăți", step: "work", section: "Fișa tehnică", type: "text" },
 
   // ── Avize și numere ───────────────────────────────────────────────────────
   { key: "osd_denumire", label: "Denumirea distribuitorului", help: "Alege din listă sau „Alt distribuitor” ca să scrii numele.", step: "permits", section: "Distribuitorul (OSD)", type: "select", options: GAS_DISTRIBUTORS },
@@ -111,6 +115,7 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "osd_fax", label: "Faxul agenției", help: "Din Setări → Distribuitori; completează aici doar ca să schimbi valoarea pe acest dosar.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_directia", label: "Direcția", help: "ex. Direcția Operațională Muntenia Nord", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_punct_lucru", label: "Punctul de lucru", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
+  { key: "osd_delegat_nume", label: "Delegatul distribuitorului", help: "Numele delegatului OSD care semnează PV-urile de recepție calitativă.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_director", label: "Directorul care aprobă recepția", help: "ex. „IONIȚĂ Ion – Director Executiv”. Din Setări → Distribuitori; completează aici doar ca să schimbi valoarea pe acest dosar.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "cod_atr", label: "Număr ATR / aviz tehnic de racordare", step: "permits", section: "Acte și avize", type: "text" },
   { key: "ordin_lucru", label: "Ordin de lucru — număr", step: "permits", section: "Acte și avize", type: "text" },
@@ -177,6 +182,7 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "proba_etanseitate_timp", label: "Durata probei", step: "materials", section: "Proba de etanșeitate", type: "number", unit: "minute", aliases: ["timp_proba_etanseitate"] },
   { key: "proba_etanseitate_temperatura", label: "Temperatura", step: "materials", section: "Proba de etanșeitate", type: "number", unit: "°C" },
   { key: "pv_data", label: "Data proceselor-verbale", help: "Data trecută pe PV-urile de lucrări ascunse și de probe.", step: "materials", section: "Procese-verbale", type: "date" },
+  { key: "pv_predare_nr", label: "PV de predare a amplasamentului — nr.", step: "materials", section: "Procese-verbale", type: "text" },
   { key: "pv_trasare_nr", label: "PV de trasare — nr.", step: "materials", section: "Procese-verbale", type: "text" },
   { key: "pv_sapatura_nr", label: "PV de săpătură — nr.", step: "materials", section: "Procese-verbale", type: "text" },
   { key: "pv_asternere_nr", label: "PV de așternere a patului — nr.", step: "materials", section: "Procese-verbale", type: "text" },
@@ -200,7 +206,7 @@ export const ASSIGNMENT_FIELDS = ["decizie_nr", "decizie_data"] as const;
  * curente, registratura, imaginile, tabelul sudorilor și cel al sudurilor
  * (`{#suduri}{nr_crt} {cod} {rezultat}{/suduri}`, derivat din „Sudurile executate”).
  */
-const AUTO_KEY = /^(tenant_|client_|current_|nr_inregistrare|data_inregistrare|project_(type|status|street)$|project_drawing$|project_sudori$|project_length_km$|teava_(cc|dc)_an$|nr_crt$|sudor_(ol|pe)_|sudori_autorizatii$|suduri$|total_suduri$|cod$|rezultat$|year$)/;
+const AUTO_KEY = /^(tenant_|client_|current_|nr_inregistrare|data_inregistrare|project_(type|status|street)$|project_drawing$|project_sudori$|project_length_km$|teava_(cc|dc)_an$|bransament_presiune_abr$|conducta_stradala_dn$|adresa_detalii_text$|nr_crt$|sudor_(ol|pe)_|sudori_autorizatii$|suduri$|total_suduri$|cod$|rezultat$|year$)/;
 /** Coloanele tabelelor (și ale buclei `sudori_autorizatii`) — nu se cer separat. */
 const TABLE_COLUMN_KEYS = new Set([...Object.values(DOSSIER_TABLES).flatMap((t) => t.columns.map((c) => c.key)), "nume"]);
 /** Coloane care există doar în tabelul sudurilor NEOGAS — o buclă `suduri` care le folosește cere tabelul. */

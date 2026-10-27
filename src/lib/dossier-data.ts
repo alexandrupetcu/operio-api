@@ -177,6 +177,13 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
     const y = yearOf(meta[`${k}_data`]);
     if (y) out[`${k}_an`] = y;
   }
+  // MegaConstruct: „MEDIE PRESIUNE … M.P.”, „Conducta stradală DN 250” (din teul 250/32),
+  // „Nr. 209, (Nr. vechi 432) – NC 20995” (detaliile se tipăresc doar dacă există).
+  const presiune = str(meta.bransament_presiune).toLowerCase();
+  if (presiune) out.bransament_presiune_abr = presiune.startsWith("medie") ? "MP" : presiune.startsWith("red") ? "RP" : presiune.startsWith("joas") ? "JP" : "";
+  const teu = /^\s*(\d+(?:[.,]\d+)?)\s*[-/x]/i.exec(str(meta.teu_dn));
+  if (teu) out.conducta_stradala_dn = teu[1];
+  out.adresa_detalii_text = filled(meta.adresa_detalii) ? `, ${str(meta.adresa_detalii)}` : "";
   // RTE-ul poate fi al altei firme (NEOGAS: „Executant (RTE), ACTIVITATI DE INGINERIE…”).
   if (!filled(meta.rte_firma) && filled(meta.tenant_name)) out.rte_firma = str(meta.tenant_name);
   // Durata probelor se completează în minute; documentele o scriu „1 oră și 20 min”.

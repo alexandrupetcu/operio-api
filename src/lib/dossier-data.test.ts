@@ -107,6 +107,16 @@ describe("derivedDossierVars — dosarul NEOGAS (contract 28.10, partea a doua)"
     expect(v.teava_dc_an).toBe("2024");
   });
 
+  it("MegaConstruct: abrevierea regimului de presiune, DN-ul conductei stradale din teu, detaliile adresei", () => {
+    const v = derivedDossierVars({ bransament_presiune: "Medie presiune", teu_dn: "250/32", adresa_detalii: "(Nr. vechi 432) – NC 20995" });
+    expect(v.bransament_presiune_abr).toBe("MP");
+    expect(v.conducta_stradala_dn).toBe("250");
+    expect(v.adresa_detalii_text).toBe(", (Nr. vechi 432) – NC 20995");
+    expect(derivedDossierVars({ bransament_presiune: "Redusă presiune", teu_dn: "63 - 32" })).toMatchObject({ bransament_presiune_abr: "RP", conducta_stradala_dn: "63" });
+    // Fără detalii: nimic tipărit (nu „..........” lipit de număr).
+    expect(derivedDossierVars({}).adresa_detalii_text).toBe("");
+  });
+
   it("firma RTE: implicit firma care execută; completată pe dosar rămâne", () => {
     expect(derivedDossierVars({ tenant_name: "PIC TERMO INSTAL GAZ S.R.L." }).rte_firma).toBe("PIC TERMO INSTAL GAZ S.R.L.");
     expect(derivedDossierVars({ tenant_name: "PIC", rte_firma: "ACTIVITATI DE INGINERIE SI CONSULTANTA S.R.L." }).rte_firma).toBeUndefined();

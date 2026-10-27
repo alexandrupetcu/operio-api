@@ -636,6 +636,48 @@ def op_delete_paragraph(doc: Docx, op, log):
     log.append(f"deleted paragraph {op['text']!r}")
 
 
+def op_page_break_before(doc: Docx, op, log):
+    """Start each listed part of a multi-document file on a new page. The client's file has no breaks:
+    every form began on a new page only because the previous one filled a Letter page — on the taller
+    A4 page the forms would run into each other. Targets: {"match": text, "whole"?, "nth"?} → the
+    paragraph gets pageBreakBefore; {"table": n} → a 1 pt paragraph with pageBreakBefore goes before it."""
+    root = doc.part("word/document.xml")
+    tables = list(root.iter(w("tbl")))
+    for t in op["targets"]:
+        if "table" in t:
+            tbl = tables[t["table"] - 1]
+            p = etree.Element(w("p"))
+            ppr = etree.SubElement(p, w("pPr"))
+            etree.SubElement(ppr, w("pageBreakBefore"))
+            sp = etree.SubElement(ppr, w("spacing"))
+            for k, v in (("before", "0"), ("after", "0"), ("line", "20"), ("lineRule", "exact")):
+                sp.set(w(k), v)
+            tbl.addprevious(p)
+            log.append(f"page break before table {t['table']}")
+        else:
+            p = find_para(doc, t["match"], whole=t.get("whole", True), nth=t.get("nth", 1))
+            ppr = p.find(w("pPr"))
+            if ppr is None:
+                ppr = etree.Element(w("pPr"))
+                p.insert(0, ppr)
+            child_in_order(ppr, "pageBreakBefore", PPR_ORDER)
+            log.append(f"page break before {t['match']!r}")
+
+
+def op_unfloat_table(doc: Docx, op, log):
+    """Turn a floating table (w:tblpPr) into a normal one, like its siblings — a floating header table
+    after a new page break pulls the following paragraph up beside it."""
+    tbl = list(doc.part("word/document.xml").iter(w("tbl")))[op["table"] - 1]
+    pr = tbl.find(w("tblPr"))
+    fl = pr.find(w("tblpPr")) if pr is not None else None
+    if fl is not None:
+        pr.remove(fl)
+    ov = pr.find(w("tblOverlap")) if pr is not None else None
+    if ov is not None:
+        pr.remove(ov)
+    log.append(f"table {op['table']} no longer floating")
+
+
 def op_unwrap_hyperlinks(doc: Docx, op, log):
     parts = [n for n, _ in doc.text_parts()] if op.get("part") is None else [op["part"]]
     for n in parts:
@@ -1022,6 +1064,8 @@ OPS = {
     "collapse": op_collapse,
     "delete_paragraph": op_delete_paragraph,
     "unwrap_hyperlinks": op_unwrap_hyperlinks,
+    "page_break_before": op_page_break_before,
+    "unfloat_table": op_unfloat_table,
     "image_placeholder": op_image_placeholder,
     "remove_drawings": op_remove_drawings,
     "tab_signature": op_tab_signature,

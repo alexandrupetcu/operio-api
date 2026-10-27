@@ -407,5 +407,18 @@
       "nume": "Matei Florin",
       "autorizatie": "571003"
     }
-  ]
+  ],
+  "bransament_presiune": "MEDIE PRESIUNE",
+  "bransament_presiune_abr": "MP",
+  "conducta_stradala_dn": "63",
+  "adresa_detalii_text": ", (Nr. vechi 12) – NC 30111",
+  "osd_delegat_nume": "Radu Mihai",
+  "pv_predare_nr": "21",
+  "pv_trasare_nr": "22",
+  "pv_sapatura_nr": "23",
+  "pv_asternere_nr": "24",
+  "pv_montare_nr": "25",
+  "rasuflatori_cu_capace": "-",
+  "rasuflatori_fara_capace": "2",
+  "tenant_anre_tip": "EDSB"
 }

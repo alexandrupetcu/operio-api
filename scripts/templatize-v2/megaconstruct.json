@@ -1,0 +1,874 @@
+{
+ "distributor": "MEGACONSTRUCT",
+ "sourceDir": "documente/Bransament/Carte Bransament Megaconstruct/_backup-20260622-000306",
+ "outDir": "documente/Bransament/Megaconstruct-v2",
+ "workDir": "documente/Bransament/Megaconstruct-v2/_src",
+ "roles": {},
+ "denyList": [
+  "PIC",
+  "Pic Termo",
+  "Zoe Samurcasi",
+  "ZOE SAMURCASI",
+  "Ciorogarla",
+  "CIOROGARLA",
+  "ANGELESCU",
+  "Angelescu",
+  "POIENARII",
+  "Poienarii",
+  "BURCHII",
+  "PRAHOVA",
+  "Prahova",
+  "TRANDAFIR",
+  "VIRJAN",
+  "NISTOR",
+  "IVAN",
+  "Ivan",
+  "COMAN",
+  "BADEA",
+  "CONSTA",
+  "CONTANTINESCU",
+  "00026448",
+  "00002635",
+  "509201366",
+  "567927",
+  "567928",
+  "565929",
+  "211180011",
+  "19832",
+  "198832",
+  "41642121",
+  "4048/2019",
+  "0723",
+  "picinstalgaz",
+  "caliopa",
+  "C194",
+  "BL_6461",
+  "12.8",
+  "11.5",
+  "9.344",
+  "6.606",
+  "24318468",
+  "24056613",
+  "TEHNOWORLD",
+  "PACEGO",
+  "EUROMILLING",
+  "GEORG FISCHER",
+  "ADECRIS",
+  "TADPOLE",
+  "432",
+  "20995",
+  "09.12.2020",
+  "21.10.2024",
+  "22.10.2024",
+  "14.10.2024",
+  "03.09.2024",
+  "31.07.2024",
+  "89C-43",
+  "ZEEN",
+  "1buc",
+  "S468",
+  "S469",
+  "S470"
+ ],
+ "global": [
+  {
+   "find": "(?:S\\.?C\\.? ?)?PIC TERMO ?INSTAL ?(?:GAZE?|AZ) +S\\.?R(?:\\.?L)?\\.?",
+   "replace": "{tenant_name}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "S.C. PIC TERMO INSTAL",
+   "replace": "{tenant_name}",
+   "whole": true
+  },
+  {
+   "find": "^\\s*GAZ +S\\.R\\.L\\.\\s*$",
+   "replace": "",
+   "regex": true
+  },
+  [
+   "S.C. TADPOLE S.R.L.",
+   "{tenant_name}"
+  ],
+  [
+   "Sediu : Str. Zoe Samurcasi nr. 11A, Ciorogarla - Ilfov",
+   "Sediu : {tenant_address}, {tenant_city} - {tenant_county}"
+  ],
+  {
+   "find": "RO ?41642121",
+   "replace": "{tenant_cui}",
+   "regex": true
+  },
+  [
+   "J23/4048/2019",
+   "{tenant_reg_com}"
+  ],
+  {
+   "find": "0723\\.532\\.078",
+   "replace": "{tenant_phone}",
+   "regex": true
+  },
+  [
+   "picinstalgaz@gmail.com",
+   "{tenant_email}"
+  ],
+  {
+   "find": "caliopa.gica@gmail.com",
+   "replace": "",
+   "whole": true
+  },
+  [
+   "198832 – tip EDSD",
+   "{tenant_autorizatie_anre} – tip {tenant_anre_tip}"
+  ],
+  [
+   "EDSB - 19832",
+   "{tenant_anre_tip} - {tenant_autorizatie_anre}"
+  ],
+  {
+   "find": "(?<=Autorizația ANRE nr\\. )19832",
+   "replace": "{tenant_autorizatie_anre}",
+   "regex": true
+  },
+  {
+   "find": "(?<=data )09\\.12\\.2020",
+   "replace": "{tenant_autorizatie_data}",
+   "regex": true
+  },
+  {
+   "find": "(?<=tip autorizație )EDSB",
+   "replace": "{tenant_anre_tip}",
+   "regex": true
+  },
+  {
+   "find": "(?:S\\.C\\. )?MEGACONSTRUCT S\\.(?:A|R\\.L)\\.?",
+   "replace": "{osd_denumire}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "NISTOR AURELIAN",
+   "replace": "{osd_delegat_nume}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "TRANDAFIR TEODORA",
+   "replace": "{client_name}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(?:I )?VIRJAN CRISTIAN",
+   "replace": "{diriginte_nume}",
+   "regex": true,
+   "ci": true
+  },
+  [
+   "00026448",
+   "{diriginte_legitimatie}"
+  ],
+  {
+   "find": "CONS?TAN?TINESCU PETRE ADRIAN",
+   "replace": "{verificator_nume}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(?<=V140900131 )[–-] VGd",
+   "replace": "– {verificator_domeniu}",
+   "regex": true
+  },
+  [
+   "V140900131",
+   "{verificator_legitimatie}"
+  ],
+  [
+   "PGD - 211180011",
+   "{proiectant_tip} - {proiectant_legitimatie}"
+  ],
+  {
+   "find": "IVAN CALIOPA GICA",
+   "replace": "{proiectant_nume}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(?<=sefului de santier: )IVAN FLORIN MADALIN",
+   "replace": "{sef_santier_nume}",
+   "regex": true
+  },
+  {
+   "find": "(?<=^Ing\\. )IVAN FLORIN MADALIN(?=\\t)",
+   "replace": "{instalator_nume}",
+   "regex": true
+  },
+  {
+   "find": "(?<=Ing\\. )IVAN FLORIN MADALIN",
+   "replace": "{rts_nume}",
+   "regex": true
+  },
+  {
+   "find": "IVAN FLORIN MADALIN",
+   "replace": "{instalator_nume}",
+   "regex": true,
+   "ci": true
+  },
+  [
+   "EGD - 509201366",
+   "{instalator_tip} - {instalator_legitimatie}"
+  ],
+  [
+   "509201366",
+   "{instalator_legitimatie}"
+  ],
+  {
+   "find": "COMAN GABRIEL",
+   "replace": "{rte_nume}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "00002635 – 8\\.4 ?D",
+   "replace": "{rte_atestat} – {rte_domeniu}",
+   "regex": true
+  },
+  [
+   "00002635 8.4D",
+   "{rte_atestat} {rte_domeniu}"
+  ],
+  [
+   "00002635",
+   "{rte_atestat}"
+  ],
+  {
+   "find": "BADEA NICOLAE",
+   "replace": "{sudor_pe_nume}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "567927, 567928, 567929 – PIC ?04\\.",
+   "replace": "{sudor_pe_autorizatii} – {sudor_pe_poanson}.",
+   "regex": true
+  },
+  [
+   "567927, 567928, 567929",
+   "{sudor_pe_autorizatii}"
+  ],
+  {
+   "find": "GENERAL ALEXANDRU ANGELESCU",
+   "replace": "{project_street}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": ",? ?\\(Nr\\. vechi 432\\) ?[–-] ?NC 20995",
+   "replace": "{adresa_detalii_text}",
+   "regex": true
+  },
+  {
+   "find": "((?:nr|NR|Nr)\\.? +)209\\b",
+   "replace": "\\1{project_street_number}",
+   "regex": true
+  },
+  {
+   "find": "POIENARII BURCHII",
+   "replace": "{project_city}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "PRAHOVA",
+   "replace": "{project_county}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(?:MEDIE|REDUSA) PRESIUNE",
+   "replace": "{bransament_presiune}",
+   "regex": true,
+   "ci": true
+  },
+  [
+   "M.P.",
+   "{bransament_presiune_abr}"
+  ],
+  {
+   "find": "\\bMP\\b",
+   "replace": "{bransament_presiune_abr}",
+   "regex": true
+  },
+  {
+   "find": "12\\.80?",
+   "replace": "{bransament_lungime_totala}",
+   "regex": true
+  },
+  {
+   "find": "11\\.5\\b",
+   "replace": "{project_length}",
+   "regex": true
+  },
+  {
+   "find": "250 ?[-/] ?32",
+   "replace": "{teu_dn}",
+   "regex": true
+  },
+  {
+   "find": "(?<=DN )250(?= mm)",
+   "replace": "{conducta_stradala_dn}",
+   "regex": true
+  },
+  {
+   "find": "(D[Nn] ?)32\\b",
+   "replace": "\\1{project_dn}",
+   "regex": true
+  },
+  {
+   "find": "(?<=diametrul )32(?= mm)",
+   "replace": "{project_dn}",
+   "regex": true
+  },
+  [
+   "C194/PIC/2024",
+   "{proiect_nr}"
+  ],
+  {
+   "find": "(?<=plansele: )1, 2, 3",
+   "replace": "{planse_nr}",
+   "regex": true,
+   "ci": true
+  },
+  [
+   "BL_6461 / 31.07.2024",
+   "{cod_atr}"
+  ],
+  {
+   "find": "(?<=receptie calitativa nr\\. )1, 2, 3, 4 / 2024",
+   "replace": "{pv_predare_nr}, {pv_trasare_nr}, {pv_sapatura_nr}, {pv_asternere_nr} / {year}",
+   "regex": true
+  },
+  {
+   "find": "(?<=receptie calitativa nr\\. )1, 2, 3 / 2024",
+   "replace": "{pv_predare_nr}, {pv_trasare_nr}, {pv_sapatura_nr} / {year}",
+   "regex": true
+  },
+  {
+   "find": "(?<=receptie calitativa nr\\. )1, 2 / 2024",
+   "replace": "{pv_predare_nr}, {pv_trasare_nr} / {year}",
+   "regex": true
+  },
+  {
+   "find": "(?<=receptie calitativa nr\\. )1 / 2024",
+   "replace": "{pv_predare_nr} / {year}",
+   "regex": true
+  },
+  {
+   "find": "6 / 21\\.10\\.2024",
+   "replace": "{pv_lucrari_ascunse_nr} / {pv_data}",
+   "regex": true
+  },
+  {
+   "find": "7 / +22\\.10\\.2024",
+   "replace": "{pv_rt_br_nr} / {data_pv_rt}",
+   "regex": true
+  },
+  {
+   "find": "(?<=PVRT nr\\.) 7 (?= din data)",
+   "replace": " {pv_rt_br_nr} ",
+   "regex": true
+  },
+  {
+   "find": "(?<=PVRT nr\\. )7 +(?=in data)",
+   "replace": "{pv_rt_srm_nr} ",
+   "regex": true
+  },
+  [
+   "22.10.2024",
+   "{data_pv_rt}"
+  ],
+  {
+   "find": "(?<=Nr\\. )8(?= / \\.)",
+   "replace": "{pv_pif_nr}",
+   "regex": true
+  },
+  {
+   "find": "(?<=Nr\\. )9(?= / \\.)",
+   "replace": "{pv_rt_srm_nr}",
+   "regex": true
+  },
+  {
+   "find": "(?<=Nr\\. )10(?= / \\.)",
+   "replace": "{pv_pif_srm_nr}",
+   "regex": true
+  },
+  [
+   "24318468/14.10.2024",
+   "{teava_cc_nr}/{teava_cc_data}"
+  ],
+  [
+   "24056613/14.10.2024",
+   "{teava_dc_nr}/{teava_dc_data}"
+  ],
+  [
+   "24318468",
+   "{teava_cc_nr}"
+  ],
+  [
+   "24056613",
+   "{teava_dc_nr}"
+  ],
+  {
+   "find": "(?<=anul\\. )14\\.10\\.2024",
+   "replace": "{teava_cc_data}",
+   "regex": true
+  },
+  {
+   "find": "(?<=rezistență la )9\\.344 ?(?=bari)",
+   "replace": "{proba_rezistenta_presiune} ",
+   "regex": true
+  },
+  {
+   "find": "(?<=timp de  )1 ora si 45 min",
+   "replace": "{proba_rezistenta_durata_text}",
+   "regex": true
+  },
+  {
+   "find": "(?<=etanșeitate la )6\\.606",
+   "replace": "{proba_etanseitate_presiune}",
+   "regex": true
+  },
+  {
+   "find": "(?<=timp de )1  ora si 30 min",
+   "replace": "{proba_etanseitate_durata_text}",
+   "regex": true
+  },
+  {
+   "find": "(?<=aparat: )ZEEN 800",
+   "replace": "{aparat_sudura}",
+   "regex": true
+  },
+  {
+   "find": "89C-43[34] / 2024",
+   "replace": "{procedeu_omologare_pe}",
+   "regex": true
+  }
+ ],
+ "members": [
+  {
+   "id": "00",
+   "out": "1. 0. Catre MEGACONSTRUCT (x2).docx",
+   "src": "1. 0. Catre MEGACONSTRUCT (x2).doc",
+   "preOps": [
+    {
+     "op": "unwrap_hyperlinks",
+     "part": "word/header1.xml"
+    },
+    {
+     "op": "set_paragraph",
+     "part": "word/header1.xml",
+     "match": "caliopa.gica@gmail.com",
+     "whole": false,
+     "text": ""
+    }
+   ],
+   "rules": [
+    {
+     "find": "(?<=Acord nr\\. )32(?= din )",
+     "replace": "{autorizatie_construire_nr}",
+     "regex": true
+    },
+    [
+     "03.09.2024",
+     "{autorizatie_construire_data}"
+    ],
+    [
+     "Ivan Caliopa Gica",
+     "{tenant_admin_name}"
+    ]
+   ],
+   "ops": [
+    {
+     "op": "image_placeholder",
+     "part": "word/header1.xml",
+     "tag": "tenant_logo",
+     "framePr": {
+      "w": "2600",
+      "h": "1620",
+      "hRule": "atLeast",
+      "wrap": "around",
+      "vAnchor": "text",
+      "hAnchor": "text",
+      "x": "-335",
+      "y": "262"
+     }
+    },
+    {
+     "op": "tab_signature",
+     "paragraphs": [
+      "Administrator,",
+      "{tenant_admin_name}"
+     ],
+     "align": "right",
+     "pos": 8380
+    }
+   ],
+   "notes": "Ca scrisoarea către Distrigaz: sigla → {%tenant_logo}, datele firmei → tenant_*, semnătura pe tab la dreapta."
+  },
+  {
+   "id": "01",
+   "out": "1. Carte Tehnica.docx",
+   "src": "1. Carte Tehnica.doc",
+   "preOps": [
+    {
+     "op": "page_break_before",
+     "targets": [
+      {
+       "match": "FISA DE DATE SINTETICE"
+      },
+      {
+       "table": 1
+      },
+      {
+       "table": 3
+      },
+      {
+       "table": 5
+      },
+      {
+       "table": 7
+      },
+      {
+       "table": 9
+      },
+      {
+       "match": "ANEXA Nr. 7"
+      },
+      {
+       "match": "ANEXA Nr. 8"
+      },
+      {
+       "match": "ANEXA Nr. 10"
+      },
+      {
+       "match": "ANEXA Nr. 13"
+      },
+      {
+       "match": "ANEXA Nr. 9"
+      },
+      {
+       "match": "ANEXA Nr. 11"
+      },
+      {
+       "match": "ANEXA Nr. 14"
+      },
+      {
+       "match": "SCHEMA IZOMETRICA A SUDURILOR"
+      },
+      {
+       "match": "BULETIN DE EXAMINARE VIZUALĂ"
+      },
+      {
+       "match": "STR. GENERAL ALEXANDRU ANGELESCU, NR. 209, LOC. POIENARII BURCHII, JUDETUL PRAHOVA",
+       "nth": 3
+      }
+     ]
+    },
+    {
+     "op": "unfloat_table",
+     "table": 1
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "Page 19 of 21"
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 5,
+     "cell": 2,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 4,
+     "row": 5,
+     "cell": 2,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 6,
+     "row": 5,
+     "cell": 2,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 8,
+     "row": 5,
+     "cell": 2,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 5,
+     "cell": 2,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 24,
+     "row": 5,
+     "cell": 1,
+     "text": ""
+    },
+    {
+     "op": "set_cell",
+     "table": 24,
+     "row": 6,
+     "cell": 1,
+     "text": ""
+    },
+    {
+     "op": "set_cell",
+     "table": 24,
+     "row": 7,
+     "cell": 1,
+     "text": ""
+    },
+    {
+     "op": "set_cell",
+     "table": 24,
+     "row": 8,
+     "cell": 1,
+     "text": ""
+    },
+    {
+     "op": "set_cell",
+     "table": 24,
+     "row": 9,
+     "cell": 1,
+     "text": ""
+    },
+    {
+     "op": "set_cell",
+     "table": 24,
+     "row": 10,
+     "cell": 1,
+     "text": ""
+    },
+    {
+     "op": "set_cell",
+     "table": 24,
+     "row": 11,
+     "cell": 1,
+     "text": ""
+    },
+    {
+     "op": "table_row_loop",
+     "table": 12,
+     "row": 3,
+     "cells": [
+      "",
+      "{#materiale}{denumire}",
+      "{diametru}",
+      "{cantitate}",
+      "{furnizor}",
+      "{certificat}",
+      "{declaratie}{/materiale}"
+     ],
+     "deleteRows": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 14,
+     "row": 3,
+     "cells": [
+      "",
+      "{#materiale}{denumire}",
+      "{diametru}",
+      "{cantitate}",
+      "{furnizor}",
+      "{certificat}",
+      "{declaratie}{/materiale}"
+     ],
+     "deleteRows": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 22,
+     "row": 2,
+     "cells": [
+      "{#schema_materiale}{denumire}",
+      "{cantitate}",
+      "{nr_suduri}{/schema_materiale}"
+     ],
+     "deleteRows": [
+      3,
+      4
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 23,
+     "row": 2,
+     "cells": [
+      "{#suduri}{cod}",
+      "{sudor}",
+      "{autorizatie}",
+      "{procedeu}",
+      "",
+      "{omologare}{/suduri}"
+     ],
+     "deleteRows": [
+      3,
+      4,
+      5,
+      6,
+      7
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 24,
+     "row": 2,
+     "cells": [
+      "{#suduri}{nr_crt}",
+      "{cod}",
+      "Fara defect",
+      "Admis{/suduri}"
+     ],
+     "deleteRows": [
+      3,
+      4
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 25,
+     "row": 4,
+     "cells": [
+      "{#sudori_autorizatii}{nr_crt}",
+      "{nume}",
+      "{autorizatie}{/sudori_autorizatii}"
+     ]
+    }
+   ],
+   "rules": [
+    [
+     "S.C. MEGACONSTRUCT S.A., cu sediul in Bucuresti, Piata Unirii, nr.1, Sector 1",
+     "{osd_denumire}, cu sediul in {osd_adresa}"
+    ],
+    {
+     "find": "(?<=cu sediul in )Jud\\. PRAHOVA, Loc\\. POIENARII BURCHII, Str\\. GENERAL ALEXANDRU ANGELESCU , nr\\. 209\\.",
+     "replace": "jud. {tenant_county}, loc. {tenant_city}, {tenant_address}.",
+     "regex": true
+    },
+    {
+     "find": "(?<=cu sediul in )jud\\. ILFOV, loc\\. CIOROGARLA, Str\\. ZOE SAMURCASI, nr\\. 11A\\.",
+     "replace": "jud. {tenant_county}, loc. {tenant_city}, {tenant_address}.",
+     "regex": true
+    },
+    {
+     "find": "(?<=lucrarilor constructor: )IVAN FLORIN MADALIN",
+     "replace": "{instalator_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=PROCES VERBAL NR\\. )1\\b",
+     "replace": "{pv_predare_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=PROCES VERBAL NR\\. )2\\b",
+     "replace": "{pv_trasare_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=PROCES VERBAL NR\\. )3\\b",
+     "replace": "{pv_sapatura_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=PROCES VERBAL NR\\. )4\\b",
+     "replace": "{pv_asternere_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=PROCES VERBAL NR\\.  )5\\b",
+     "replace": "{pv_montare_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=-diametru: - )Dn 90",
+     "replace": "{tub_protectie_diametru}",
+     "regex": true
+    },
+    {
+     "find": "(?<=-lungime: - )7ml",
+     "replace": "{tub_protectie_lungime}",
+     "regex": true
+    },
+    {
+     "find": "(?<=-material:  - )PE100 SDR11",
+     "replace": "{tub_protectie_material}",
+     "regex": true
+    },
+    {
+     "find": "(?<=-locul de montare: )ingropat",
+     "replace": "{mod_pozare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=cu capace GN, bucati: )-",
+     "replace": "{rasuflatori_cu_capace}",
+     "regex": true
+    },
+    {
+     "find": "(?<=fara capace GN, bucati : )2",
+     "replace": "{rasuflatori_fara_capace}",
+     "regex": true
+    },
+    {
+     "find": "(?<=-diametru:\\t)1”",
+     "replace": "{robinet_diametru}",
+     "regex": true
+    },
+    {
+     "find": "(?<=-bucati:\\t\\t)1",
+     "replace": "{robinet_bucati}",
+     "regex": true
+    }
+   ],
+   "ops": [
+    {
+     "op": "image_placeholder",
+     "tag": "project_drawing",
+     "nth": 2
+    }
+   ],
+   "notes": "Fișierul clientului n-are salturi de pagină: fiecare formular începea pe pagină nouă doar pentru că precedentul umplea pagina Letter. Pe A4 le pun explicit (page_break_before). Tabelul sudurilor rămâne cu 14 rânduri goale după cele completate (originalul: 20 de rânduri), ca să încapă pe o pagină. Înainte de tabelul sudurilor există deja un salt de secțiune."
+  }
+ ]
+}

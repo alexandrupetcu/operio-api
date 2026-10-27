@@ -30,6 +30,7 @@ describe("dossier fields", () => {
     expect(unitFor(f, "CARTE_BRANSAMENT")).toBe("Pa");
     // NEOGAS scrie probele în bari.
     expect(unitFor(f, "CARTE_BRANSAMENT", "NEOGAS_GRID")).toBe("bar");
+    expect(unitFor(f, "CARTE_BRANSAMENT", "MEGACONSTRUCT")).toBe("bar");
   });
 
   it("câmpurile-tabel: bucla cere tabelul, coloanele lui nu apar ca „Alte câmpuri”", () => {
