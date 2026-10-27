@@ -810,6 +810,59 @@ export async function listByProject(
   });
 }
 
+const calendarSelect = {
+  id: true,
+  type: true,
+  title: true,
+  notes: true,
+  date: true,
+  duration: true,
+  status: true,
+  employeeId: true,
+  clientId: true,
+  clientAddressId: true,
+  projectId: true,
+  installationId: true,
+  equipmentId: true,
+  equipmentRevisionId: true,
+  completedAt: true,
+  osSubmittedAt: true,
+  osRegistrationNumber: true,
+  osRegisteredAt: true,
+  osClientNotifiedAt: true,
+  cancelReason: true,
+  cancelledAt: true,
+  createdAt: true,
+  updatedAt: true,
+  project: {
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      // Programările pe proiect fără client propriu își iau numele din clientul proiectului.
+      client: { select: { id: true, companyName: true, firstName: true, lastName: true } },
+      projectType: { select: { id: true, name: true, code: true } },
+    },
+  },
+  client: {
+    select: {
+      id: true,
+      companyName: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      email: true,
+      addresses: {
+        select: { id: true, label: true, address: true, isPrimary: true, city: { select: { name: true } }, state: { select: { name: true } } },
+        orderBy: [{ isPrimary: "desc" as const }, { createdAt: "asc" as const }],
+        take: 2,
+      },
+    },
+  },
+  installation: { select: { id: true, distributorName: true } },
+  employee: { select: { id: true, firstName: true, lastName: true } },
+} satisfies Prisma.AppointmentSelect;
+
 export async function calendar(
   fastify: FastifyInstance,
   tenantId: string,
@@ -828,23 +881,14 @@ export async function calendar(
       // nu lărgește.
       AND: [apptVisibilityWhere(scope), requestedEmployeeWhere(employeeIdFilter, scope)],
     },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          client: { select: { id: true, companyName: true, firstName: true, lastName: true } },
-          projectType: { select: { id: true, name: true, code: true } },
-        },
-      },
-      client: { select: { id: true, companyName: true, firstName: true, lastName: true, phone: true, email: true, addresses: { select: { address: true, isPrimary: true, city: { select: { name: true } }, state: { select: { name: true } } }, orderBy: { isPrimary: "desc" as const } } } },
-      employee: { select: { id: true, firstName: true, lastName: true } },
-    },
+    // Doar coloanele listei: `completionDataJson` (raportul complet) rămâne pe detaliu,
+    // clientul vine cu adresa principală (+1 rezervă), nu cu toate adresele.
+    select: calendarSelect,
+    relationLoadStrategy: "join",
     orderBy: { date: "asc" },
     take: 500,
   });
-  return withAnalyzerReportFlag(fastify, rows);
+  return withAnalyzerReportFlag(fastify, tenantId, rows);
 }
 
 /**
@@ -854,6 +898,7 @@ export async function calendar(
  */
 async function withAnalyzerReportFlag<T extends { id: string; equipmentRevisionId: string | null }>(
   fastify: FastifyInstance,
+  tenantId: string,
   rows: T[]
 ): Promise<(T & { analyzerReportAttached: boolean })[]> {
   if (rows.length === 0) return [];
@@ -863,7 +908,8 @@ async function withAnalyzerReportFlag<T extends { id: string; equipmentRevisionI
       ? fastify.prisma.equipmentRevision.findMany({ where: { id: { in: revisionIds }, s3Key: { not: null } }, select: { id: true } })
       : Promise.resolve([] as { id: string }[]),
     fastify.prisma.document.findMany({
-      where: { appointmentId: { in: rows.map((r) => r.id) }, s3Key: { not: null }, name: { startsWith: "Raport analizor" } },
+      // `tenantId` întâi: indexul e (tenantId, appointmentId); fără el se scana tot tabelul.
+      where: { tenantId, appointmentId: { in: rows.map((r) => r.id) }, s3Key: { not: null }, name: { startsWith: "Raport analizor" } },
       select: { appointmentId: true },
     }),
   ]);

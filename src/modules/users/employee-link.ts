@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { invalidateEmployeeLink } from "../../lib/employee-link-cache.js";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { logAudit } from "../../lib/audit.js";
 
@@ -29,6 +30,7 @@ export async function createEmployeeFromUser(
     select: { id: true },
   });
   await logAudit(db as PrismaClient, tenantId, actorUserId, "employee", employee.id, "auto_link", null, { userId: user.id });
+  invalidateEmployeeLink(tenantId, user.id);
   return employee;
 }
 

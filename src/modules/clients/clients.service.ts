@@ -75,6 +75,23 @@ const clientInclude = {
   _count: { select: { projects: true } },
 };
 
+/**
+ * Lista de clienți: doar ce afișează lista (web: adrese cu oraș/județ, persoane de contact,
+ * nr. proiecte; mobil: adresa principală + nr. echipamente). Instalațiile cu programările
+ * lor (raportul complet în `completionDataJson`) și reviziile rămân pe fișă (`getById`) —
+ * pe listă înmulțeau răspunsul de zeci de ori.
+ */
+const clientListInclude = {
+  contactPersons: true,
+  // Doar id-urile: mobilul numără echipamentele din `equipment.length`; `_count` e pentru restul.
+  equipment: { select: { id: true } },
+  addresses: {
+    include: addressInclude,
+    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] as any,
+  },
+  _count: { select: { projects: true, equipment: true, gasInstallations: true } },
+} as const;
+
 export async function list(
   fastify: FastifyInstance,
   tenantId: string,
@@ -102,7 +119,9 @@ export async function list(
   const [data, total] = await Promise.all([
     fastify.prisma.client.findMany({
       where,
-      include: clientInclude,
+      include: clientListInclude,
+      // Un singur SQL cu JOIN-uri, nu o interogare pe fiecare relație.
+      relationLoadStrategy: "join",
       ...paginationArgs(query, CLIENTS_SORTABLE),
     }),
     fastify.prisma.client.count({ where }),
@@ -155,6 +174,7 @@ export async function getById(
 ) {
   const client = await fastify.prisma.client.findFirst({
     where: { id, tenantId },
+    relationLoadStrategy: "join",
     include: {
       ...clientInclude,
       projects: {

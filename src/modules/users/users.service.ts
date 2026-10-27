@@ -1,4 +1,5 @@
 import { getTenantEntitlements } from "../../lib/entitlements/index.js";
+import { invalidateEmployeeLink } from "../../lib/employee-link-cache.js";
 import { createEmployeeFromUser, linkedEmployeeId } from "./employee-link.js";
 import type { FastifyInstance } from "fastify";
 import { hashPassword } from "../../lib/hash.js";
@@ -256,6 +257,7 @@ export async function update(
         await tx.employee.update({ where: { id: employeeId }, data: { userId: id } });
       }
     });
+    invalidateEmployeeLink(tenantId, id);
   }
 
   if (Object.keys(userFields).length === 0) {

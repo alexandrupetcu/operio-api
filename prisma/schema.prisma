@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // Un singur SQL cu JOIN-uri pentru include-uri (altfel o interogare pe fiecare nivel).
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

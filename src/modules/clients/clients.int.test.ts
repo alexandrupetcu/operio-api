@@ -213,3 +213,21 @@ describe("crearea clientului cu Idempotency-Key (clientul adăugat offline, retr
     expect(b.tenantId).toBe(f.b.id);
   });
 });
+
+describe("lista de clienți — doar ce afișează lista", () => {
+  it("fără instalații/programări/revizii (raportul complet nu mai călătorește cu fiecare client), dar cu contorul de echipamente", async () => {
+    const res = await clientsService.list(app, f.a.id, { page: 1, limit: 50, sortBy: "createdAt", sortOrder: "desc" });
+    const row = res.data.find((c) => c.id === f.a.clientId) as any;
+    expect(row).toBeTruthy();
+    const json = JSON.stringify(row);
+    expect(json).not.toContain("completionDataJson");
+    expect(row.gasInstallations).toBeUndefined();
+    expect(row._count.equipment).toBe(1);
+    expect(row._count.projects).toBe(0);
+    // Web-ul citește în continuare adresele (cu oraș/județ) și persoanele de contact din listă.
+    expect(row.addresses[0].address).toMatch(/Str\. Fixture/);
+    expect(Array.isArray(row.contactPersons)).toBe(true);
+    // Mobilul numără echipamentele din `equipment` (doar id-uri) până trece pe `_count`.
+    expect(row.equipment).toEqual([{ id: f.a.equipmentId }]);
+  });
+});

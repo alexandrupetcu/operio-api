@@ -13,6 +13,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Prisma } from "@prisma/client";
 import { getSchedulingSettings } from "../tenant/scheduling-settings.js";
+import { cachedEmployeeId } from "../../lib/employee-link-cache.js";
 
 export type ApptScope =
   | { kind: "all" }
@@ -48,16 +49,14 @@ export async function resolveApptScope(
     return remember({ kind: "all" });
   }
 
-  const [settings, employee] = await Promise.all([
+  // Ambele din cache-uri de 60 s: se citesc la fiecare cerere, se schimbă rar (și atunci se invalidează).
+  const [settings, employeeId] = await Promise.all([
     getSchedulingSettings(fastify.prisma, request.tenantId),
-    fastify.prisma.employee.findFirst({
-      where: { userId: request.user.sub, tenantId: request.tenantId },
-      select: { id: true },
-    }),
+    cachedEmployeeId(fastify.prisma, request.tenantId, request.user.sub),
   ]);
 
   if (settings.mode === "shared") return remember({ kind: "all" });
-  return remember({ kind: "own", employeeId: employee?.id ?? null });
+  return remember({ kind: "own", employeeId });
 }
 
 /**
@@ -69,11 +68,7 @@ export async function requesterEmployeeId(fastify: FastifyInstance, request: Fas
   if (!request.tenantId || !request.user?.sub) return null;
   // Doar din teren (aplicația mobilă): pe web, câmpul lăsat gol de coordonator înseamnă „nerepartizat”.
   if (request.user.client !== "mobile") return null;
-  const employee = await fastify.prisma.employee.findFirst({
-    where: { userId: request.user.sub, tenantId: request.tenantId },
-    select: { id: true },
-  });
-  return employee?.id ?? null;
+  return cachedEmployeeId(fastify.prisma, request.tenantId, request.user.sub);
 }
 
 /** Fragmentul de `where` care descrie ce poate vedea cererea curentă. */

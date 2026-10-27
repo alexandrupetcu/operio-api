@@ -11,6 +11,7 @@
  * `setSchedulingSettings` face merge, deci nimic nu se pierde.
  */
 import type { PrismaClient, Prisma } from "@prisma/client";
+import { TtlCache } from "../../lib/ttl-cache.js";
 
 export const SCHEDULING_MODES = [
   {
@@ -72,17 +73,26 @@ export function readSchedulingSettings(settingsJson: unknown): SchedulingSetting
   };
 }
 
+// Se citesc la fiecare cerere a unui tehnician; se schimbă rar — 60 s în memorie.
+const settingsCache = new TtlCache<SchedulingSettings>(60_000);
+
+export function invalidateSchedulingSettings(tenantId: string): void {
+  settingsCache.delete(tenantId);
+}
+
 /** Citire + fetch într-un singur apel (partea de service). */
 export async function getSchedulingSettings(
   prisma: PrismaClient,
   tenantId: string,
 ): Promise<SchedulingSettings> {
   if (!tenantId) return { ...SCHEDULING_DEFAULTS };
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { settingsJson: true },
+  return settingsCache.getOrLoad(tenantId, async () => {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { settingsJson: true },
+    });
+    return readSchedulingSettings(tenant?.settingsJson);
   });
-  return readSchedulingSettings(tenant?.settingsJson);
 }
 
 /** Merge peste settingsJson.scheduling, păstrând blocurile surori. */
@@ -105,5 +115,6 @@ export async function setSchedulingSettings(
     where: { id: tenantId },
     data: { settingsJson: settings as Prisma.InputJsonValue },
   });
+  invalidateSchedulingSettings(tenantId);
   return readSchedulingSettings(settings);
 }

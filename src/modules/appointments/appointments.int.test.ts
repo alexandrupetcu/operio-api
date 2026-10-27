@@ -487,3 +487,24 @@ describe("anularea cere un motiv", () => {
     expect(cancel?.after).toMatchObject({ status: "cancelled", cancelReason: "Nu a fost nimeni acasă" });
   });
 });
+
+describe("calendar — rânduri subțiri", () => {
+  it("fără completionDataJson / project.client, dar cu client + adresă principală, angajat, instalație, equipmentRevisionId", async () => {
+    await prisma.appointment.update({ where: { id: f.a.appointmentId }, data: { completionDataJson: { outcome: "raport_complet", big: "x".repeat(2000) } } });
+    const from = new Date("2026-10-19T00:00:00.000Z");
+    const to = new Date("2026-10-22T00:00:00.000Z");
+    const list = await appointments.calendar(app, f.a.id, from, to);
+    const row = list.find((a) => a.id === f.a.appointmentId) as any;
+    expect(row).toBeTruthy();
+    expect(JSON.stringify(row)).not.toContain("completionDataJson");
+    expect(row.client.firstName).toBe("Ion");
+    expect(row.client.addresses[0].address).toMatch(/Str\. Fixture/);
+    expect(row.client.addresses[0].isPrimary).toBe(true);
+    expect(row.employee.id).toBe(f.a.employeeId);
+    expect("installation" in row).toBe(true);
+    expect("equipmentRevisionId" in row).toBe(true);
+    expect(row.project).toBeNull();
+    expect(JSON.stringify(row)).toBeTruthy();
+    expect(JSON.stringify(list).length).toBeLessThan(2000);
+  });
+});

@@ -321,7 +321,7 @@ export async function refresh(fastify: FastifyInstance, token: string) {
   const storedToken = await fastify.prisma.$transaction(async (tx) => {
     const found = await tx.refreshToken.findUnique({
       where: { token: tokenHash },
-      include: { user: { include: { tenant: true } } },
+      include: { user: true },
     });
     if (!found) {
       throw fastify.httpErrors.unauthorized("Invalid or expired refresh token");
