@@ -161,6 +161,11 @@ export async function buildServer() {
       // Surface the first issue's text (schemas carry Romanian messages for the
       // rules users actually hit, e.g. the password policy) so forms can show it.
       const detail = err.issues[0]?.message;
+      // Câmpurile și regulile picate (fără valori) — altfel un 400 de pe telefon e de negăsit în jurnal.
+      request.log.warn(
+        { url: request.url, issues: err.issues.slice(0, 10).map((i) => ({ path: i.path.join("."), code: i.code, message: i.message })) },
+        "validation failed",
+      );
       return reply.status(400).send({
         error: "Validation failed",
         message: detail && !/^(Required|Invalid|Expected|String must)/.test(detail) ? detail : "Datele introduse sunt invalide",
