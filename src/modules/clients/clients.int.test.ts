@@ -4,7 +4,7 @@ import { prisma } from "../../test/prisma.js";
 import { closeStub, expectReject, serviceStub } from "../../test/stub.js";
 import { seedTwoTenants, type TwoTenants } from "../../test/fixtures.js";
 import * as clientsService from "./clients.service.js";
-import { equipmentInputSchema, updateClientSchema } from "./clients.schema.js";
+import { createClientSchema, equipmentInputSchema, updateClientSchema } from "./clients.schema.js";
 import { paginationSchema } from "../../lib/pagination.js";
 
 let app: FastifyInstance;
@@ -185,5 +185,31 @@ describe("căutare clienți", () => {
   it("găsește clientul și după strada din adresă", async () => {
     const res = await clientsService.list(app, f.a.id, paginationSchema.parse({ search: "Str. Fixture" }));
     expect(res.data.some((c) => c.id === f.a.clientId)).toBe(true);
+  });
+});
+
+describe("crearea clientului cu Idempotency-Key (clientul adăugat offline, retrimis la revenirea semnalului)", () => {
+  const input = () => ({ type: "PERSON" as const, firstName: "Vasile", lastName: "Offline", phone: "0722000000", addresses: [{ address: "Str. Fără Semnal 1", isPrimary: true }] });
+
+  it("aceeași cheie de două ori → un singur rând, același id", async () => {
+    const a = await clientsService.create(app, f.a.id, createClientSchema.parse(input()), "key-1");
+    const b = await clientsService.create(app, f.a.id, createClientSchema.parse(input()), "key-1");
+    expect(b.id).toBe(a.id);
+    expect(await prisma.client.count({ where: { tenantId: f.a.id, lastName: "Offline" } })).toBe(1);
+  });
+
+  it("chei diferite → două rânduri; fără cheie → câte un rând la fiecare apel", async () => {
+    await clientsService.create(app, f.a.id, createClientSchema.parse(input()), "key-1");
+    await clientsService.create(app, f.a.id, createClientSchema.parse(input()), "key-2");
+    await clientsService.create(app, f.a.id, createClientSchema.parse(input()));
+    await clientsService.create(app, f.a.id, createClientSchema.parse(input()));
+    expect(await prisma.client.count({ where: { tenantId: f.a.id, lastName: "Offline" } })).toBe(4);
+  });
+
+  it("cheia e pe firmă: aceeași cheie în firma B creează rândul ei", async () => {
+    const a = await clientsService.create(app, f.a.id, createClientSchema.parse(input()), "key-1");
+    const b = await clientsService.create(app, f.b.id, createClientSchema.parse(input()), "key-1");
+    expect(b.id).not.toBe(a.id);
+    expect(b.tenantId).toBe(f.b.id);
   });
 });

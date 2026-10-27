@@ -34,12 +34,7 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
   fastify.patch<{ Params: { id: string } }>("/:id", async (request) => {
     const body = updateUserSchema.parse(request.body);
-    return usersService.update(
-      fastify,
-      request.tenantId,
-      request.params.id,
-      body
-    );
+    return usersService.update(fastify, request.tenantId, request.params.id, body, request.user.sub);
   });
 
   fastify.delete<{ Params: { id: string } }>("/:id", async (request) => {

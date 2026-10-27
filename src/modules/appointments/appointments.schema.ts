@@ -51,6 +51,9 @@ export const createAppointmentSchema = z.object({
 });
 
 export const updateAppointmentSchema = z.object({
+  // Tipul și adresa se pot corecta din teren cât programarea e deschisă.
+  type: z.enum(APPOINTMENT_TYPES).optional(),
+  clientAddressId: z.string().cuid().optional().nullable(),
   title: z.string().min(1).max(200).optional(),
   notes: z.string().optional().nullable(),
   date: z.string().datetime().optional(),

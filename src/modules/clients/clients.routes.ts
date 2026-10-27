@@ -131,15 +131,20 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
     return clientsService.gdprConsent(fastify, request.tenantId, request.params.id);
   });
 
+  // Și tehnicianul adaugă clienți din teren. Cu `Idempotency-Key` (clientul salvat
+  // pe telefon fără semnal) retrimiterea întoarce același rând, tot 201.
   fastify.post(
     "/",
-    { onRequest: [requireRole("ADMIN", "MANAGER")] },
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request, reply) => {
       const body = createClientSchema.parse(request.body);
+      const rawKey = request.headers["idempotency-key"];
+      const idempotencyKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const client = await clientsService.create(
         fastify,
         request.tenantId,
-        body
+        body,
+        idempotencyKey?.trim() || null
       );
       return reply.status(201).send(client);
     }

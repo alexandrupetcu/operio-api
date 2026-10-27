@@ -1,4 +1,5 @@
 import { resolveEntitlements, serializeEntitlements } from "../../lib/entitlements/index.js";
+import { ensureEmployeeForMobileUser } from "../users/employee-link.js";
 import { ensureDefaultProjectTypes } from "../../lib/default-project-types.js";
 import type { FastifyInstance } from "fastify";
 import { createHash, randomBytes } from "crypto";
@@ -274,6 +275,9 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
 
   if (input.client === "mobile") {
     await registerMobileDevice(fastify, candidate, input.device!);
+    // Contul cu acces mobil dat înainte de regula „acces = angajat legat” primește
+    // angajatul la primul login din telefon (idempotent).
+    if (tenant) await ensureEmployeeForMobileUser(fastify, { id: candidate.id, tenantId: tenant.id });
   }
 
   const { accessToken, refreshToken } = await issueTokens(

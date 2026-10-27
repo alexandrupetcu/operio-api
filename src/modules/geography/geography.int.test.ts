@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../test/prisma.js";
 import { closeStub, serviceStub } from "../../test/stub.js";
-import { searchCities, searchStates } from "./geography.service.js";
+import { countryPack, searchCities, searchStates } from "./geography.service.js";
 
 /**
  * Căutarea de județe / localități trebuie să meargă și fără diacritice: pe teren se
@@ -61,5 +61,21 @@ describe("căutare fără diacritice", () => {
     expect(await searchCities(app.prisma, STATE_TIMIS, "%", 20)).toEqual([]);
     expect(await searchCities(app.prisma, STATE_TIMIS, "_ag", 20)).toEqual([]);
     expect((await searchCities(app.prisma, STATE_TIMIS, "ag", 20)).map((c) => c.name)).toEqual(["Șag"]);
+  });
+});
+
+describe("pachetul unei țări (cache-ul offline al telefonului)", () => {
+  it("județele cu localitățile lor, ordonate după nume; țară necunoscută → fără județe", async () => {
+    const pack = await countryPack(app.prisma, COUNTRY);
+    expect(pack.countryId).toBe(COUNTRY);
+    expect(typeof pack.generatedAt).toBe("string");
+    expect(pack.states.map((s) => s.name)).toEqual(["Argeș", "Iași", "Timiș"]);
+    const timis = pack.states.find((s) => s.name === "Timiș")!;
+    expect(timis.cities.map((c) => c.name)).toEqual(["Șag", "Timișoara"]);
+    expect(timis).toHaveProperty("stateCode");
+    expect(pack.states.find((s) => s.name === "Argeș")!.cities).toEqual([]);
+
+    const none = await countryPack(app.prisma, 999_999);
+    expect(none.states).toEqual([]);
   });
 });

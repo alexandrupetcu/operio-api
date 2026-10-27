@@ -22,6 +22,9 @@ export const updateUserSchema = z.object({
   // Programările se atribuie unui Employee, deci fără legătură contul nu are
   // „programările mele".
   employeeId: z.string().cuid().nullable().optional(),
+  // La acordarea accesului mobil unui cont nelegat: creează angajatul din datele
+  // contului (alternativa la `employeeId`).
+  createEmployee: z.boolean().optional(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

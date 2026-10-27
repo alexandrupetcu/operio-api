@@ -5,6 +5,7 @@ import { redisConnection } from "../../config/redis.js";
 import { defaultJobOptions } from "../../config/queue.js";
 import { uploadFile } from "../../lib/s3.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
+import { logAudit } from "../../lib/audit.js";
 import type {
   CreateAppointmentInput,
   UpdateAppointmentInput,
@@ -822,7 +823,7 @@ export async function calendar(
       tenantId,
       deletedAt: null,
       date: { gte: from, lte: to },
-      status: { not: "cancelled" },
+      // Anulatele rămân în calendar (estompate în UI); doar arhivatele dispar.
       // Vizibilitatea și filtrul cerut se combină prin AND: filtrul restrânge,
       // nu lărgește.
       AND: [apptVisibilityWhere(scope), requestedEmployeeWhere(employeeIdFilter, scope)],
@@ -876,7 +877,9 @@ export async function create(
   tenantId: string,
   input: CreateAppointmentInput,
   /** `defaultEmployeeId`: angajatul celui care creează — folosit doar când body-ul nu repartizează pe nimeni. */
-  opts: { defaultEmployeeId?: string | null } = {}
+  opts: { defaultEmployeeId?: string | null } = {},
+  /** Contul care face cererea, pentru istoricul modificărilor. */
+  actorUserId: string | null = null
 ) {
   // Un body fără `employeeId` înseamnă „pe mine” (vizită din teren), nu „nerepartizată”:
   // repartizarea către altcineva se face explicit, din dashboard.
@@ -926,6 +929,13 @@ export async function create(
     include: listInclude,
   });
 
+  await logAudit(fastify, tenantId, actorUserId, "appointment", created.id, "create", null, {
+    type: created.type,
+    title: created.title,
+    date: created.date.toISOString(),
+    duration: created.duration,
+    employeeId: created.employeeId,
+  });
   await invalidateDashboardCache(tenantId);
   return { ...created, _warnings: await warningsFor(fastify, tenantId, created) };
 }
@@ -978,13 +988,26 @@ export async function update(
   tenantId: string,
   id: string,
   input: UpdateAppointmentInput,
-  scope: ApptScope = { kind: "all" }
+  scope: ApptScope = { kind: "all" },
+  /** Contul care face cererea, pentru istoricul modificărilor. */
+  actorUserId: string | null = null
 ) {
   const appointment = await fastify.prisma.appointment.findFirst({
     // 404, nu 403: nu divulgăm existența unei programări pe care cererea nu o vede.
     where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
   });
   if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
+
+  // Tipul schimbă fluxul de raport; după finalizare documentele sunt deja generate pe tipul vechi.
+  if (input.type !== undefined && input.type !== appointment.type && appointment.status === "completed") {
+    throw fastify.httpErrors.badRequest("Tipul nu se mai poate schimba după finalizare");
+  }
+  if (input.clientAddressId) {
+    if (!appointment.clientId) {
+      throw fastify.httpErrors.badRequest("Programarea nu are client; adresa nu poate fi verificată");
+    }
+    await assertAddressOfClient(fastify, appointment.clientId, input.clientAddressId);
+  }
 
   // Un tehnician poate prelua o programare nerepartizată sau renunța la a lui,
   // dar nu poate pasa lucrarea unui coleg — repartizarea rămâne la coordonatori.
@@ -1003,6 +1026,8 @@ export async function update(
   const updated = await fastify.prisma.appointment.update({
     where: { id },
     data: {
+      ...(input.type !== undefined && { type: input.type }),
+      ...(input.clientAddressId !== undefined && { clientAddressId: input.clientAddressId }),
       ...(input.title !== undefined && { title: input.title }),
       ...(input.notes !== undefined && { notes: input.notes }),
       ...(input.date !== undefined && { date: new Date(input.date) }),
@@ -1013,8 +1038,79 @@ export async function update(
     include: listInclude,
   });
 
+  const diff = appointmentDiff(appointment, updated);
+  if (diff) {
+    await logAudit(fastify, tenantId, actorUserId, "appointment", id, diff.action, diff.before, diff.after);
+  }
   await invalidateDashboardCache(tenantId);
   return { ...updated, _warnings: await warningsFor(fastify, tenantId, updated) };
+}
+
+/** Câmpurile unei programări care intră în istoricul modificărilor. */
+const AUDITED_FIELDS = ["type", "clientAddressId", "title", "notes", "date", "duration", "employeeId", "status"] as const;
+type AuditedField = (typeof AUDITED_FIELDS)[number];
+type AuditedRow = Pick<Prisma.AppointmentGetPayload<object>, AuditedField>;
+
+const auditValue = (v: unknown) => (v instanceof Date ? v.toISOString() : (v ?? null));
+
+/**
+ * Diferența dintre două stări ale programării, pentru audit: doar câmpurile schimbate,
+ * plus acțiunea dedusă — anulare, reprogramare, repartizare sau modificare generică.
+ * `null` când nu s-a schimbat nimic (nu scriem istoric gol).
+ */
+export function appointmentDiff(
+  before: AuditedRow,
+  after: AuditedRow
+): { action: "cancel" | "reschedule" | "assign" | "update"; before: Record<string, unknown>; after: Record<string, unknown> } | null {
+  const b: Record<string, unknown> = {};
+  const a: Record<string, unknown> = {};
+  for (const k of AUDITED_FIELDS) {
+    const bv = auditValue(before[k]);
+    const av = auditValue(after[k]);
+    if (bv !== av) {
+      b[k] = bv;
+      a[k] = av;
+    }
+  }
+  const changed = Object.keys(a);
+  if (changed.length === 0) return null;
+  const action =
+    a.status === "cancelled"
+      ? "cancel"
+      : changed.includes("date") || changed.includes("duration")
+        ? "reschedule"
+        : changed.length === 1 && changed[0] === "employeeId"
+          ? "assign"
+          : "update";
+  return { action, before: b, after: a };
+}
+
+/**
+ * Istoricul modificărilor unei programări (audit), cele mai noi primele. Aceeași
+ * vizibilitate ca `getById`: ce nu vezi nu are nici istoric (404).
+ */
+export async function history(fastify: FastifyInstance, tenantId: string, id: string, scope: ApptScope = { kind: "all" }) {
+  const appointment = await fastify.prisma.appointment.findFirst({
+    where: { id, tenantId, ...apptVisibilityWhere(scope) },
+    select: { id: true },
+  });
+  if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
+  const rows = await fastify.prisma.auditLog.findMany({
+    where: { tenantId, entityType: "appointment", entityId: id },
+    include: { actorUser: { select: { id: true, firstName: true, lastName: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+  return {
+    data: rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      actor: r.actorUser,
+      before: (r.beforeJson as Record<string, unknown> | null) ?? null,
+      after: (r.afterJson as Record<string, unknown> | null) ?? null,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  };
 }
 
 export async function finalize(
@@ -1024,7 +1120,29 @@ export async function finalize(
   input: FinalizeAppointmentInput,
   scope: ApptScope = { kind: "all" },
   /** Header-ul `Idempotency-Key` al cererii, dacă există. */
-  idempotencyKey: string | null = null
+  idempotencyKey: string | null = null,
+  /** Contul care face cererea, pentru istoricul modificărilor. */
+  actorUserId: string | null = null
+) {
+  const before = await fastify.prisma.appointment.findFirst({
+    where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
+    select: { status: true },
+  });
+  const result = await finalizeInner(fastify, tenantId, id, input, scope, idempotencyKey);
+  // Retrimiterea idempotentă a unei finalizări nu e o a doua finalizare.
+  if (before && before.status !== "completed") {
+    await logAudit(fastify, tenantId, actorUserId, "appointment", id, "finalize", { status: before.status }, { status: "completed", outcome: input.outcome });
+  }
+  return result;
+}
+
+async function finalizeInner(
+  fastify: FastifyInstance,
+  tenantId: string,
+  id: string,
+  input: FinalizeAppointmentInput,
+  scope: ApptScope,
+  idempotencyKey: string | null
 ) {
   const appointment = await fastify.prisma.appointment.findFirst({
     where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
@@ -1412,7 +1530,8 @@ export async function remove(
   fastify: FastifyInstance,
   tenantId: string,
   id: string,
-  scope: ApptScope = { kind: "all" }
+  scope: ApptScope = { kind: "all" },
+  actorUserId: string | null = null
 ) {
   const appointment = await fastify.prisma.appointment.findFirst({
     where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
@@ -1420,27 +1539,34 @@ export async function remove(
   if (!appointment) throw fastify.httpErrors.notFound("Appointment not found");
 
   // Soft delete
-  return fastify.prisma.appointment.update({
+  const removed = await fastify.prisma.appointment.update({
     where: { id },
     data: { deletedAt: new Date() },
   });
+  await logAudit(fastify, tenantId, actorUserId, "appointment", id, "delete", { deletedAt: null }, { deletedAt: removed.deletedAt?.toISOString() ?? null });
+  await invalidateDashboardCache(tenantId);
+  return removed;
 }
 
 export async function restore(
   fastify: FastifyInstance,
   tenantId: string,
-  id: string
+  id: string,
+  actorUserId: string | null = null
 ) {
   const appointment = await fastify.prisma.appointment.findFirst({
     where: { id, tenantId, deletedAt: { not: null } },
   });
   if (!appointment) throw fastify.httpErrors.notFound("Archived appointment not found");
 
-  return fastify.prisma.appointment.update({
+  const restored = await fastify.prisma.appointment.update({
     where: { id },
     data: { deletedAt: null },
     include: listInclude,
   });
+  await logAudit(fastify, tenantId, actorUserId, "appointment", id, "restore", { deletedAt: appointment.deletedAt?.toISOString() ?? null }, { deletedAt: null });
+  await invalidateDashboardCache(tenantId);
+  return restored;
 }
 
 export async function listArchived(

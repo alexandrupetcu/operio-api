@@ -205,7 +205,11 @@ model Client {
   gasInstallations GasInstallation[]
 
   @@index([tenantId])
+  // Cheia Idempotency-Key a creării din teren: aceeași cerere retrimisă (fără semnal) nu face dubluri.
+  createIdempotencyKey String?
+
   @@index([tenantId, status])
+  @@unique([tenantId, createIdempotencyKey])
 }
 
 model ClientAddress {

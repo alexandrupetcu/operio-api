@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import { searchCities, searchStates } from "./geography.service.js";
+import { countryPack, searchCities, searchStates } from "./geography.service.js";
 import { z } from "zod";
 
 const searchSchema = z.object({
   q: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  limit: z.coerce.number().int().min(1).max(500).default(50),
 });
 
 const BUCURESTI_STATE_ID = 4730;
@@ -100,6 +100,16 @@ export default async function geographyRoutes(fastify: FastifyInstance) {
   });
 
   // GET /countries/:countryId/states
+  // Pachetul complet al țării (județe + localități) pentru cache-ul offline al
+  // telefonului; static → cache în memorie o oră și cache HTTP o zi.
+  fastify.get<{ Params: { countryId: string } }>("/countries/:countryId/pack", async (request, reply) => {
+    const countryId = Number(request.params.countryId);
+    if (!Number.isInteger(countryId)) throw fastify.httpErrors.badRequest("countryId invalid");
+    const pack = await cachedFor(`pack:${countryId}`, 60 * 60 * 1000, () => countryPack(fastify.prisma, countryId));
+    reply.header("Cache-Control", "public, max-age=86400");
+    return pack;
+  });
+
   fastify.get<{ Params: { countryId: string } }>(
     "/countries/:countryId/states",
     async (request) => {

@@ -1,4 +1,5 @@
 import { getTenantEntitlements } from "../../lib/entitlements/index.js";
+import { createEmployeeFromUser, linkedEmployeeId } from "./employee-link.js";
 import type { FastifyInstance } from "fastify";
 import { hashPassword } from "../../lib/hash.js";
 import { randomBytes, createHash } from "node:crypto";
@@ -228,10 +229,11 @@ export async function update(
   fastify: FastifyInstance,
   tenantId: string,
   id: string,
-  input: UpdateUserInput
+  input: UpdateUserInput,
+  actorUserId: string | null = null
 ) {
   await getById(fastify, tenantId, id);
-  const { employeeId, ...userFields } = input;
+  const { employeeId, createEmployee, ...userFields } = input;
 
   // Legătura cu persoana din echipă trăiește pe Employee, deci se scrie separat —
   // în aceeași tranzacție, ca un cont să nu rămână legat de doi angajați.
@@ -280,6 +282,15 @@ export async function update(
           new Error(`Planul ${ent.planLabel} include ${ent.limits.technicianSeats} tehnicieni cu acces mobil — dezactivează un tehnician sau extinde abonamentul`),
           { statusCode: 402, feature: "field.mobile", upgradeTo: "execution" },
         );
+      }
+      // Accesul mobil cere o persoană din echipă: pe ea se repartizează vizitele din teren.
+      // `employeeId` din același PATCH a fost deja legat mai sus; altfel creăm angajatul din cont.
+      if (!(await linkedEmployeeId(tx, tenantId, id))) {
+        if (!createEmployee) {
+          throw fastify.httpErrors.badRequest("Alege un angajat pentru acces mobil sau creează unul din acest cont");
+        }
+        const account = await tx.user.findUniqueOrThrow({ where: { id }, select: { id: true, firstName: true, lastName: true, email: true } });
+        await createEmployeeFromUser(tx, tenantId, account, actorUserId);
       }
       return tx.user.update({ where: { id }, data: userFields, select: userSelect });
     });

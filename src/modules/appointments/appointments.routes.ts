@@ -70,9 +70,13 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
     async (request, reply) => {
       const body = createAppointmentSchema.parse(request.body);
-      const appointment = await appointmentsService.create(fastify, request.tenantId, body, {
-        defaultEmployeeId: body.employeeId === undefined ? await requesterEmployeeId(fastify, request) : undefined,
-      });
+      const appointment = await appointmentsService.create(
+        fastify,
+        request.tenantId,
+        body,
+        { defaultEmployeeId: body.employeeId === undefined ? await requesterEmployeeId(fastify, request) : undefined },
+        request.user.sub
+      );
       return reply.status(201).send(appointment);
     }
   );
@@ -95,8 +99,19 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
         request.tenantId,
         request.params.id,
         body,
-        scope
+        scope,
+        request.user.sub
       );
+    }
+  );
+
+  // Istoricul modificărilor (cine, ce, când) — aceeași vizibilitate ca detaliul.
+  fastify.get<{ Params: { id: string } }>(
+    "/:id/history",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request) => {
+      const scope = await resolveApptScope(fastify, request);
+      return appointmentsService.history(fastify, request.tenantId, request.params.id, scope);
     }
   );
 
@@ -117,7 +132,8 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
         request.params.id,
         body,
         scope,
-        idempotencyKey?.trim() || null
+        idempotencyKey?.trim() || null,
+        request.user.sub
       );
     }
   );
@@ -271,7 +287,8 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
         fastify,
         request.tenantId,
         request.params.id,
-        scope
+        scope,
+        request.user.sub
       );
     }
   );
@@ -298,7 +315,8 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
       return appointmentsService.restore(
         fastify,
         request.tenantId,
-        request.params.id
+        request.params.id,
+        request.user.sub
       );
     }
   );

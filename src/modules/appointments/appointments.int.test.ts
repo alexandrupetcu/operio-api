@@ -8,6 +8,7 @@ import {
   createAppointmentSchema,
   finalizeAppointmentSchema,
   followupAppointmentSchema,
+  updateAppointmentSchema,
 } from "./appointments.schema.js";
 
 let app: FastifyInstance;
@@ -356,5 +357,115 @@ describe("calendar — raportul analizorului deja atașat", () => {
     const after = await appointments.calendar(app, f.a.id, from, to);
     expect(after.find((a) => a.id === f.a.appointmentId)?.analyzerReportAttached).toBe(true);
     expect(after.find((a) => a.id === inst.id)?.analyzerReportAttached).toBe(true);
+  });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// Modificare completă + audit + istoric (runda 3 din teren)
+// ───────────────────────────────────────────────────────────────────────────
+
+const upd = (input: unknown) => updateAppointmentSchema.parse(input);
+const auditRows = (id: string) =>
+  prisma.auditLog.findMany({ where: { entityType: "appointment", entityId: id }, orderBy: { createdAt: "asc" } });
+
+describe("update — tip și adresă", () => {
+  it("tipul și adresa clientului se pot schimba cât programarea e deschisă", async () => {
+    const updated = await appointments.update(app, f.a.id, f.a.appointmentId, upd({ type: "verificare_instalatie", clientAddressId: f.a.addressId }), { kind: "all" }, f.a.admin.id);
+    expect(updated.type).toBe("verificare_instalatie");
+    expect(updated.clientAddressId).toBe(f.a.addressId);
+  });
+
+  it("adresa altui client → 400, programarea rămâne neatinsă", async () => {
+    const err = await expectReject(() => appointments.update(app, f.a.id, f.a.appointmentId, upd({ clientAddressId: f.b.addressId }), { kind: "all" }, f.a.admin.id));
+    expect(err.status).toBe(400);
+    const row = await prisma.appointment.findUniqueOrThrow({ where: { id: f.a.appointmentId } });
+    expect(row.clientAddressId).toBe(f.a.addressId);
+  });
+
+  it("tipul NU se mai schimbă după finalizare → 400", async () => {
+    await prisma.appointment.update({ where: { id: f.a.appointmentId }, data: { status: "completed" } });
+    const err = await expectReject(() => appointments.update(app, f.a.id, f.a.appointmentId, upd({ type: "general" }), { kind: "all" }, f.a.admin.id));
+    expect(err.status).toBe(400);
+  });
+});
+
+describe("audit — cine, ce, când", () => {
+  it("update pe titlu → acțiunea „update”, doar câmpul schimbat în before/after, cu actorul", async () => {
+    await appointments.update(app, f.a.id, f.a.appointmentId, upd({ title: "Titlu nou", notes: "n" }), { kind: "all" }, f.a.admin.id);
+    const [row] = await auditRows(f.a.appointmentId);
+    expect(row.action).toBe("update");
+    expect(row.actorUserId).toBe(f.a.admin.id);
+    expect(row.beforeJson).toEqual({ title: "Revizie fixture a", notes: null });
+    expect(row.afterJson).toEqual({ title: "Titlu nou", notes: "n" });
+  });
+
+  it("data/durata → „reschedule”; doar tehnicianul → „assign”; status anulat → „cancel”", async () => {
+    await appointments.update(app, f.a.id, f.a.appointmentId, upd({ date: "2026-10-21T10:00:00.000Z" }), { kind: "all" }, f.a.admin.id);
+    await appointments.update(app, f.a.id, f.a.appointmentId, upd({ employeeId: null }), { kind: "all" }, f.a.admin.id);
+    await appointments.update(app, f.a.id, f.a.appointmentId, upd({ status: "cancelled" }), { kind: "all" }, f.a.operator.id);
+    const rows = await auditRows(f.a.appointmentId);
+    expect(rows.map((r) => r.action)).toEqual(["reschedule", "assign", "cancel"]);
+    expect(rows[0].beforeJson).toEqual({ date: "2026-10-20T09:00:00.000Z" });
+    expect(rows[0].afterJson).toEqual({ date: "2026-10-21T10:00:00.000Z" });
+    expect(rows[1].beforeJson).toEqual({ employeeId: f.a.employeeId });
+    expect(rows[1].afterJson).toEqual({ employeeId: null });
+    expect(rows[2].actorUserId).toBe(f.a.operator.id);
+  });
+
+  it("o modificare fără nicio schimbare reală nu scrie audit", async () => {
+    await appointments.update(app, f.a.id, f.a.appointmentId, upd({ title: "Revizie fixture a" }), { kind: "all" }, f.a.admin.id);
+    expect(await auditRows(f.a.appointmentId)).toHaveLength(0);
+  });
+
+  it("arhivare → „delete”, restaurare → „restore”", async () => {
+    await appointments.remove(app, f.a.id, f.a.appointmentId, { kind: "all" }, f.a.admin.id);
+    await appointments.restore(app, f.a.id, f.a.appointmentId, f.a.admin.id);
+    const rows = await auditRows(f.a.appointmentId);
+    expect(rows.map((r) => r.action)).toEqual(["delete", "restore"]);
+  });
+
+  it("crearea și finalizarea scriu „create” / „finalize”", async () => {
+    const created = await appointments.create(app, f.a.id, createInput({ clientId: f.a.clientId }), {}, f.a.admin.id);
+    await appointments.finalize(app, f.a.id, created.id, revenire(), { kind: "all" }, null, f.a.operator.id);
+    const rows = await auditRows(created.id);
+    expect(rows.map((r) => r.action)).toEqual(["create", "finalize"]);
+    expect(rows[1].actorUserId).toBe(f.a.operator.id);
+    expect(rows[1].afterJson).toMatchObject({ status: "completed" });
+  });
+});
+
+describe("istoricul modificărilor (GET /:id/history)", () => {
+  it("cele mai noi primele, cu actorul; scope „own” pe programarea altui tehnician → 404", async () => {
+    await appointments.update(app, f.a.id, f.a.appointmentId, upd({ title: "Unu" }), { kind: "all" }, f.a.admin.id);
+    await appointments.update(app, f.a.id, f.a.appointmentId, upd({ date: "2026-10-22T10:00:00.000Z" }), { kind: "all" }, f.a.operator.id);
+
+    const { data } = await appointments.history(app, f.a.id, f.a.appointmentId, { kind: "all" });
+    expect(data.map((h) => h.action)).toEqual(["reschedule", "update"]);
+    expect(data[0].actor).toEqual({ id: f.a.operator.id, firstName: expect.any(String), lastName: expect.any(String) });
+    expect(typeof data[0].createdAt).toBe("string");
+
+    // Propriul tehnician o vede; un alt angajat (cont fără programări pe ea) nu.
+    const own = await appointments.history(app, f.a.id, f.a.appointmentId, { kind: "own", employeeId: f.a.employeeId });
+    expect(own.data).toHaveLength(2);
+    const other = await prisma.employee.create({ data: { tenantId: f.a.id, firstName: "Alt", lastName: "Coleg", position: "instalator" } });
+    const err = await expectReject(() => appointments.history(app, f.a.id, f.a.appointmentId, { kind: "own", employeeId: other.id }));
+    expect(err.status).toBe(404);
+    // Din firma B nu există.
+    const errB = await expectReject(() => appointments.history(app, f.b.id, f.a.appointmentId, { kind: "all" }));
+    expect(errB.status).toBe(404);
+  });
+});
+
+describe("calendar — anulatele rămân vizibile", () => {
+  it("o programare anulată apare în calendar (estompată în UI), cele arhivate nu", async () => {
+    await prisma.appointment.update({ where: { id: f.a.appointmentId }, data: { status: "cancelled" } });
+    const from = new Date("2026-10-19T00:00:00.000Z");
+    const to = new Date("2026-10-22T00:00:00.000Z");
+    const list = await appointments.calendar(app, f.a.id, from, to);
+    expect(list.find((a) => a.id === f.a.appointmentId)?.status).toBe("cancelled");
+
+    await prisma.appointment.update({ where: { id: f.a.appointmentId }, data: { deletedAt: new Date() } });
+    const after = await appointments.calendar(app, f.a.id, from, to);
+    expect(after.find((a) => a.id === f.a.appointmentId)).toBeUndefined();
   });
 });

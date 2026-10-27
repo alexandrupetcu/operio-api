@@ -254,13 +254,15 @@ export async function createDirect(
   idempotencyKey: string | null,
   /** Vezi `appointmentsService.create`: fără `employeeId` în body, vizita e a celui care o înregistrează. */
   opts: { defaultEmployeeId?: string | null } = {},
+  /** Contul care face cererea, pentru istoricul modificărilor. */
+  actorUserId: string | null = null,
 ) {
   if (idempotencyKey) {
     const existing = await fastify.prisma.appointment.findFirst({
       where: { tenantId, deletedAt: null, completionDataJson: { path: ["_idempotencyKey"], equals: idempotencyKey } },
       select: { id: true },
     });
-    if (existing) return appointmentsService.finalize(fastify, tenantId, existing.id, input.report, { kind: "all" }, idempotencyKey);
+    if (existing) return appointmentsService.finalize(fastify, tenantId, existing.id, input.report, { kind: "all" }, idempotencyKey, actorUserId);
   }
 
   const client = await fastify.prisma.client.findFirst({
@@ -279,10 +281,10 @@ export async function createDirect(
     employeeId: input.employeeId ?? undefined,
     equipmentId: input.equipmentId ?? undefined,
     installationId: input.installationId ?? undefined,
-  }, opts);
+  }, opts, actorUserId);
 
   try {
-    return await appointmentsService.finalize(fastify, tenantId, created.id, input.report, { kind: "all" }, idempotencyKey);
+    return await appointmentsService.finalize(fastify, tenantId, created.id, input.report, { kind: "all" }, idempotencyKey, actorUserId);
   } catch (err) {
     await fastify.prisma.appointment.delete({ where: { id: created.id } }).catch(() => {});
     throw err;

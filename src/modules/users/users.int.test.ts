@@ -5,6 +5,8 @@ import { closeStub, expectReject, serviceStub } from "../../test/stub.js";
 import { seedTwoTenants, type TwoTenants } from "../../test/fixtures.js";
 import { invalidateEntitlements } from "../../lib/entitlements/resolve.js";
 import * as users from "./users.service.js";
+import { ensureEmployeeForMobileUser } from "./employee-link.js";
+import { me } from "../auth/auth.service.js";
 import { createUserSchema } from "./users.schema.js";
 
 let app: FastifyInstance;
@@ -91,7 +93,7 @@ describe("limita de locuri de tehnician (mobileAccess)", () => {
     await expectReject(() => users.update(app, f.a.id, second.id, { mobileAccess: true }));
 
     await users.update(app, f.a.id, f.a.operator.id, { mobileAccess: false });
-    const ok = await users.update(app, f.a.id, second.id, { mobileAccess: true });
+    const ok = await users.update(app, f.a.id, second.id, { mobileAccess: true, createEmployee: true });
     expect(ok.mobileAccess).toBe(true);
   });
 
@@ -101,7 +103,7 @@ describe("limita de locuri de tehnician (mobileAccess)", () => {
     await users.update(app, f.a.id, f.a.operator.id, { mobileAccess: true });
     await prisma.user.update({ where: { id: f.a.operator.id }, data: { isActive: false } });
 
-    const ok = await users.update(app, f.a.id, second.id, { mobileAccess: true });
+    const ok = await users.update(app, f.a.id, second.id, { mobileAccess: true, createEmployee: true });
     expect(ok.mobileAccess).toBe(true);
   });
 
@@ -163,5 +165,46 @@ describe("adăugarea unui utilizator cu o adresă deja folosită", () => {
     const err = await expectReject(() => users.create(app, f.a.id, input(f.b.admin.email.toUpperCase())));
     expect(err.status).toBe(409);
     expect(await prisma.user.count({ where: { email: { equals: f.b.admin.email, mode: "insensitive" } } })).toBe(1);
+  });
+});
+
+describe("accesul mobil cere un angajat legat de cont (programările din teren se repartizează pe el)", () => {
+  it("cont nelegat, fără employeeId / createEmployee → 400 și accesul rămâne oprit", async () => {
+    const err = await expectReject(() => users.update(app, f.a.id, f.a.admin.id, { mobileAccess: true }));
+    expect(err.status).toBe(400);
+    expect(err.message).toMatch(/angajat/i);
+    const row = await prisma.user.findUniqueOrThrow({ where: { id: f.a.admin.id } });
+    expect(row.mobileAccess).toBe(false);
+  });
+
+  it("createEmployee: true → angajat creat din numele contului și legat; al doilea apel nu dublează", async () => {
+    const updated = await users.update(app, f.a.id, f.a.admin.id, { mobileAccess: true, createEmployee: true }, f.a.admin.id);
+    expect(updated.mobileAccess).toBe(true);
+    const linked = await prisma.employee.findMany({ where: { tenantId: f.a.id, userId: f.a.admin.id } });
+    expect(linked).toHaveLength(1);
+    expect(linked[0].firstName).toBe("Admin");
+    expect(linked[0].email).toBe(`admin.a@fixture.test`);
+
+    await users.update(app, f.a.id, f.a.admin.id, { mobileAccess: true, createEmployee: true }, f.a.admin.id);
+    expect(await prisma.employee.count({ where: { tenantId: f.a.id, userId: f.a.admin.id } })).toBe(1);
+
+    const audit = await prisma.auditLog.findFirst({ where: { tenantId: f.a.id, entityType: "employee", entityId: linked[0].id } });
+    expect(audit?.action).toBe("auto_link");
+  });
+
+  it("employeeId în același PATCH → se leagă de angajatul ales (nelegat de alt cont)", async () => {
+    const free = await prisma.employee.create({ data: { tenantId: f.a.id, firstName: "Liber", lastName: "A", position: "instalator" } });
+    const updated = await users.update(app, f.a.id, f.a.admin.id, { mobileAccess: true, employeeId: free.id });
+    expect(updated.mobileAccess).toBe(true);
+    expect((await prisma.employee.findUniqueOrThrow({ where: { id: free.id } })).userId).toBe(f.a.admin.id);
+  });
+
+  it("login din mobil pe un cont cu acces dar nelegat → angajat creat o singură dată, iar /auth/me îl întoarce", async () => {
+    await prisma.user.update({ where: { id: f.a.admin.id }, data: { mobileAccess: true } });
+    await ensureEmployeeForMobileUser(app, { id: f.a.admin.id, tenantId: f.a.id });
+    await ensureEmployeeForMobileUser(app, { id: f.a.admin.id, tenantId: f.a.id });
+    expect(await prisma.employee.count({ where: { tenantId: f.a.id, userId: f.a.admin.id } })).toBe(1);
+    const profile = await me(app, f.a.admin.id);
+    expect(profile.employee?.firstName).toBe("Admin");
   });
 });

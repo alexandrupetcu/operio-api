@@ -41,3 +41,34 @@ export async function searchCities(prisma: PrismaClient, stateId: number, q: str
     LIMIT ${limit}
   `);
 }
+
+export interface CountryPack {
+  countryId: number;
+  generatedAt: string;
+  states: Array<{ id: number; name: string; stateCode: string | null; cities: NamedRow[] }>;
+}
+
+/**
+ * Toate județele unei țări cu localitățile lor, într-un singur răspuns: telefonul
+ * îl ține local ca selectorul de adresă să meargă și fără semnal (România ≈ 7 900
+ * de localități, ~270 KB). Ordonate pe numele pliat, ca listele de căutare.
+ */
+export async function countryPack(prisma: PrismaClient, countryId: number): Promise<CountryPack> {
+  const states = await prisma.$queryRaw<Array<NamedRow & { stateCode: string | null }>>(Prisma.sql`
+    SELECT id, name, "stateCode" FROM "State" WHERE "countryId" = ${countryId} ORDER BY ${folded} ASC, name ASC
+  `);
+  const cities = await prisma.$queryRaw<Array<NamedRow & { stateId: number }>>(Prisma.sql`
+    SELECT id, name, "stateId" FROM "City" WHERE "countryId" = ${countryId} ORDER BY ${folded} ASC, name ASC
+  `);
+  const byState = new Map<number, NamedRow[]>();
+  for (const c of cities) {
+    const list = byState.get(c.stateId) ?? [];
+    list.push({ id: c.id, name: c.name });
+    byState.set(c.stateId, list);
+  }
+  return {
+    countryId,
+    generatedAt: new Date().toISOString(),
+    states: states.map((s) => ({ ...s, cities: byState.get(s.id) ?? [] })),
+  };
+}

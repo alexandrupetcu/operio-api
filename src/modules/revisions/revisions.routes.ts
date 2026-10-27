@@ -45,9 +45,14 @@ export default async function revisionsRoutes(fastify: FastifyInstance) {
     const body = createDirectRevisionSchema.parse(request.body);
     const rawKey = request.headers["idempotency-key"];
     const idempotencyKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
-    const appt = await revisionsService.createDirect(fastify, request.tenantId, body, idempotencyKey?.trim() || null, {
-      defaultEmployeeId: body.employeeId == null ? await requesterEmployeeId(fastify, request) : undefined,
-    });
+    const appt = await revisionsService.createDirect(
+      fastify,
+      request.tenantId,
+      body,
+      idempotencyKey?.trim() || null,
+      { defaultEmployeeId: body.employeeId == null ? await requesterEmployeeId(fastify, request) : undefined },
+      request.user.sub,
+    );
     return reply.status(201).send(appt);
   });
 }

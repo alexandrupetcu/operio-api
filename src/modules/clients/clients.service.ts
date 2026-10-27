@@ -171,18 +171,37 @@ export async function getById(
 export async function create(
   fastify: FastifyInstance,
   tenantId: string,
-  input: CreateClientInput
+  input: CreateClientInput,
+  idempotencyKey: string | null = null
 ) {
   const { contactPersons, equipment, addresses, ...clientData } = input.type === "COMPANY"
     ? input
     : { ...input, contactPersons: undefined };
 
+  // Clientul adăugat fără semnal e retrimis de telefon cu aceeași cheie: întoarcem
+  // rândul deja creat în loc să facem un dublu (cheia e unică pe firmă).
+  const existing = idempotencyKey ? await findByIdempotencyKey(fastify, tenantId, idempotencyKey) : null;
+  if (existing) return existing;
+
   // Ensure exactly one primary address
   const addressesWithPrimary = ensurePrimary(addresses);
 
+  try {
+    return await createRow();
+  } catch (err) {
+    // Două retrimiteri în paralel: a doua pierde unicul și citește rândul primei.
+    if (idempotencyKey && isUniqueViolation(err)) {
+      const raced = await findByIdempotencyKey(fastify, tenantId, idempotencyKey);
+      if (raced) return raced;
+    }
+    throw err;
+  }
+
+  function createRow() {
   return fastify.prisma.client.create({
     data: {
       tenantId,
+      createIdempotencyKey: idempotencyKey,
       ...clientData,
       ...(contactPersons?.length && {
         contactPersons: {
@@ -205,6 +224,15 @@ export async function create(
     },
     include: clientInclude,
   });
+  }
+}
+
+function findByIdempotencyKey(fastify: FastifyInstance, tenantId: string, key: string) {
+  return fastify.prisma.client.findFirst({ where: { tenantId, createIdempotencyKey: key }, include: clientInclude });
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: string }).code === "P2002";
 }
 
 export async function update(
