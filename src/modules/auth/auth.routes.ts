@@ -57,7 +57,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     "/logout",
     { onRequest: [fastify.authenticate] },
     async (request, reply) => {
-      await authService.logout(fastify, request.user.sub);
+      // Un token de impersonare aparține contului master: nu-i revocăm sesiunile proprii.
+      if (!request.user.imp) await authService.logout(fastify, request.user.sub);
       return reply.send({ message: "Logged out" });
     }
   );
@@ -69,7 +70,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
     "/me",
     { onRequest: [fastify.authenticate] },
     async (request, reply) => {
-      const me = await authService.me(fastify, request.user.sub);
+      const me = request.user.imp
+        ? await authService.impersonatedMe(fastify, request.user)
+        : await authService.me(fastify, request.user.sub);
       return reply.send(me);
     }
   );

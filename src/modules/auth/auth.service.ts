@@ -485,6 +485,49 @@ export async function changePassword(
   ]);
 }
 
+/**
+ * `GET /auth/me` cu un token de impersonare (master → firmă, doar citire): numele
+ * contului master, rolul ADMIN în firma țintă, fără persoană din echipă.
+ */
+export async function impersonatedMe(
+  fastify: FastifyInstance,
+  token: { sub: string; tenantId: string | null; exp?: number },
+) {
+  const [user, tenant] = await Promise.all([
+    fastify.prisma.user.findUnique({ where: { id: token.sub } }),
+    token.tenantId
+      ? fastify.prisma.tenant.findUnique({
+          where: { id: token.tenantId },
+          include: { country: { select: { id: true, name: true, emoji: true } } },
+        })
+      : null,
+  ]);
+  if (!user || !user.isActive || user.role !== "MASTER_ADMIN" || !tenant) {
+    throw fastify.httpErrors.unauthorized("Sesiunea de impersonare nu mai este validă");
+  }
+  return {
+    entitlements: serializeEntitlements(resolveEntitlements(tenant)),
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: "ADMIN" as const,
+      tenantId: tenant.id,
+      mobileAccess: false,
+    },
+    employee: null,
+    scheduling: readSchedulingSettings(tenant.settingsJson),
+    tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug, countryId: tenant.countryId, country: tenant.country },
+    impersonation: {
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+      readOnly: true,
+      expiresAt: token.exp ? new Date(token.exp * 1000).toISOString() : null,
+    },
+  };
+}
+
 /** Hydrate `{ user, tenant }` for the access-token holder. Lets the frontend
  *  recover session state on reload without mirroring sensitive user/tenant
  *  data into localStorage. */

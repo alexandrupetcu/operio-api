@@ -5,6 +5,8 @@ import { z } from "zod";
 import { requireMasterAdmin } from "../../lib/rbac.js";
 import * as adminService from "./admin.service.js";
 import emailLogsRoutes from "./email-logs.routes.js";
+import { overview, tenantCountsAndActivity, countsFor, tenantDetail } from "./admin-overview.service.js";
+import { startImpersonation } from "./impersonation.js";
 
 const listDocumentsQuerySchema = z.object({
   status: z.string().optional(),
@@ -36,9 +38,12 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // List all tenants (for integrations UI)
+  // Panoul principal al platformei.
+  fastify.get("/overview", async () => overview(fastify, () => adminService.getQueueStats()));
+
+  // List all tenants (firme + integrări), cu numărătorile și ultima activitate.
   fastify.get("/tenants", async () => {
-    const [tenants, mobile] = await Promise.all([
+    const [tenants, mobile, activity] = await Promise.all([
       fastify.prisma.tenant.findMany({
         select: {
           id: true, name: true, slug: true, cui: true, emailIngestionEnabled: true,
@@ -49,6 +54,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
         take: 500,
       }),
       fastify.prisma.user.groupBy({ by: ["tenantId"], where: { mobileAccess: true, isActive: true }, _count: { _all: true } }),
+      tenantCountsAndActivity(fastify),
     ]);
     const mobileByTenant = new Map(mobile.map((m) => [m.tenantId, m._count._all]));
     return tenants.map(({ _count, ...t }) => ({
@@ -56,7 +62,18 @@ export default async function adminRoutes(fastify: FastifyInstance) {
       usersCount: _count.users,
       mobileUsersCount: mobileByTenant.get(t.id) ?? 0,
       entitlements: serializeEntitlements(resolveEntitlements(t)),
+      counts: countsFor(activity.counts, t.id),
+      lastActivityAt: activity.lastActivity.get(t.id)?.toISOString() ?? null,
     }));
+  });
+
+  // Detaliul unei firme: numărători + utilizatori (cu ultima conectare).
+  fastify.get<{ Params: { id: string } }>("/tenants/:id", async (request) => tenantDetail(fastify, request.params.id));
+
+  // Intrarea ca firma respectivă (doar citire), după reconfirmarea parolei contului master.
+  fastify.post<{ Params: { id: string } }>("/tenants/:id/impersonate", async (request) => {
+    const { password } = z.object({ password: z.string().min(1) }).parse(request.body);
+    return startImpersonation(fastify, request.user.sub, request.params.id, password);
   });
 
   // Catalogul de planuri și funcții (din cod) — pentru ecranul de abonamente.

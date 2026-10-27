@@ -12,6 +12,7 @@ import prismaPlugin from "./plugins/prisma.js";
 import authPlugin from "./plugins/auth.js";
 import tenantPlugin from "./plugins/tenant.js";
 import planExpiryPlugin from "./plugins/plan-expiry.js";
+import { readOnlyGuardPlugin, impersonationRoutes } from "./modules/admin/impersonation.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import usersRoutes from "./modules/users/users.routes.js";
 import clientsRoutes from "./modules/clients/clients.routes.js";
@@ -227,6 +228,8 @@ export async function buildServer() {
   await fastify.register(authPlugin);
   await fastify.register(tenantPlugin);
   await fastify.register(planExpiryPlugin);
+  // Impersonarea master (doar citire): orice scriere cu un astfel de token → 403.
+  await fastify.register(readOnlyGuardPlugin);
 
   // Routes
   await fastify.register(authRoutes, { prefix: "/api/auth" });
@@ -263,6 +266,7 @@ export async function buildServer() {
   await fastify.register(internalEndpointsRoutes, { prefix: "/api/internal-endpoints" });
   await fastify.register(drawingTemplatesRoutes, { prefix: "/api/drawing-templates" });
   await fastify.register(adminRoutes, { prefix: "/api/admin" });
+  await fastify.register(impersonationRoutes, { prefix: "/api/admin/impersonation" });
   await fastify.register(equipmentRevisionsRoutes, { prefix: "/api/clients" });
   await fastify.register(signingRoutes, { prefix: "/api/signing" });
   await fastify.register(signingPublicRoutes, { prefix: "/api/public/sign" });

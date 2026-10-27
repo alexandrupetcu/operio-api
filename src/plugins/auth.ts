@@ -14,6 +14,10 @@ export interface JwtPayload {
   client?: ClientKind;
   /** Mobile sessions only: the phone the session is tied to. */
   deviceId?: string;
+  /** Impersonare de către administratorul platformei (`by` = contul master); doar citire. */
+  imp?: { by: string; readOnly: boolean };
+  /** Setat de @fastify/jwt la semnare (secunde epoch). */
+  exp?: number;
 }
 
 export default fp(async (fastify: FastifyInstance) => {
