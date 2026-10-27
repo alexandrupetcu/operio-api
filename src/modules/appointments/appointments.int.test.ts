@@ -402,7 +402,7 @@ describe("audit — cine, ce, când", () => {
   it("data/durata → „reschedule”; doar tehnicianul → „assign”; status anulat → „cancel”", async () => {
     await appointments.update(app, f.a.id, f.a.appointmentId, upd({ date: "2026-10-21T10:00:00.000Z" }), { kind: "all" }, f.a.admin.id);
     await appointments.update(app, f.a.id, f.a.appointmentId, upd({ employeeId: null }), { kind: "all" }, f.a.admin.id);
-    await appointments.update(app, f.a.id, f.a.appointmentId, upd({ status: "cancelled" }), { kind: "all" }, f.a.operator.id);
+    await appointments.update(app, f.a.id, f.a.appointmentId, upd({ status: "cancelled", cancelReason: "Clientul a amânat" }), { kind: "all" }, f.a.operator.id);
     const rows = await auditRows(f.a.appointmentId);
     expect(rows.map((r) => r.action)).toEqual(["reschedule", "assign", "cancel"]);
     expect(rows[0].beforeJson).toEqual({ date: "2026-10-20T09:00:00.000Z" });
@@ -467,5 +467,23 @@ describe("calendar — anulatele rămân vizibile", () => {
     await prisma.appointment.update({ where: { id: f.a.appointmentId }, data: { deletedAt: new Date() } });
     const after = await appointments.calendar(app, f.a.id, from, to);
     expect(after.find((a) => a.id === f.a.appointmentId)).toBeUndefined();
+  });
+});
+
+
+describe("anularea cere un motiv", () => {
+  it("fără motiv → 400; cu motiv → se salvează pe programare și intră în istoric", async () => {
+    const err = await expectReject(() => appointments.update(app, f.a.id, f.a.appointmentId, upd({ status: "cancelled" }), { kind: "all" }, f.a.operator.id));
+    expect(err.status).toBe(400);
+    expect(err.message).toMatch(/Motivul anulării/);
+
+    const updated = await appointments.update(app, f.a.id, f.a.appointmentId, upd({ status: "cancelled", cancelReason: "Nu a fost nimeni acasă" }), { kind: "all" }, f.a.operator.id);
+    expect(updated.status).toBe("cancelled");
+    expect(updated.cancelReason).toBe("Nu a fost nimeni acasă");
+    expect(updated.cancelledAt).toBeInstanceOf(Date);
+
+    const { data: rows } = await appointments.history(app, f.a.id, f.a.appointmentId);
+    const cancel = rows.find((r) => r.action === "cancel");
+    expect(cancel?.after).toMatchObject({ status: "cancelled", cancelReason: "Nu a fost nimeni acasă" });
   });
 });

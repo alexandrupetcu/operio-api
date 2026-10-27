@@ -1500,6 +1500,9 @@ model Appointment {
   date                 DateTime
   duration             Int?
   status               String             @default("scheduled") // scheduled, in_progress, awaiting_report, completed, cancelled, rescheduled
+  // Anularea cere un motiv (din teren sau din web); rămâne pe programare și în istoric.
+  cancelReason         String?
+  cancelledAt          DateTime?
   completionDataJson   Json?
   completedAt          DateTime?
   // Înregistrarea Fișei de evidență la operatorul de sistem (Ord. ANRE 179/2015,

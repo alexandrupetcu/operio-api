@@ -60,6 +60,8 @@ export const updateAppointmentSchema = z.object({
   duration: z.number().int().min(5).max(480).optional().nullable(),
   employeeId: z.string().cuid().optional().nullable(),
   status: z.enum(["scheduled", "in_progress", "awaiting_report", "completed", "cancelled", "rescheduled"]).optional(),
+  // Obligatoriu când status devine `cancelled`.
+  cancelReason: z.string().trim().min(2).max(500).optional(),
 });
 
 // Checklist item: DA / NU / N/A

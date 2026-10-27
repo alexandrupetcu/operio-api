@@ -1023,9 +1023,16 @@ export async function update(
   }
   await assertEmployeeInTenant(fastify, tenantId, input.employeeId);
 
+  // Anularea se face cu motiv — rămâne pe programare și în istoric (cine, când, de ce).
+  const cancelling = input.status === "cancelled" && appointment.status !== "cancelled";
+  if (cancelling && !input.cancelReason) {
+    throw fastify.httpErrors.badRequest("Motivul anulării este obligatoriu");
+  }
+
   const updated = await fastify.prisma.appointment.update({
     where: { id },
     data: {
+      ...(cancelling && { cancelReason: input.cancelReason, cancelledAt: new Date() }),
       ...(input.type !== undefined && { type: input.type }),
       ...(input.clientAddressId !== undefined && { clientAddressId: input.clientAddressId }),
       ...(input.title !== undefined && { title: input.title }),
@@ -1047,7 +1054,7 @@ export async function update(
 }
 
 /** Câmpurile unei programări care intră în istoricul modificărilor. */
-const AUDITED_FIELDS = ["type", "clientAddressId", "title", "notes", "date", "duration", "employeeId", "status"] as const;
+const AUDITED_FIELDS = ["type", "clientAddressId", "title", "notes", "date", "duration", "employeeId", "status", "cancelReason"] as const;
 type AuditedField = (typeof AUDITED_FIELDS)[number];
 type AuditedRow = Pick<Prisma.AppointmentGetPayload<object>, AuditedField>;
 
