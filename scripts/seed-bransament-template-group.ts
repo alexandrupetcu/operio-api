@@ -22,7 +22,9 @@ const prisma = new PrismaClient();
 
 const CATEGORY_CODE = "CARTE_BRANSAMENT";
 const GROUP_NAME = "Dosar Bransament Distrigaz";
-const FOLDER = join(process.cwd(), "..", "documente", "Carte Bransament Templates");
+// TEMPLATES_DIR: folderul cu șabloanele de încărcat (ex. documente/Bransament/Distrigaz-v2, refăcute din
+// originalele clientului cu scripts/templatize-v2.py). Implicit, vechiul folder din iunie.
+const FOLDER = process.env.TEMPLATES_DIR ?? join(process.cwd(), "..", "documente", "Carte Bransament Templates");
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 // Files to exclude from the group — the COMPLET preview is the union of all

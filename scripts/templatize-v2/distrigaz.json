@@ -51,8 +51,8 @@
     ["202585589736", "{regulator_sn}"],
     {"find": "ZEEN *-? *800 *-? *PLUS", "replace": "{aparat_sudura}", "regex": true, "ci": true},
     {"find": "Electrofuziune", "replace": "{procedeu_sudura}", "ci": true},
-    {"find": "9\\*10\\^5(\\.\\.\\. Pa, timp de +\\.+)1 ora si 20 min", "replace": "{proba_rezistenta_presiune}\\1{proba_rezistenta_timp} min", "regex": true},
-    {"find": "6\\*10\\^5(\\.\\.\\. Pa, timp de +\\.+)24 or[ae] si 5 min", "replace": "{proba_etanseitate_presiune}\\1{proba_etanseitate_timp} min", "regex": true},
+    {"find": "9\\*10\\^5(\\.\\.\\. Pa, timp de +\\.+)1 ora si 20 min", "replace": "{proba_rezistenta_presiune}\\1{proba_rezistenta_durata_text}", "regex": true},
+    {"find": "6\\*10\\^5(\\.\\.\\. Pa, timp de +\\.+)24 or[ae] si 5 min", "replace": "{proba_etanseitate_presiune}\\1{proba_etanseitate_durata_text}", "regex": true},
 
     {"find": "Ivan Florin Madalin", "replace": "{instalator_nume}", "ci": true},
     ["509201366", "{instalator_legitimatie}"],

@@ -73,7 +73,24 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
     .filter(Boolean);
   out.suduri = codes.map((cod, i) => ({ nr_crt: String(i + 1), cod, rezultat: "ADMIS" }));
   out.total_suduri = codes.length ? String(codes.length) : "";
+  // Durata probelor se completează în minute; documentele o scriu „1 oră și 20 min”.
+  for (const k of ["proba_rezistenta", "proba_etanseitate"] as const) {
+    const text = durationText(meta[`${k}_timp`]);
+    if (text) out[`${k}_durata_text`] = text;
+  }
   return out;
+}
+
+/** 80 → „1 oră și 20 min”; 1445 → „24 ore și 5 min”; 45 → „45 min”; 120 → „2 ore”. */
+function durationText(v: unknown): string | null {
+  const m = num(v);
+  if (m === null || m <= 0) return null;
+  const total = Math.round(m);
+  const h = Math.floor(total / 60);
+  const min = total % 60;
+  if (h === 0) return `${min} min`;
+  const hours = h === 1 ? "1 oră" : `${h} ore`;
+  return min ? `${hours} și ${min} min` : hours;
 }
 
 export interface TeamMemberLike {

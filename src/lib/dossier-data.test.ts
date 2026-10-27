@@ -115,3 +115,14 @@ describe("teamDocVars — echipa dosarului", () => {
     expect(v.rts_signature).toEqual({ s3Key: "sig/rts.png", mimetype: "image/png" });
   });
 });
+
+describe("durata probelor ca text", () => {
+  it("minutele din dosar devin „1 oră și 20 min” / „24 ore și 5 min” / „45 min” / „2 ore”", () => {
+    const d = derivedDossierVars({ proba_rezistenta_timp: "80", proba_etanseitate_timp: 1445 });
+    expect(d.proba_rezistenta_durata_text).toBe("1 oră și 20 min");
+    expect(d.proba_etanseitate_durata_text).toBe("24 ore și 5 min");
+    expect(derivedDossierVars({ proba_rezistenta_timp: "45" }).proba_rezistenta_durata_text).toBe("45 min");
+    expect(derivedDossierVars({ proba_rezistenta_timp: "120" }).proba_rezistenta_durata_text).toBe("2 ore");
+    expect(derivedDossierVars({}).proba_rezistenta_durata_text).toBeUndefined();
+  });
+});

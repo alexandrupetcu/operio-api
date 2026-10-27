@@ -12,9 +12,7 @@
   "tenant_autorizatie_proiectare_nr": "18002",
   "tenant_autorizatie_proiectare_data": "08.12.2025",
   "tenant_autorizatie_proiectare_tip": "PDSB",
-
   "client_name": "IONESCU MARIA-ELENA",
-
   "project_name": "Branșament gaze naturale imobil P+1",
   "project_address": "Str. Teilor, nr. 14B",
   "project_city": "Jilava",
@@ -28,7 +26,6 @@
   "bransament_lungime_reiser": "1.20",
   "bransament_lungime_totala": "3.70",
   "teu_dn": "63/32",
-
   "osd_denumire": "Distrigaz Sud Rețele S.R.L.",
   "osd_adresa": "B-dul Mărășești nr. 4-6, sect. 4",
   "osd_regiune": "București",
@@ -36,7 +33,6 @@
   "osd_telefon": "021.301.17.40",
   "osd_fax": "021.301.18.05",
   "osd_punct_lucru": "Mărășești",
-
   "cod_atr": "14001122 / 12.05.2026",
   "ordin_lucru": "50211001",
   "data_ol": "03.06.2026",
@@ -50,7 +46,6 @@
   "data_finalizare_lucrari": "28.07.2026",
   "data_programare_receptie": "03.08.2026",
   "pv_data": "22.07.2026",
-
   "teava_furnizor": "TehnoPipe",
   "teava_cc_nr": "26011223",
   "teava_cc_data": "02.06.2026",
@@ -77,15 +72,25 @@
   "distanta_limita": "1 M dreapta",
   "suduri_lista": "S12, S13, S14",
   "suduri": [
-    {"nr_crt": "1", "cod": "S12", "rezultat": "ADMIS"},
-    {"nr_crt": "2", "cod": "S13", "rezultat": "ADMIS"},
-    {"nr_crt": "3", "cod": "S14", "rezultat": "ADMIS"}
+    {
+      "nr_crt": "1",
+      "cod": "S12",
+      "rezultat": "ADMIS"
+    },
+    {
+      "nr_crt": "2",
+      "cod": "S13",
+      "rezultat": "ADMIS"
+    },
+    {
+      "nr_crt": "3",
+      "cod": "S14",
+      "rezultat": "ADMIS"
+    }
   ],
   "total_suduri": "3",
-
   "nr_inregistrare": "512",
   "data_inregistrare": "05.08.2026",
-
   "instalator_nume": "Vasile Ion Cătălin",
   "instalator_legitimatie": "509300111",
   "instalator_tip": "EGD",
@@ -107,7 +112,18 @@
   "sudor_pe_autorizatii": "571001, 571002, 571003",
   "sudor_pe_poanson": "EXG 03",
   "project_sudori": [
-    {"nr_crt": "1", "sudor_ol_nume": "", "sudor_ol_aut_intern": "", "sudor_ol_aut_iscir": "", "sudor_ol_poanson": "",
-     "sudor_pe_nume": "Matei Florin", "sudor_pe_aut_intern": "", "sudor_pe_aut_iscir": "571001, 571002, 571003", "sudor_pe_poanson": "EXG 03"}
-  ]
+    {
+      "nr_crt": "1",
+      "sudor_ol_nume": "",
+      "sudor_ol_aut_intern": "",
+      "sudor_ol_aut_iscir": "",
+      "sudor_ol_poanson": "",
+      "sudor_pe_nume": "Matei Florin",
+      "sudor_pe_aut_intern": "",
+      "sudor_pe_aut_iscir": "571001, 571002, 571003",
+      "sudor_pe_poanson": "EXG 03"
+    }
+  ],
+  "proba_rezistenta_durata_text": "1 oră și 20 min",
+  "proba_etanseitate_durata_text": "24 ore și 5 min"
 }
