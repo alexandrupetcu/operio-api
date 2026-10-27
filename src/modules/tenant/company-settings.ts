@@ -15,10 +15,14 @@ export interface CompanySettings {
   iban: string;          // company IBAN
   bank: string;          // bank name, e.g. "ING BANK Suc. București"
   operatorSistem: string; // system operator (distributor) name for the header box
+  proiectareNr: string;   // firm design authorization number (dosare branșament: „PDSB nr. 19830”)
+  proiectareData: string; // its issue date, e.g. "08.12.2025"
+  proiectareTip: string;  // its type, e.g. "PDSB"
 }
 
 const EMPTY: CompanySettings = {
   anreNr: "", anreTip: "", anreData: "", anreExp: "", iscirExp: "", postalCode: "", iban: "", bank: "", operatorSistem: "",
+  proiectareNr: "", proiectareData: "", proiectareTip: "",
 };
 
 type SettingsJson = { company?: Partial<CompanySettings>; [k: string]: unknown };
@@ -37,6 +41,9 @@ export function readCompanySettings(settingsJson: unknown): CompanySettings {
     iban: c.iban ?? "",
     bank: c.bank ?? "",
     operatorSistem: c.operatorSistem ?? "",
+    proiectareNr: c.proiectareNr ?? "",
+    proiectareData: c.proiectareData ?? "",
+    proiectareTip: c.proiectareTip ?? "",
   };
 }
 

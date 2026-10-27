@@ -95,6 +95,9 @@ const updateCompanySchema = z.object({
   iban: z.string().max(40).optional(),
   bank: z.string().max(80).optional(),
   operatorSistem: z.string().max(80).optional(),
+  proiectareNr: z.string().max(50).optional(),
+  proiectareData: z.string().max(20).optional(),
+  proiectareTip: z.string().max(30).optional(),
 });
 
 const slotParamSchema = z.object({

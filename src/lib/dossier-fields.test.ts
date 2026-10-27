@@ -44,3 +44,28 @@ describe("dossier fields", () => {
     expect(c.missing.map((m) => m.key)).toEqual(["cod_sap", "role:rte"]);
   });
 });
+
+describe("dossier fields — dosarele de branșament (contract 28.10)", () => {
+  it("tabelul de suduri cere „Sudurile executate”; coloanele lui și totalul se completează singure", () => {
+    const plan = fieldsForPlaceholders([
+      { name: "Tabel suduri", placeholders: new Set(["#suduri", "nr_crt", "cod", "rezultat", "/suduri", "total_suduri"]) },
+    ]);
+    expect(plan.fields.map((f) => f.field.key)).toEqual(["suduri_lista"]);
+    expect(plan.fields[0].docs).toEqual(["Tabel suduri"]);
+  });
+
+  it("RTS e rol de echipă; câmpurile noi au secțiuni și tipuri", () => {
+    const plan = fieldsForPlaceholders([{ name: "PV sudură", placeholders: new Set(["rts_nume", "rts_atestat_data", "%rts_signature"]) }]);
+    expect(plan.roles.map((r) => r.role)).toEqual(["rts"]);
+    expect(plan.fields).toEqual([]);
+    expect(fieldForKey("documente_materiale")?.type).toBe("textarea");
+    expect(fieldForKey("bransament_lungime_totala")?.section).toBe("Conducta");
+    expect(fieldForKey("osd_telefon")?.section).toBe("Distribuitorul (OSD)");
+  });
+
+  it("lungimea totală calculată nu apare ca lipsă", () => {
+    const plan = fieldsForPlaceholders([{ name: "Cartea tehnică", placeholders: new Set(["bransament_lungime_totala"]) }]);
+    const c = dossierCompletion(plan, { project_length: "2", bransament_lungime_reiser: "1.3" }, new Set());
+    expect(c.missing).toEqual([]);
+  });
+});

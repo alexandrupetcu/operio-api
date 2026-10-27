@@ -17,6 +17,7 @@ import { OPERATIUNI_LABELS, MAT_KINDS, materialClass } from "../modules/appointm
 import { resolveStampSlots, stampVarName } from "../lib/stamps.js";
 import { stampWithSignatureHtml } from "../lib/stamp-html.js";
 import { withAliases } from "../lib/dossier-fields.js";
+import { derivedDossierVars, distributorDocVars, teamDocVars } from "../lib/dossier-data.js";
 import { companyDocVars } from "../lib/company-doc-vars.js";
 import { osBoxData } from "../lib/os-box.js";
 import { resolveSignatory, type ResolvedSignatory } from "../modules/tenant/signatories.js";
@@ -35,7 +36,7 @@ import type { FastifyInstance } from "fastify";
 // Team roles whose assigned employee's signature can be placed in a document
 // as {%rte_signature}, {%sef_santier_signature}, … (mirrors team-roles.ts).
 const TEAM_ROLE_CODES = [
-  "instalator", "proiectant", "rte", "sef_santier", "cq", "diriginte", "verificator", "sudor",
+  "instalator", "proiectant", "rte", "sef_santier", "cq", "diriginte", "verificator", "sudor", "rts",
 ];
 const SIGNATURE_SIZE: [number, number] = [200, 90]; // ~5.3 × 2.4 cm
 const roleSignatureSizes = Object.fromEntries(
@@ -1277,6 +1278,8 @@ async function processJob(job: Job<DocumentJobData>) {
             },
           },
           projectType: true,
+          distributor: { select: { name: true, contactJson: true } },
+          templateGroup: { select: { distributorCode: true } },
           teamMembers: {
             include: {
               employee: {
@@ -1330,62 +1333,45 @@ async function processJob(job: Job<DocumentJobData>) {
       type TM = (typeof project.teamMembers)[number];
       // Ordinea: `credentials` vechi (rezervă) ← certificările angajatului (sursa
       // de acum, după rolul din proiect) ← câmpurile alocării pe proiect.
-      const credsOf = (tm: TM) => ({
-        ...((tm.employee?.credentials as Record<string, string> | null) ?? {}),
-        ...legacyCredentialsFromCerts(tm.role, tm.employee?.certifications ?? []),
-        ...((tm.credentials as Record<string, string> | null) ?? {}),
-      });
+      const credsOf = (tm: TM) => {
+        const legacy = (tm.employee?.credentials as Record<string, string> | null) ?? {};
+        const merged: Record<string, string> = {
+          ...legacy,
+          ...legacyCredentialsFromCerts(tm.role, tm.employee?.certifications ?? []),
+          ...((tm.credentials as Record<string, string> | null) ?? {}),
+        };
+        // „Nr. autorizație” scris explicit pe angajat bate aliasul din atestat (rte).
+        if (legacy.autorizatie?.trim() && !(tm.credentials as Record<string, string> | null)?.autorizatie) merged.autorizatie = legacy.autorizatie;
+        return merged;
+      };
       const nameOf = (tm: TM) =>
         tm.employee ? `${tm.employee.firstName} ${tm.employee.lastName}` : tm.name;
 
-      // Build sudori array for loop templates (e.g. welder table)
-      const sudoriMembers = project.teamMembers.filter(tm => tm.role === "sudor");
-      data.project_sudori = sudoriMembers.map((tm, i) => {
-        const creds = credsOf(tm);
-        return {
-          nr_crt: String(i + 1),
-          sudor_ol_nume: nameOf(tm),
-          sudor_ol_aut_intern: creds.autorizatie_ol_intern ?? creds.autorizatii ?? "",
-          sudor_ol_aut_iscir: creds.autorizatie_ol_iscir ?? "",
-          sudor_ol_poanson: creds.poanson ?? "",
-          sudor_pe_nume: nameOf(tm),
-          sudor_pe_aut_intern: creds.autorizatie_pe_intern ?? creds.autorizatii ?? "",
-          sudor_pe_aut_iscir: creds.autorizatie_pe_iscir ?? "",
-          sudor_pe_poanson: creds.poanson ?? "",
-        };
-      });
+      // Variabilele echipei (`{rol}_*`, `project_sudori`, `sudor_pe_*` / `sudor_ol_*`);
+      // semnăturile (`{%rte_signature}` …) sunt referințe S3 descărcate de ramura DOCX.
+      Object.assign(
+        data,
+        teamDocVars(
+          project.teamMembers.map((tm) => ({
+            role: tm.role,
+            name: nameOf(tm),
+            creds: credsOf(tm),
+            signatureS3Key: tm.employee?.signatureS3Key,
+          })),
+        ),
+      );
 
-      // Load team member variables
-      for (const tm of project.teamMembers) {
-        const creds = credsOf(tm);
-        data[`${tm.role}_nume`] = nameOf(tm);
-        data[`${tm.role}_legitimatie`] = creds.legitimatie ?? "";
-        data[`${tm.role}_tip`] = creds.tip ?? "";
-        data[`${tm.role}_autorizatie`] = creds.autorizatie ?? "";
-        data[`${tm.role}_autorizatii`] = creds.autorizatii ?? "";
-        data[`${tm.role}_poanson`] = creds.poanson ?? "";
-        data[`${tm.role}_valabilitate`] = creds.valabilitate ?? "";
-        // ISCIR dossier fields (decizii de numire, atestate, domenii de autorizare)
-        data[`${tm.role}_atestat`] = creds.atestat ?? "";
-        data[`${tm.role}_domeniu`] = creds.domeniu ?? "";
-        data[`${tm.role}_decizie_nr`] = creds.decizie_nr ?? "";
-        data[`${tm.role}_decizie_data`] = creds.decizie_data ?? "";
-        // Employee signature image (placed via {%rte_signature} etc.). Image-ref
-        // objects are downloaded from S3 + embedded by the DOCX branch below.
-        if (tm.employee?.signatureS3Key) {
-          data[`${tm.role}_signature`] = { s3Key: tm.employee.signatureS3Key, mimetype: "image/png" };
-        }
-
-        // Backward compat: sudor → sudor_pe + sudor_ol aliases
-        if (tm.role === "sudor") {
-          data["sudor_pe_nume"] = nameOf(tm);
-          data["sudor_pe_autorizatii"] = creds.autorizatii ?? "";
-          data["sudor_pe_poanson"] = creds.poanson ?? "";
-          data["sudor_ol_nume"] = nameOf(tm);
-          data["sudor_ol_autorizatii"] = creds.autorizatii ?? "";
-          data["sudor_ol_poanson"] = creds.poanson ?? "";
-        }
+      // Agenția OSD din Setări → Distribuitori (valoarea de pe dosar are prioritate).
+      // Dosarele vechi fără `distributorId` îl găsesc după codul grupului de șabloane.
+      let distributor = project.distributor;
+      const distributorCode = project.templateGroup?.distributorCode ?? template.distributorCode;
+      if (!distributor && distributorCode) {
+        distributor = await prisma.distributor.findFirst({
+          where: { tenantId, code: distributorCode },
+          select: { name: true, contactJson: true },
+        });
       }
+      Object.assign(data, distributorDocVars(distributor, meta), derivedDossierVars(data));
 
       // Load workflow step outputs
       const workflowInstance = await prisma.workflowInstance.findFirst({

@@ -48,6 +48,7 @@ export const CERT_TYPES: CertType[] = [
   { code: "iscir_rsvti", short: "RSVTI", label: "RSVTI — supravegherea și verificarea tehnică a instalațiilor", group: "ISCIR", numberLabel: "Nr. autorizație", domainLabel: null },
   { code: "iscir_fochist", short: "Fochist", label: "Fochist (ISCIR)", group: "ISCIR", numberLabel: "Nr. autorizație", domainLabel: "Clasa" },
   { code: "iscir_sudor", short: "Sudor ISCIR", label: "Sudor autorizat ISCIR (oțel)", group: "ISCIR", numberLabel: "Nr. autorizație", domainLabel: "Poanson" },
+  { code: "iscir_rts", short: "RTS", label: "RTS — responsabil tehnic cu sudura (ISCIR)", group: "ISCIR", numberLabel: "Nr. atestat", domainLabel: null },
   { code: "rte", short: "RTE", label: "RTE — responsabil tehnic cu execuția", group: "Construcții", numberLabel: "Nr. atestat", domainLabel: "Domeniu" },
   { code: "diriginte", short: "Diriginte", label: "Diriginte de șantier", group: "Construcții", numberLabel: "Nr. legitimație", domainLabel: "Domeniu" },
   { code: "verificator", short: "Verificator", label: "Verificator de proiecte", group: "Construcții", numberLabel: "Nr. legitimație", domainLabel: "Domeniu" },
@@ -179,7 +180,16 @@ export function legacyCredentialsFromCerts(position: string | null | undefined, 
     put("legitimatie", c.number);
     put("tip", certType(c.type)?.short);
     put("valabilitate", fmtDate(c.expiresAt));
+    put("legitimatie_data", fmtDate(c.issuedAt));
     if (c.issuedAt) put("anul", String(c.issuedAt.getUTCFullYear()));
+  };
+  // Toate certificările valabile (sau fără dată) de același tip, în ordinea introducerii —
+  // un sudor PE are de regulă câte o autorizație pe procedeu (SD, SRM, SRS).
+  const allOf = (type: string) => {
+    const today = Date.now();
+    const same = certs.filter((c) => c.type === type && c.number?.trim());
+    const valid = same.filter((c) => !c.expiresAt || c.expiresAt.getTime() >= today - 86_400_000);
+    return (valid.length ? valid : same).map((c) => c.number!.trim());
   };
 
   switch (position) {
@@ -193,6 +203,15 @@ export function legacyCredentialsFromCerts(position: string | null | undefined, 
       const c = pick(["rte"]);
       put("atestat", c?.number);
       put("domeniu", c?.domain);
+      put("atestat_data", fmtDate(c?.issuedAt ?? null));
+      // Șabloanele de branșament cer {rte_autorizatie}: e atestatul RTE.
+      put("autorizatie", c?.number);
+      break;
+    }
+    case "rts": {
+      const c = pick(["iscir_rts"]);
+      put("atestat", c?.number);
+      put("atestat_data", fmtDate(c?.issuedAt ?? null));
       break;
     }
     case "diriginte":
@@ -200,6 +219,8 @@ export function legacyCredentialsFromCerts(position: string | null | undefined, 
       const c = pick([position]);
       put("legitimatie", c?.number);
       put("domeniu", c?.domain);
+      put("legitimatie_data", fmtDate(c?.issuedAt ?? null));
+      if (position === "verificator") put("valabilitate", fmtDate(c?.expiresAt ?? null));
       break;
     }
     case "sudor": {
@@ -208,6 +229,12 @@ export function legacyCredentialsFromCerts(position: string | null | undefined, 
       put("autorizatie_ol_iscir", ol?.number);
       put("autorizatie_pe_iscir", pe?.number);
       put("poanson", ol?.domain || pe?.domain);
+      const peAll = allOf("sudor_pe");
+      const olAll = allOf("iscir_sudor");
+      if (peAll.length) put("autorizatii_pe", peAll.join(", "));
+      if (olAll.length) put("autorizatii_ol", olAll.join(", "));
+      put("autorizatie_pe_data", fmtDate(pe?.issuedAt ?? null));
+      put("autorizatie_ol_data", fmtDate(ol?.issuedAt ?? null));
       break;
     }
   }

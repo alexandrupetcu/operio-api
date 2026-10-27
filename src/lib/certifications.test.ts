@@ -95,17 +95,18 @@ describe("legacyCredentialsFromCerts — variabilele dosarelor de proiect", () =
     const out = legacyCredentialsFromCerts("instalator", [
       cert("anre_egiu", { number: "408160011", issuedAt: new Date("2016-08-09"), expiresAt: new Date("2026-08-09") }),
     ]);
-    expect(out).toEqual({ legitimatie: "408160011", tip: "EGIU", valabilitate: "09.08.2026", anul: "2016" });
+    expect(out).toEqual({ legitimatie: "408160011", tip: "EGIU", valabilitate: "09.08.2026", anul: "2016", legitimatie_data: "09.08.2016" });
   });
 
   it("RTE: atestat + domeniu; sudor: autorizațiile ISCIR / PE + poanson", () => {
     expect(legacyCredentialsFromCerts("rte", [cert("rte", { number: "A-1", domain: "Instalații gaze" })])).toEqual({
       atestat: "A-1",
       domeniu: "Instalații gaze",
+      autorizatie: "A-1",
     });
     expect(
       legacyCredentialsFromCerts("sudor", [cert("iscir_sudor", { number: "OL-7", domain: "P12" }), cert("sudor_pe", { number: "PE-3" })]),
-    ).toEqual({ autorizatie_ol_iscir: "OL-7", autorizatie_pe_iscir: "PE-3", poanson: "P12" });
+    ).toEqual({ autorizatie_ol_iscir: "OL-7", autorizatie_pe_iscir: "PE-3", autorizatii_ol: "OL-7", autorizatii_pe: "PE-3", poanson: "P12" });
   });
 
   it("atestat RTE reînnoit: dosarul primește cel valabil, nu cel expirat pus primul", () => {
@@ -119,5 +120,43 @@ describe("legacyCredentialsFromCerts — variabilele dosarelor de proiect", () =
   it("fără certificare potrivită → nimic (rămân valorile vechi din credentials)", () => {
     expect(legacyCredentialsFromCerts("rte", [cert("anre_egiu", { number: "1" })])).toEqual({});
     expect(legacyCredentialsFromCerts(null, [cert("rte", { number: "1" })])).toEqual({});
+  });
+});
+
+
+describe("legacyCredentialsFromCerts — dosarele de branșament (contract 28.10)", () => {
+  it("rte: atestat + data emiterii; `autorizatie` = atestatul (șabloanele vechi cer {rte_autorizatie})", () => {
+    expect(legacyCredentialsFromCerts("rte", [cert("rte", { number: "00002635", domain: "8.4 D", issuedAt: new Date("2017-09-22") })])).toEqual({
+      atestat: "00002635",
+      domeniu: "8.4 D",
+      atestat_data: "22.09.2017",
+      autorizatie: "00002635",
+    });
+  });
+
+  it("diriginte: legitimație + data emiterii", () => {
+    expect(legacyCredentialsFromCerts("diriginte", [cert("diriginte", { number: "00030523", issuedAt: new Date("2019-02-12") })])).toEqual({
+      legitimatie: "00030523",
+      legitimatie_data: "12.02.2019",
+    });
+  });
+
+  it("rts: atestatul ISCIR de responsabil tehnic cu sudura + data", () => {
+    expect(legacyCredentialsFromCerts("rts", [cert("iscir_rts", { number: "DISPR/I/11982", issuedAt: new Date("2022-02-24") })])).toEqual({
+      atestat: "DISPR/I/11982",
+      atestat_data: "24.02.2022",
+    });
+  });
+
+  it("sudor PE: toate autorizațiile PE valabile, în ordine, ca listă; numărul primei rămâne în autorizatie_pe_iscir", () => {
+    const out = legacyCredentialsFromCerts("sudor", [
+      cert("sudor_pe", { number: "568855", domain: "PIC 05", expiresAt: new Date("2099-10-17") }),
+      cert("sudor_pe", { number: "568856", expiresAt: new Date("2099-10-17") }),
+      cert("sudor_pe", { number: "568857", expiresAt: new Date("2099-10-17") }),
+    ]);
+    expect(out.autorizatie_pe_iscir).toBe("568855");
+    expect(out.autorizatii_pe).toBe("568855, 568856, 568857");
+    expect(out.poanson).toBe("PIC 05");
+    expect(out.autorizatii_ol).toBeUndefined();
   });
 });

@@ -1,3 +1,4 @@
+import { distributorDocVars } from "../../lib/dossier-data.js";
 import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { getFileBuffer } from "../../lib/s3.js";
@@ -269,9 +270,8 @@ async function initialMetadata(fastify: FastifyInstance, tenantId: string, distr
   const meta: Record<string, string> = {};
   for (const f of DOSSIER_FIELDS) if (f.default && f.source !== "project") meta[f.key] = f.default;
   if (distributor) {
-    meta.osd_denumire = distributor.name;
-    const contact = distributor.contactJson as { address?: unknown } | null;
-    if (contact && typeof contact.address === "string" && contact.address) meta.osd_adresa = contact.address;
+    // Denumire, adresă, regiune, sector, telefon, fax — din Setări → Distribuitori.
+    Object.assign(meta, distributorDocVars(distributor, {}));
   } else {
     const tenant = await fastify.prisma.tenant.findUnique({ where: { id: tenantId }, select: { settingsJson: true } });
     const os = readCompanySettings(tenant?.settingsJson).operatorSistem;

@@ -19,5 +19,8 @@ export function companyDocVars(settingsJson: unknown): Record<string, string> {
     tenant_iban: c.iban,
     tenant_bank: c.bank,
     tenant_operator_sistem: c.operatorSistem,
+    tenant_autorizatie_proiectare_nr: c.proiectareNr,
+    tenant_autorizatie_proiectare_data: c.proiectareData,
+    tenant_autorizatie_proiectare_tip: c.proiectareTip,
   };
 }

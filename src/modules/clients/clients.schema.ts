@@ -144,7 +144,7 @@ export type UpdateClientInput = z.infer<typeof updateClientSchema>;
 const dossierTeamMemberSchema = z.object({
   role: z.enum([
     "instalator", "proiectant", "rte", "sef_santier",
-    "cq", "diriginte", "verificator", "sudor",
+    "cq", "diriginte", "verificator", "sudor", "rts",
   ]),
   employeeId: z.string().cuid().optional().nullable(),
   // Free-form per-team-member credentials override (autorizatie nr/data,

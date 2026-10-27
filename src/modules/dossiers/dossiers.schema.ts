@@ -7,7 +7,7 @@ import { createClientSchema } from "../clients/clients.schema.js";
  */
 
 export const DOSSIER_ROLE_VALUES = [
-  "instalator", "proiectant", "rte", "sef_santier", "cq", "diriginte", "verificator", "sudor",
+  "instalator", "proiectant", "rte", "sef_santier", "cq", "diriginte", "verificator", "sudor", "rts",
 ] as const;
 
 export const dossierTeamMemberSchema = z.object({

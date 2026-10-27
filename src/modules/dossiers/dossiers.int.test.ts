@@ -59,7 +59,9 @@ beforeEach(async () => {
       { tenantId: null, categoryCode: "CARTE_BRANSAMENT", name: "Test dosar Opis", type: "single", s3Key: k2, parentGroupId: groupId, memberOrder: 2 },
     ],
   });
-  await prisma.distributor.create({ data: { tenantId: f.a.id, code: "DISTRIGAZ", name: "Distrigaz Sud Rețele" } });
+  await prisma.distributor.create({
+    data: { tenantId: f.a.id, code: "DISTRIGAZ", name: "Distrigaz Sud Rețele", contactJson: { region: "București", phone: "021.301.17.40" } },
+  });
 });
 
 const newDossier = (tenantId: string, clientId: string, extra: Record<string, unknown> = {}) =>
@@ -104,7 +106,7 @@ describe("dosare — câmpuri și completare", () => {
   it("dosarul nou ia OSD-ul din distribuitorul firmei, adresa din client, și calculează completarea", async () => {
     const d = await newDossier(f.a.id, f.a.clientId);
     expect(d.distributorId).not.toBeNull();
-    expect(d.metadata).toMatchObject({ osd_denumire: "Distrigaz Sud Rețele" });
+    expect(d.metadata).toMatchObject({ osd_denumire: "Distrigaz Sud Rețele", osd_regiune: "București", osd_telefon: "021.301.17.40" });
     expect(d.address).toBe("Str. Fixture a nr. 1");
     expect(d.completion).toMatchObject({ filled: 0, total: 5 });
 

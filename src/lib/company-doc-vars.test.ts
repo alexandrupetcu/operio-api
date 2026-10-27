@@ -15,4 +15,11 @@ describe("companyDocVars — datele firmei din Setări → variabilele documente
     expect(Object.values(v).every((x) => x === "")).toBe(true);
     expect(v).toHaveProperty("tenant_postal");
   });
+
+  it("autorizația de proiectare a firmei (PDSB) pentru dosarele de branșament", () => {
+    const v = companyDocVars({ company: { proiectareNr: "19830", proiectareData: "08.12.2025", proiectareTip: "PDSB" } });
+    expect(v.tenant_autorizatie_proiectare_nr).toBe("19830");
+    expect(v.tenant_autorizatie_proiectare_data).toBe("08.12.2025");
+    expect(v.tenant_autorizatie_proiectare_tip).toBe("PDSB");
+  });
 });

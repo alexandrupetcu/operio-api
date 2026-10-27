@@ -1,0 +1,366 @@
+{
+  "distributor": "Distrigaz Sud Rețele",
+  "sourceDir": "documente/Bransament/Carte Bransament Distrigaz",
+  "outDir": "documente/Bransament/Distrigaz-v2",
+  "workDir": "documente/Bransament/Distrigaz-v2/_src",
+  "roles": {
+    "constructor": "sef_santier"
+  },
+  "denyList": [
+    "PIC", "Pic Termo", "PIC TERMO", "Zoe Samurcasi", "ZOE SAMURCASI", "Ciorogarla", "CIOROGARLA", "Toma Dragos", "TOMA DRAGOS",
+    "Ivan Caliopa", "IVAN CALIOPA", "Ivan Florin", "IVAN FLORIN", "Ivan florin", "Mihaescu", "MIHAESCU", "Coman", "COMAN",
+    "Constantinescu", "Mihailesti", "MIHAILESTI", "Giurgiu", "GIURGIU", "Bragadiru", "Ilfov", "ILFOV", "Unirii", "UNIRII", "25C",
+    "FRIPTU", "Marasesti", "MARASESTI", "Bucucersti", "Bucuresti", "BUCURESTI", "021.301", "4-6", "19830", "19832", "509201366",
+    "00026301", "211180011", "00002635", "568855", "568856", "568857", "202585589736", "FE10L", "ZEEN", "TehnoWorld",
+    "C242", "2373/2024", "EUROMILLING", "22501048", "S79", "S80", "S81", "S 80", "S 79", "27.06.2025", "16.09.2025",
+    "26.09.2025", "30.09.2025", "05.11.2025", "04.11.2025", "04-11-2025", "27.08.2025", "04.07.2025", "10.06.2025",
+    "18.11.2028", "50198193", "13792881", "4919142922", "1955457", "24-21-25", "Sectorul 4", "Sector 4", "416", "414", "415",
+    "52 / 27.08.2025", "nr. 52", "S300", "Pietris", "picinstalgaz", "caliopa", "0740950808", "0723.532.078", "RO41642121",
+    "J23/4048", "V140900131", "2.00m", "2.00M", "1.30", "1,30", "3.30", "0.90m", "-0.9", "63/32", "FB0000002784", "1 ora si 20",
+    "24 ore si 5", "24 ora si 5", "9*10^5", "6*10^5"
+  ],
+  "global": [
+    {"find": "S\\.C\\. *Pic Termo Instal Gaz +S\\.R\\.L\\.", "replace": "{tenant_name}", "regex": true, "ci": true},
+    ["19832 / 19830", "{tenant_autorizatie_anre} / {tenant_autorizatie_proiectare_nr}"],
+    ["C242/PIC/2025", "{proiect_nr}"],
+    ["Constantinescu Petre Adrian, Nr. V140900131", "{verificator_nume}, Nr. {verificator_legitimatie}"],
+    ["Constantinescu Adrian", "{verificator_nume}"],
+    ["V140900131", "{verificator_legitimatie}"],
+
+    {"find": "(Agen[tțţ]ia Opera[tțţ]ional?[aă]? +Lucr[aă]ri:? +)(?:Bucuresti|Bucucersti)", "replace": "\\1{osd_regiune}", "regex": true, "ci": true},
+    {"find": "(Directia Regionala(?: de Distributie)? +)Bucuresti", "replace": "\\1{osd_regiune}", "regex": true, "ci": true},
+    {"find": "(Punct de lucru:? +)Marasesti", "replace": "\\1{osd_punct_lucru}", "regex": true, "ci": true},
+    {"find": "(?:str\\. ?)?(?:B-dul +)?Marasesti, ?nr\\. ?4-6(?:, sect\\. 4)?", "replace": "{osd_adresa}", "regex": true, "ci": true},
+    {"find": "021\\.301\\.17\\.(?:37|40)", "replace": "{osd_telefon}", "regex": true},
+    ["021.301.18.05", "{osd_fax}"],
+    {"find": "Sectorul 4", "replace": "{osd_sector}"},
+    {"find": "(?:S\\.C\\. )?Distrigaz[ -]+Sud +Retele +S\\.?R\\.?L\\.?", "replace": "{osd_denumire}", "regex": true, "ci": true},
+
+    {"find": "Str\\. Unirii, nr\\. 25C, loc\\. Mihailesti, jud\\. Giurgiu", "replace": "{project_address}, loc. {project_city}, jud. {project_county}", "regex": true, "ci": true},
+    {"find": "FRIPTU STEFAN *- *ALEXANDRU", "replace": "{client_name}", "regex": true, "ci": true},
+    ["13792881 / 10.06.2025", "{cod_atr}"],
+    ["24-21-25 / 0238", "{cod_sap}"],
+    {"find": "nr\\. 52 din 27\\.08\\.2025", "replace": "nr. {autorizatie_construire_nr} din {autorizatie_construire_data}", "regex": true},
+
+    {"find": "(?<![\\d/])32( ?)(mm|MM)", "replace": "{project_dn}\\1\\2", "regex": true},
+    ["TehnoWorld", "{teava_furnizor}"],
+    ["25378169 /27.06.2025", "{teava_cc_nr} /{teava_cc_data}"],
+    ["25378169 / 27.06.2025", "{teava_cc_nr} / {teava_cc_data}"],
+    ["25091264 / 27.06.2025", "{teava_dc_nr} / {teava_dc_data}"],
+    ["FE10L", "{regulator_tip}"],
+    ["202585589736", "{regulator_sn}"],
+    {"find": "ZEEN *-? *800 *-? *PLUS", "replace": "{aparat_sudura}", "regex": true, "ci": true},
+    {"find": "Electrofuziune", "replace": "{procedeu_sudura}", "ci": true},
+    {"find": "9\\*10\\^5(\\.\\.\\. Pa, timp de +\\.+)1 ora si 20 min", "replace": "{proba_rezistenta_presiune}\\1{proba_rezistenta_timp} min", "regex": true},
+    {"find": "6\\*10\\^5(\\.\\.\\. Pa, timp de +\\.+)24 or[ae] si 5 min", "replace": "{proba_etanseitate_presiune}\\1{proba_etanseitate_timp} min", "regex": true},
+
+    {"find": "Ivan Florin Madalin", "replace": "{instalator_nume}", "ci": true},
+    ["509201366", "{instalator_legitimatie}"],
+    {"find": "(tip +)EGD", "replace": "\\1{instalator_tip}", "regex": true},
+    {"find": "Toma +Dragos +Mihail", "replace": "{diriginte_nume}", "regex": true, "ci": true},
+    ["00026301", "{diriginte_legitimatie}"],
+    {"find": "Ivan Caliopa Gica", "replace": "{proiectant_nume}", "ci": true},
+    ["211180011", "{proiectant_legitimatie}"],
+    {"find": "Coman Gabriel", "replace": "{rte_nume}", "ci": true},
+    ["00002635 / 6.3 8.4D", "{rte_atestat} / {rte_domeniu}"],
+    {"find": "Mihaescu Florin", "replace": "{sudor_pe_nume}", "ci": true},
+    {"find": "568855,? 568856, 568857", "replace": "{sudor_pe_autorizatii}", "regex": true}
+  ],
+  "members": [
+    {
+      "id": "00", "out": "1.) Catre Distrigaz (x2).docx", "src": "1.) Catre Distrigaz (x2).doc",
+      "preOps": [
+        {"op": "unwrap_hyperlinks", "part": "word/header1.xml"},
+        {"op": "set_paragraph", "part": "word/header1.xml", "match": "caliopa.gica@gmail.com", "whole": false, "text": ""}
+      ],
+      "rules": [
+        ["Sediu : Str. Zoe Samurcasi nr. 11A, Ciorogarla - Ilfov", "Sediu : {tenant_address}, {tenant_city} - {tenant_county}"],
+        ["CUI :  RO41642121", "CUI :  {tenant_cui}"],
+        ["J23/4048/2019", "{tenant_reg_com}"],
+        [" 0723.532.078", " {tenant_phone}"],
+        ["picinstalgaz@gmail.com", "{tenant_email}"],
+        ["Dn 32 mm", "Dn {project_dn} mm"],
+        ["Str. Unirii, nr. 25C, Loc. Mihailesti, judetul Giurgiu", "{project_address}, Loc. {project_city}, judetul {project_county}"],
+        ["50198193 / 04.07.2025", "{ordin_lucru} / {data_ol}"],
+        ["Ivan Caliopa Gica", "{tenant_admin_name}"]
+      ],
+      "ops": [
+        {"op": "image_placeholder", "part": "word/header1.xml", "tag": "tenant_logo",
+         "framePr": {"w": "2600", "h": "1620", "hRule": "atLeast", "wrap": "around", "vAnchor": "text", "hAnchor": "text", "x": "-335", "y": "262"}},
+        {"op": "tab_signature", "paragraphs": ["Administrator,", "{tenant_admin_name}"], "align": "right", "pos": 8380}
+      ],
+      "notes": "Antet: sigla clientului → {%tenant_logo} (cadru poziționat unde era sigla), datele firmei → tenant_*; al doilea e-mail din antet golit (rândul rămâne, ca restul paginii să nu urce). Semnătura pe tab la dreapta în loc de spații."
+    },
+    {
+      "id": "01", "out": "2.) Cartea tehnica a constr. (x1).docx", "src": "2.) Cartea tehnica a constr. (x1).docx",
+      "rules": [
+        ["Dn 32 mm", "Dn {project_dn} mm"],
+        ["Mihailesti, jud. Giurgiu", "{project_city}, jud. {project_county}"],
+        ["Str. Unirii, nr. 25C", "{project_address}"],
+        ["FRIPTU STEFAN - ALEXANDRU", "{client_name}"]
+      ],
+      "notes": "„S.C. ENGIE Romania S.A.” (beneficiar) e text negru în original → păstrat literal."
+    },
+    {
+      "id": "02", "out": "3.) FD-697-327 Opis carte tehnică.docx", "src": "3.) FD-697-327 Opis carte tehnică.doc",
+      "rules": [],
+      "notes": "Fără date variabile; doar pagina (subsolul la 1 mm de margine → 6 mm)."
+    },
+    {
+      "id": "03", "out": "4.) FD-705-327 ATE.docx", "src": "4.) FD-705-327 ATE.doc",
+      "rules": [
+        {"find": "IVAN FLORIN MADALIN", "replace": "{@constructor_nume}"}
+      ]
+    },
+    {
+      "id": "04", "out": "5.) FD 048 302 PV receptie tehnica  RACORDURI.docx", "src": "5.) FD 048 302 PV receptie tehnica  RACORDURI.DOC",
+      "rules": [
+        ["Str. Unirii, nr. 25C, loc. Mihailesti, jud. Giurgiu.", "{project_address}, loc. {project_city}, jud. {project_county}."],
+        ["2.00m+reiser 1.30 m", "{project_length}m+reiser {bransament_lungime_reiser} m"]
+      ]
+    },
+    {
+      "id": "05", "out": "6.) Fisa tehnica-model nou BR_.docx", "src": "6.) Fisa tehnica-model nou BR_.doc",
+      "rules": [
+        ["Mihailesti, Jud. Giurgiu,  Str. Unirii, Nr. 25C", "{project_city}, Jud. {project_county},  {project_address}"],
+        ["2.00m+ REISER 1.30 m", "{project_length}m+ REISER {bransament_lungime_reiser} m"],
+        ["Ivan Florin Madalin,  EGD", "{instalator_nume},  {instalator_tip}"]
+      ],
+      "ops": [
+        {"op": "cell_padding", "table": 1, "lr": 60}
+      ]
+    },
+    {
+      "id": "06", "out": "7. ) FD 079 304 PV de punere in functiune BR.docx", "src": "7. ) FD 079 304 PV de punere in functiune BR.DOC",
+      "rules": [
+        ["B-DUL MARASESTI, NR.4-6", "{osd_adresa}"],
+        ["Sector 4 /", "{osd_sector} /"],
+        ["Mihailesti, Str. Unirii, Nr. 25C, Jud. Giurgiu", "{project_city}, {project_address}, Jud. {project_county}"],
+        ["2.00m+ 1.30m reiser", "{project_length}m+ {bransament_lungime_reiser}m reiser"]
+      ]
+    },
+    {
+      "id": "07", "out": "8.) FD 078 302 PV receptie tehnica SRM.docx", "src": "8.) FD 078 302 PV receptie tehnica SRM.DOC",
+      "pageOverride": {"footer": 340},
+      "rules": [
+        ["Str. Unirii, nr. 25C, loc. Mihailesti, jud Giurgiu", "{project_address}, loc. {project_city}, jud {project_county}"],
+        ["S.C. Pic Termo Instal Gaz S.R.L.Ivan Caliopa Gica.", "{tenant_name} {proiectant_nume}."]
+      ]
+    },
+    {
+      "id": "08", "out": "3.1) Anexa A - Notificare finalizare etapă montaj lucrări.docx", "src": "3.1) Anexa A - Notificare finalizare etapă montaj lucrări.docx",
+      "rules": [
+        ["414 / 04-11-2025", "{nr_inregistrare} / {data_inregistrare}"],
+        ["CIOROGARLA", "{tenant_city}"],
+        ["str. ZOE SAMURCASI, nr. 11A", "{tenant_address}"],
+        ["ILFOV", "{tenant_county}"],
+        ["IVAN CALIOPA GICA", "{tenant_admin_name}"],
+        ["tel. 0740950808", "tel. {tenant_phone}"],
+        ["picinstalgaz@gmail.com", "{tenant_email}"],
+        ["MIHAILESTI", "{project_city}"],
+        ["GIURGIU", "{project_county}"],
+        ["str. Unirii, nr. 25C", "{project_address}"],
+        ["26.09.2025", "{data_finalizare_montaj}"]
+      ],
+      "preOps": [{"op": "unwrap_hyperlinks"}]
+    },
+    {
+      "id": "09", "out": "3.2.) Anexa B - Solicitare programare în vederea recepției tehnice.docx", "src": "3.2.) Anexa B - Solicitare programare în vederea recepției tehnice.docx",
+      "rules": [
+        ["415 / 04-11-2025", "{nr_inregistrare} / {data_inregistrare}"],
+        ["CIOROGARLA", "{tenant_city}"],
+        ["str. ZOE SAMURCASI, nr. 11A", "{tenant_address}"],
+        ["ILFOV", "{tenant_county}"],
+        ["IVAN CALIOPA GICA", "{tenant_admin_name}"],
+        ["tel. 0740950808", "tel. {tenant_phone}"],
+        ["picinstalgaz@gmail.com", "{tenant_email}"],
+        ["MIHAILESTI", "{project_city}"],
+        ["GIURGIU", "{project_county}"],
+        ["str. Unirii, nr. 25C", "{project_address}"],
+        ["05.11.2025", "{data_programare_receptie}"],
+        ["30.09.2025", "{data_finalizare_lucrari}"]
+      ],
+      "preOps": [{"op": "unwrap_hyperlinks"}]
+    },
+    {
+      "id": "10", "out": "9.) FD 346 103 Fisa tehnica SR-PR  DGSR (x1).docx", "src": "9.) FD 346 103 Fisa tehnica SR-PR  DGSR (x1).DOC",
+      "rules": [
+        ["Mihailesti, Str. Unirii, nr. 25C, Jud. Giurgiu", "{project_city}, {project_address}, Jud. {project_county}"],
+        ["Ivan Florin Madalin, ", "{instalator_nume}, "]
+      ]
+    },
+    {
+      "id": "11", "out": "10.) FD 122 304 PV PIF Statie reglare.docx", "src": "10.) FD 122 304 PV PIF Statie reglare.doc",
+      "rules": []
+    },
+    {
+      "id": "12", "out": "11.) FD-688-327 PV predare-primire amplasament.docx", "src": "11.) FD-688-327 PV predare-primire amplasament.docx",
+      "rules": [
+        ["1, 2, 3", "{planse_nr}"],
+        {"find": "Ivan Florin Madalin", "replace": "{@constructor_nume}", "ci": true}
+      ],
+      "notes": "Originalul (Letter) are o a doua pagină goală în LibreOffice (rânduri goale la final); pe A4 încape pe una."
+    },
+    {
+      "id": "13", "out": "12.) FD 397 304 PV predare primire santier inainte de cuplare (x1).docx", "src": "12.) FD 397 304 PV predare primire santier inainte de cuplare (x1).docx",
+      "rules": [
+        {"find": "Ivan Florin Madalin", "replace": "{@constructor_nume}"}
+      ]
+    },
+    {
+      "id": "14", "out": "13.) FD 398 304 PV predare primire santier dupa cuplare (x1).docx", "src": "13.) FD 398 304 PV predare primire santier dupa cuplare (x1).docx",
+      "rules": [
+        {"find": "Ivan Florin Madalin", "replace": "{@constructor_nume}"}
+      ],
+      "notes": "Originalul are o a doua pagină goală (doar antet/subsol) — păstrată ca în original dacă tot apare."
+    },
+    {
+      "id": "15", "out": "14.) FD-687-327 PV de trasare a lucrarilor.docx", "src": "14.) FD-687-327 PV de trasare a lucrarilor.docx",
+      "rules": [
+        ["L = 2.00m+1,30 m", "L = {project_length}m+{bransament_lungime_reiser} m"],
+        ["Str. Str. Unirii, nr. 25C, loc. Mihailesti, jud. Giurgiu", "{project_address}, loc. {project_city}, jud. {project_county}"],
+        ["planselor 1,2,3", "planselor {planse_nr}"],
+        ["2.00m", "{project_length}m"],
+        {"find": "Ivan Florin Madalin", "replace": "{@constructor_nume}"}
+      ],
+      "notes": "„stanga” (limita proprietății) e roșu în original dar nu are variabilă → rămâne text fix, negru."
+    },
+    {
+      "id": "16", "out": "15.) FD 428 302 PV Readucere la starea initiala (x1).docx", "src": "15.) FD 428 302 PV Readucere la starea initiala (x1).doc",
+      "rules": [
+        ["Adresa Str.Marasesti,nr.4-6", "{osd_adresa}"],
+        {"find": "UNIRII", "replace": "{lucrare_strada}", "whole": true},
+        {"find": "25C", "replace": "{project_street_number}", "whole": true},
+        ["- Pietris", "- {zona_afectata}"],
+        {"find": "Ivan Florin Madalin", "replace": "{@constructor_nume}"}
+      ]
+    },
+    {
+      "id": "17", "out": "16.) FD-690-327 PV de verificare calitate a materialelor.docx", "src": "16.) FD-690-327 PV de verificare calitate a materialelor.docx",
+      "rules": [
+        ["Bon predare nr. 4919142922 / 16.09.2025,", "Bon predare nr. {bon_predare} / {bon_predare_data},"],
+        ["Alocare cont 1955457,", "Alocare cont {alocare_cont},"],
+        {"find": "Ivan Florin Madalin", "replace": "{@constructor_nume}"}
+      ],
+      "ops": [
+        {"op": "break_before", "match": "Agentia Operationala Lucrari", "before": ["Adresa", "Telefon:"]},
+        {"op": "set_ind", "match": "Agentia Operationala Lucrari", "ind": {"right": "3000"}}
+      ],
+      "preOps": [
+        {"op": "collapse", "first": "FACTURA Nr. FB0000002784 /27.06.2025;", "last": "DC 2028-CPR-887; 2028-CPR-888; 2028-CPR-889.", "text": "{documente_materiale}"}
+      ],
+      "notes": "Cele 18 rânduri de facturi/CC/DC → un singur paragraf {documente_materiale} (text pe mai multe rânduri, linebreaks)."
+    },
+    {
+      "id": "18", "out": "17.) FD-709-327 Verificare calitate lucrări.docx", "src": "17.) FD-709-327 Verificare calitate lucrări.docx",
+      "rules": [
+        ["ADANCIME 0.90m", "ADANCIME {sapatura_adancime}m"],
+        {"find": "Ivan Florin Madalin", "replace": "{@constructor_nume}"}
+      ]
+    },
+    {
+      "id": "19", "out": "18.) FD 096-301 TABEL SUDORI AUTORIZATI (x1).docx", "src": "18.) FD 096-301 TABEL SUDORI AUTORIZATI (x1).docx",
+      "rules": [
+        ["Str. Unirii, nr. 25C, Loc. Bragadiru, Jud. Ilfov", "{project_address}, Loc. {project_city}, Jud. {project_county}"]
+      ],
+      "preOps": [
+        {"op": "table_row_loop", "table": 1, "row": 21, "cells": [
+          "{#project_sudori}{#sudor_ol_nume}{nr_crt}{/sudor_ol_nume}", "{sudor_ol_nume}", "{sudor_ol_aut_intern}", "{sudor_ol_aut_iscir}", "{sudor_ol_poanson}",
+          "{#sudor_pe_nume}{nr_crt}{/sudor_pe_nume}", "{sudor_pe_nume}", "{sudor_pe_aut_intern}", "{sudor_pe_aut_iscir}", "{sudor_pe_poanson}", ""]},
+        {"op": "table_row_loop", "table": 1, "row": 22, "cells": ["", "", "", "", "", "", "", "", "", "{/project_sudori}", ""]}
+      ],
+      "ops": [
+        {"op": "drop_grid_col", "table": 1, "col": 10},
+        {"op": "drop_trailing_empty_rows", "table": 1},
+        {"op": "shrink_trailing_empty"}
+      ],
+      "notes": "Un sudor = blocul de 2 rânduri al formularului (r21–r22); bucla le repetă pe amândouă. Numărul de ordine apare doar în jumătatea (OL/PE) în care sudorul are nume. Rândurile libere de dedesubt rămân."
+    },
+    {
+      "id": "20", "out": "19.) FD-691-327 Tabel examinare vizuală suduri.docx", "src": "19.) FD-691-327 Tabel examinare vizuală suduri.xls", "expectedPages": 1,
+      "pageOverride": {"top": 720, "footer": 340},
+      "xlsx": {
+        "texts": {
+          "agency": ["Departament Inginerie Retea", "Agentia Operationala Lucrari {osd_regiune}", "{osd_adresa}", "Telefon: {osd_telefon}.", "Fax: {osd_fax}."],
+          "subansamblu": "{project_address}, loc. {project_city}, jud. {project_county}",
+          "pozitie": "{procedeu_sudura}",
+          "proiect": "{proiect_nr}",
+          "schema": "{nr_schema_izometrica}",
+          "instalator": "{instalator_nume}",
+          "rts": "{rts_nume}"
+        }
+      },
+      "notes": "Construit din .xls (A4 portret ca originalul): siglă, caseta agenției, titlu, tabel cu {#suduri} + 11 rânduri libere, semnături, codul FD și subsolul Distrigaz (imagine)."
+    },
+    {
+      "id": "21", "out": "20) schita br (x1).docx", "src": "20) schita br (x1).docx",
+      "rules": [
+        ["63/32", "{teu_dn}"],
+        {"find": "3.30", "replace": "{bransament_lungime_totala}", "whole": true},
+        {"find": "Ivan Florin Madalin", "replace": "{@constructor_nume}"}
+      ],
+      "ops": [
+        {"op": "image_placeholder", "tag": "project_drawing"}
+      ],
+      "notes": "Schița lucrării-exemplu → {%project_drawing} în același paragraf (tabelul e flotant, poziționat sub desen)."
+    },
+    {
+      "id": "22", "out": "22.) FD 253 301 Raport lucrari executate (x1).docx", "src": "22.) FD 253 301 Raport lucrari executate (x1).doc",
+      "rules": [
+        ["26.09.2025", "{data_finalizare_montaj}"],
+        ["L= 3.30M", "L= {bransament_lungime_totala}M"],
+        ["L= 2.00M", "L= {project_length}M"],
+        ["PRM S300", "{firida_tip}"],
+        ["Este la 1 M fata de limita din dreapta.", "Este la {distanta_limita} fata de limita."],
+        {"find": "S 80;\\s+S 79;\\s+S81;", "replace": "{suduri_lista}", "regex": true},
+        {"find": "T;\\s+M\\.T;\\s+MR", "replace": "", "regex": true},
+        {"find": "dn 63/32 ;\\s+dn 32;\\s+dn 32", "replace": "", "regex": true},
+        {"find": "MIHAESCU", "replace": "{sudor_pe_nume}", "whole": true},
+        {"find": "FLORIN", "replace": "", "whole": true},
+        {"find": "568855", "replace": "{sudor_pe_autorizatii}", "whole": true},
+        {"find": "568856", "replace": "", "whole": true},
+        {"find": "568857", "replace": "", "whole": true},
+        {"find": "3", "replace": "{total_suduri}", "whole": true},
+        ["2.00M + 1.30 M", "{project_length}M + {bransament_lungime_reiser} M"],
+        ["LOT 22501048", "LOT {teava_lot}"],
+        ["LOT 2373/2024  - SC EUROMILLING RS SRL", "LOT {reiser_lot}  - {reiser_furnizor}"]
+      ],
+      "ops": [
+        {"op": "vmerge", "table": 1, "col": 1, "rows": [9, 10], "vAlign": "center"},
+        {"op": "vmerge", "table": 1, "col": 2, "rows": [9, 11], "vAlign": "center"}
+      ],
+      "notes": "Rândurile cu tipul fitingului (T; M.T; MR) și diametrele (dn 63/32; dn 32; dn 32) erau ale celor 3 suduri-exemplu → golite; codurile → {suduri_lista}. „TH” după lotul țevii și „Stop gaz mov” rămân literale."
+    },
+    {
+      "id": "23", "out": "23.) FD-693-327 PV pentru lucrări ascunse pentru conducte branșamente.docx", "src": "23.) FD-693-327 PV pentru lucrări ascunse pentru conducte branșamente.doc",
+      "rules": [
+        ["26.09.2025", "{pv_data}"],
+        ["568855, 568856, 568857,  – PIC 05", "{sudor_pe_autorizatii} – {sudor_pe_poanson}"],
+        ["2.00m + 1.30 REISER", "{project_length}m + {bransament_lungime_reiser} REISER"],
+        ["...-0.9... m", "...{sapatura_adancime}... m"],
+        ["568855 568856, 568857", "{sudor_pe_autorizatii}"]
+      ],
+      "notes": "„2. Operator SD: DISTRIGAZ SUD” rămâne literal (formular Distrigaz; denumirea completă ar trece pe două rânduri)."
+    },
+    {
+      "id": "24", "out": "24.) Referat proiectant  -  MODEL 19.02.2025.docx", "src": "24.) Referat proiectant  -  MODEL 19.02.2025.docx",
+      "rules": [
+        ["S.C. PIC TERMO INSTAL GAZ  S.R.L.", "{tenant_name}"],
+        ["Str. Zoe Samurcasi, nr. 11A, loc. Ciorogarla, jud. Ilfov", "{tenant_address}, loc. {tenant_city}, jud. {tenant_county}"],
+        ["Tel. 0740950808", "Tel. {tenant_phone}"],
+        ["416", "{nr_inregistrare}"],
+        ["04.11.2025", "{data_inregistrare}"],
+        ["instalator autorizat PGD", "instalator autorizat {proiectant_tip}"],
+        ["18.11.2028", "{proiectant_valabilitate}"],
+        ["nr. 52, data: 27.08.2025", "nr. {autorizatie_construire_nr}, data: {autorizatie_construire_data}"]
+      ]
+    },
+    {
+      "id": "25", "out": "25) REFERAT RESPONSABIL TEHNIC CU EXECUTIA (x1).docx", "src": "25) REFERAT RESPONSABIL TEHNIC CU EXECUTIA (x1).docx",
+      "rules": [
+        ["3.30", "{bransament_lungime_totala}"],
+        ["= 2.00+ 1.30 m", "= {project_length}+ {bransament_lungime_reiser} m"]
+      ]
+    }
+  ]
+}
