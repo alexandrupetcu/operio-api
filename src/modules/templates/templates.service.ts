@@ -3,6 +3,7 @@ import type { MultipartFile } from "@fastify/multipart";
 import PizZip from "pizzip";
 import { uploadFile, deleteFile, getPresignedUrl, getFileBuffer } from "../../lib/s3.js";
 import { safeS3Filename, uploadContentType } from "../../lib/safe-filename.js";
+import { archiveEntryNames } from "../../lib/archive-names.js";
 import type { CreateTemplateInput, UpdateTemplateInput } from "./templates.schema.js";
 
 type TemplateTypeFilter = "all" | "html" | "docx" | "group";
@@ -418,16 +419,9 @@ export async function getGroupZip(fastify: FastifyInstance, tenantId: string, gr
   if (members.length === 0) throw fastify.httpErrors.badRequest("Group has no documents");
 
   const zip = new PizZip();
-  const used = new Set<string>();
-  for (const m of members) {
-    const fileBuffer = await getFileBuffer(m.s3Key!);
-    // Ensure unique, friendly filenames inside the archive.
-    const base = (m.fileName || m.name || m.s3Key!.split("/").pop() || "document").replace(/\.docx$/i, "");
-    let entry = `${base}.docx`;
-    let n = 1;
-    while (used.has(entry)) entry = `${base} (${++n}).docx`;
-    used.add(entry);
-    zip.file(entry, fileBuffer);
+  const entries = archiveEntryNames(members);
+  for (const [i, m] of members.entries()) {
+    zip.file(entries[i], await getFileBuffer(m.s3Key!));
   }
   const buffer = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
   const filename = `${group.name.replace(/[^\w.-]+/g, "_")}.zip`;

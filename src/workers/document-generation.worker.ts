@@ -18,6 +18,7 @@ import { resolveStampSlots, stampVarName } from "../lib/stamps.js";
 import { stampWithSignatureHtml } from "../lib/stamp-html.js";
 import { withAliases } from "../lib/dossier-fields.js";
 import { derivedDossierVars, distributorDocVars, teamDocVars } from "../lib/dossier-data.js";
+import { archiveEntryNames } from "../lib/archive-names.js";
 import { companyDocVars } from "../lib/company-doc-vars.js";
 import { osBoxData } from "../lib/os-box.js";
 import { resolveSignatory, type ResolvedSignatory } from "../modules/tenant/signatories.js";
@@ -1728,20 +1729,15 @@ async function processJob(job: Job<DocumentJobData>) {
         if (members.length === 0) throw new Error("Group has no documents to generate");
 
         const zip = new PizZip();
-        const used = new Set<string>();
-        for (const member of members) {
+        // Numele fișierelor originale ale clientului, cu numerotarea după care tipărește.
+        const entries = archiveEntryNames(members);
+        for (const [i, member] of members.entries()) {
           const memberStream = await getFileStream(member.s3Key!);
           if (!memberStream) throw new Error(`Group member file not found in S3: ${member.name}`);
           const memberBuffer = await streamToBuffer(memberStream);
           await allocIfNeeded(memberBuffer, member);
           const rendered = renderDocx(memberBuffer, data, images, DOCX_IMAGE_OPTS);
-          // Friendly, unique filename inside the archive.
-          const base = (member.fileName || member.name || "document").replace(/\.docx$/i, "");
-          let entry = `${base}.docx`;
-          let n = 1;
-          while (used.has(entry)) entry = `${base} (${++n}).docx`;
-          used.add(entry);
-          zip.file(entry, rendered);
+          zip.file(entries[i], rendered);
         }
         outputBuffer = Buffer.from(zip.generate({ type: "nodebuffer", compression: "DEFLATE" }));
         contentType = "application/zip";

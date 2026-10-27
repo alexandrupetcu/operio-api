@@ -17,6 +17,7 @@ import { PrismaClient } from "@prisma/client";
 import { readFileSync, readdirSync } from "fs";
 import { join, basename, extname } from "path";
 import { uploadFile, ensureBucket, deleteFile } from "../src/lib/s3.js";
+import { originalFileName } from "../src/lib/archive-names.js";
 
 const prisma = new PrismaClient();
 
@@ -120,7 +121,7 @@ async function main() {
     // a member renamed in-app isn't missed → duplicated. Fall back to `name`.
     const candidates = await prisma.documentTemplate.findMany({
       where: { parentGroupId: group.id },
-      select: { id: true, name: true, description: true, s3Key: true },
+      select: { id: true, name: true, description: true, s3Key: true, fileName: true },
     });
     const exists =
       candidates.find((c) => c.description && nfc(c.description) === file) ??
@@ -140,7 +141,7 @@ async function main() {
     await uploadFile(s3Key, buffer, DOCX_MIME);
 
     if (exists) {
-      await prisma.documentTemplate.update({ where: { id: exists.id }, data: { s3Key, description: file } });
+      await prisma.documentTemplate.update({ where: { id: exists.id }, data: { s3Key, description: file, fileName: originalFileName(exists.fileName, file) } });
       if (exists.s3Key && exists.s3Key !== s3Key) {
         try { await deleteFile(exists.s3Key); } catch { /* best-effort */ }
       }
@@ -153,6 +154,7 @@ async function main() {
         categoryCode: CATEGORY_CODE,
         name,
         description: file,
+        fileName: file,
         s3Key,
         type: "single",
         parentGroupId: group.id,
