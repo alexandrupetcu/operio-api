@@ -134,6 +134,7 @@ export async function getFields(fastify: FastifyInstance, tenantId: string, grou
       source: field.source ?? "metadata",
       columns: field.columns ?? null,
       rows: field.rows ?? null,
+      itemLabel: field.itemLabel ?? null,
       docs,
     })),
     roles: plan.roles,

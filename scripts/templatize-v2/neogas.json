@@ -484,7 +484,7 @@
       "src": "5. PV Control calitate.docx",
       "rules": [
         {"find": "(?<=Nr\\. )2(?= din data)", "replace": "{pv_control_calitate_nr}", "regex": true},
-        ["16.09.2025", "{pv_data}"],
+        ["16.09.2025", "{pv_control_calitate_data}"],
         {"find": "(?<=reprezentat de: ing\\. )Ivan Florin Madalin", "replace": "{sef_santier_nume}", "regex": true},
         {"find": "Ivan Florin Madalin", "replace": "{sef_santier_nume}", "whole": true}
       ]
@@ -501,7 +501,7 @@
       "rules": [
         {"find": "(?<=Nr\\. )3(?= / 16\\.09\\.2025)", "replace": "{pv_rt_br_nr}", "regex": true},
         {"find": "(?<=lucrari ascunse nr\\. )7(?=, data: )", "replace": "{pv_lucrari_ascunse_nr}", "regex": true},
-        {"find": "(?<=, data: )16\\.09\\.2025", "replace": "{pv_data}", "regex": true},
+        {"find": "(?<=, data: )16\\.09\\.2025", "replace": "{pv_lucrari_ascunse_data}", "regex": true},
         ["16.09.2025", "{data_pv_rt}"],
         {"find": "PIC TERMO", "replace": "{tenant_name}", "whole": true},
         {"find": "INSTAL GAZ S.R.L.", "replace": "", "whole": true},
@@ -573,7 +573,7 @@
       "src": "10. PV Lucrari ascunse.docx",
       "rules": [
         {"find": "(?<=\\) Nr\\. )7", "replace": "{pv_lucrari_ascunse_nr}", "regex": true},
-        {"find": "(?<=Incheiat astazi, )16\\.09\\.2025", "replace": "{pv_data}", "regex": true},
+        {"find": "(?<=Incheiat astazi, )16\\.09\\.2025", "replace": "{pv_lucrari_ascunse_data}", "regex": true},
         {"find": "(?<=Instalator autorizat ANRE: )Ivan Florin Madalin", "replace": "{instalator_nume}", "regex": true},
         {"find": "Ivan Florin Madalin", "replace": "{sudor_ol_nume}", "whole": true},
         {"find": "PIC TERMO INSTAL", "replace": "{tenant_name}", "whole": true},
@@ -622,7 +622,7 @@
       "out": "14. PV Predare primire amplasament.docx",
       "src": "14. PV Predare primire amplasament.docx",
       "rules": [
-        ["16.09.2025", "{pv_data}"],
+        ["16.09.2025", "{pv_predare_data}"],
         {"find": "RAUTA", "replace": "{diriginte_nume_familie}", "whole": true},
         {"find": "ION DANIEL", "replace": "{diriginte_prenume}", "whole": true},
         {"find": "IVAN", "replace": "{proiectant_nume_familie}", "whole": true, "nth": 1},
@@ -638,7 +638,7 @@
       "out": "15. PV Trasare Ax CD-BR.docx",
       "src": "15. PV Trasare Ax CD-BR.docx",
       "rules": [
-        ["16.09.2025", "{pv_data}"],
+        ["16.09.2025", "{pv_trasare_data}"],
         {"find": "IVAN CALIOPA GICA", "replace": "{cq_nume}", "ci": true}
       ]
     },
@@ -647,7 +647,8 @@
       "out": "16. PV Sapatura la cota.docx",
       "src": "16. PV Sapatura la cota.docx",
       "rules": [
-        ["16.09.2025", "{pv_data}"],
+        {"find": "16.09.2025", "replace": "{pv_sapatura_data}", "nth": 1},
+        ["16.09.2025", "{pv_montare_data}"],
         {"find": "(sudor PE autorizat )Mihaescu Florin\\s+cu autorizatia nr\\. 568856\\s*- SRM- SW prin procedeul de electrofuziune omologat nr\\. 052-946, respectiv autorizatia nr\\. 568857\\s*- SRS-SS prin procedeul de electrofuziune omologat nr\\. 052-946 si sudor OL autorizat Ivan Florin Madalin nr\\. 567380 – 111-BW prin procedeul de sudura cu arc electric omologat nr\\. 89C-1150", "replace": "\\1{sudor_pe_nume} cu autorizatiile nr. {sudor_pe_autorizatii} prin procedeul de electrofuziune omologat nr. {procedeu_omologare_pe} si sudor OL autorizat {sudor_ol_nume} nr. {sudor_ol_autorizatii} – 111-BW prin procedeul de sudura cu arc electric omologat nr. {procedeu_omologare_ol}", "regex": true},
         {"find": "IVAN CALIOPA GICA", "replace": "{cq_nume}", "ci": true},
         {"find": "(?<=Ing\\. )BADEA NICOLAE", "replace": "{rts_nume}", "regex": true}
@@ -658,7 +659,7 @@
       "out": "17. PV De lansare in sant si astupare.docx",
       "src": "17. PV De lansare in sant si astupare.docx",
       "rules": [
-        ["16.09.2025", "{pv_data}"],
+        ["16.09.2025", "{pv_lansare_data}"],
         {"find": "IVAN CALIOPA GICA", "replace": "{cq_nume}", "ci": true}
       ]
     },
@@ -667,7 +668,7 @@
       "out": "18. PV privind verificarea firului.docx",
       "src": "18. PV privind verificarea firului.docx",
       "rules": [
-        ["16.09.2025", "{pv_data}"],
+        ["16.09.2025", "{pv_fir_trasor_data}"],
         {"find": "IVAN CALIOPA GICA", "replace": "{cq_nume}", "ci": true}
       ]
     },
@@ -676,7 +677,7 @@
       "out": "19. PV Proba de rezistenta Probe casa.docx",
       "src": "19. PV Proba de rezistenta Probe casa.docx",
       "rules": [
-        ["16.09.2025", "{pv_data}"],
+        ["16.09.2025", "{pv_rezistenta_data}"],
         {"find": "IVAN CALIOPA GICA", "replace": "{cq_nume}", "ci": true}
       ]
     },
@@ -694,7 +695,7 @@
       "out": "20. PV Proba de etanseitate.docx",
       "src": "20. PV Proba de etanseitate.docx",
       "rules": [
-        ["16.09.2025", "{pv_data}"],
+        ["16.09.2025", "{pv_etanseitate_data}"],
         {"find": "IVAN CALIOPA GICA", "replace": "{cq_nume}", "ci": true}
       ]
     },

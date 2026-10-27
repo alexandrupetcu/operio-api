@@ -420,5 +420,16 @@
   "pv_montare_nr": "25",
   "rasuflatori_cu_capace": "-",
   "rasuflatori_fara_capace": "2",
-  "tenant_anre_tip": "EDSB"
+  "tenant_anre_tip": "EDSB",
+  "pv_predare_data": "10.07.2026",
+  "pv_trasare_data": "11.07.2026",
+  "pv_sapatura_data": "12.07.2026",
+  "pv_asternere_data": "13.07.2026",
+  "pv_montare_data": "14.07.2026",
+  "pv_lansare_data": "15.07.2026",
+  "pv_fir_trasor_data": "16.07.2026",
+  "pv_rezistenta_data": "17.07.2026",
+  "pv_etanseitate_data": "18.07.2026",
+  "pv_lucrari_ascunse_data": "19.07.2026",
+  "pv_control_calitate_data": "20.07.2026"
 }

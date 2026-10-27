@@ -47,6 +47,20 @@ describe("dossier fields", () => {
     expect(plan.roles.map((r) => r.role)).toContain("sudor");
   });
 
+  it("o dată de PV din șablon aduce data comună și bifa; nu apar ca lipsă dacă e completată data comună", () => {
+    const plan = fieldsForPlaceholders([{ name: "PV trasare", placeholders: new Set(["pv_trasare_data"]) }]);
+    const keys = plan.fields.map((f) => f.field.key);
+    expect(keys).toEqual(expect.arrayContaining(["pv_data", "pv_date_diferite", "pv_trasare_data"]));
+    expect(plan.fields.find((f) => f.field.key === "pv_date_diferite")!.field.type).toBe("checkbox");
+    const c = dossierCompletion(plan, { pv_data: "16.09.2025" }, new Set());
+    expect(c.missing).toEqual([]);
+  });
+
+  it("câmpurile-tabel au eticheta elementului (butonul „Adaugă …”) și coloane cu etichete clare", () => {
+    expect(fieldForKey("materiale")!.itemLabel).toBe("material");
+    expect(fieldForKey("suduri_tabel")!.itemLabel).toBe("sudură");
+  });
+
   it("NEOGAS e scris cu forma de pe documente", () => {
     expect(GAS_DISTRIBUTORS).toContain("Neogas Grid S.A.");
     expect(GAS_DISTRIBUTORS).not.toContain("Neogas Grid S.R.L.");

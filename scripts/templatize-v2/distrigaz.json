@@ -334,7 +334,7 @@
     {
       "id": "23", "out": "23.) FD-693-327 PV pentru lucrări ascunse pentru conducte branșamente.docx", "src": "23.) FD-693-327 PV pentru lucrări ascunse pentru conducte branșamente.doc",
       "rules": [
-        ["26.09.2025", "{pv_data}"],
+        ["26.09.2025", "{pv_lucrari_ascunse_data}"],
         ["568855, 568856, 568857,  – PIC 05", "{sudor_pe_autorizatii} – {sudor_pe_poanson}"],
         ["2.00m + 1.30 REISER", "{project_length}m + {bransament_lungime_reiser} REISER"],
         ["...-0.9... m", "...{sapatura_adancime}... m"],

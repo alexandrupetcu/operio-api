@@ -366,7 +366,7 @@
   },
   {
    "find": "6 / 21\\.10\\.2024",
-   "replace": "{pv_lucrari_ascunse_nr} / {pv_data}",
+   "replace": "{pv_lucrari_ascunse_nr} / {pv_lucrari_ascunse_data}",
    "regex": true
   },
   {
@@ -859,6 +859,36 @@
      "find": "(?<=-bucati:\\t\\t)1",
      "replace": "{robinet_bucati}",
      "regex": true
+    },
+    {
+     "find": "(?<=Incheiat astazi)(,?) ?[….]*…[….]*",
+     "replace": "\\1 {pv_predare_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi)(,?) ?[….]*…[….]*",
+     "replace": "\\1 {pv_trasare_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi)(,?) ?[….]*…[….]*",
+     "replace": "\\1 {pv_sapatura_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi)(,?) ?[….]*…[….]*",
+     "replace": "\\1 {pv_asternere_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi)(,?) ?[….]*…[….]*",
+     "replace": "\\1 {pv_montare_data}",
+     "regex": true,
+     "nth": 1
     }
    ],
    "ops": [

@@ -46,6 +46,8 @@ export interface DossierTableColumn {
   label: string;
 }
 export interface DossierTable {
+  /** Ce e un rând, pentru butonul „Adaugă …” din pagina Dosare. */
+  itemLabel: string;
   columns: DossierTableColumn[];
   /** Rândurile tipărite când tabelul e necompletat (prima coloană), ca să se scrie de mână. */
   rows?: string[];
@@ -53,11 +55,11 @@ export interface DossierTable {
 
 const MATERIAL_COLUMNS: DossierTableColumn[] = [
   { key: "denumire", label: "Material" },
-  { key: "diametru", label: "Diametru" },
-  { key: "cantitate", label: "Cantitate" },
+  { key: "diametru", label: "Diametru (mm)" },
+  { key: "cantitate", label: "Cantitate (m / buc)" },
   { key: "furnizor", label: "Furnizor" },
-  { key: "certificat", label: "Certificat calitate nr./data" },
-  { key: "declaratie", label: "Declarație conformitate nr./data" },
+  { key: "certificat", label: "Certificat de calitate (nr. / dată)" },
+  { key: "declaratie", label: "Declarație de conformitate (nr. / dată)" },
 ];
 
 /**
@@ -66,6 +68,7 @@ const MATERIAL_COLUMNS: DossierTableColumn[] = [
  */
 export const DOSSIER_TABLES: Record<string, DossierTable> = {
   materiale: {
+    itemLabel: "material",
     columns: MATERIAL_COLUMNS,
     rows: [
       "Capăt branșament PE-OL",
@@ -82,27 +85,48 @@ export const DOSSIER_TABLES: Record<string, DossierTable> = {
     ],
   },
   materiale_srm: {
+    itemLabel: "material",
     columns: MATERIAL_COLUMNS,
     rows: ["Țeavă PE", "Armătură închidere OL", "Regulator de presiune", "Contor", "Firidă"],
   },
   schema_materiale: {
+    itemLabel: "material",
     columns: [
       { key: "denumire", label: "Material" },
-      { key: "cantitate", label: "m / buc" },
-      { key: "nr_suduri", label: "Nr. ordine sudură" },
+      { key: "cantitate", label: "Cantitate (m / buc)" },
+      { key: "nr_suduri", label: "Sudurile pe el (ex. S3, S4)" },
     ],
     rows: ["Teu branșament OL", "Piesă de tranziție OL-PE", "Mufă EF", "Țeavă PE", "Cap de branșament", "Robinet cu bilă"],
   },
   suduri_tabel: {
+    itemLabel: "sudură",
     columns: [
-      { key: "cod", label: "Sudura" },
+      { key: "cod", label: "Nr. sudură (ex. S1)" },
       { key: "sudor", label: "Sudor" },
       { key: "autorizatie", label: "Poanson / autorizație" },
-      { key: "procedeu", label: "Tip / procedeu" },
-      { key: "omologare", label: "Fișă omologare procedeu" },
+      { key: "procedeu", label: "Tip / procedeu (ex. SRM/SW)" },
+      { key: "omologare", label: "Fișa de omologare a procedeului" },
     ],
   },
 };
+
+/**
+ * Datele proceselor-verbale de șantier. Implicit toate sunt „Data proceselor-verbale” (`pv_data`);
+ * cu bifa `pv_date_diferite`, fiecare PV are data lui (necompletată → data comună).
+ */
+export const PV_DATES: { key: string; label: string }[] = [
+  { key: "pv_predare_data", label: "PV de predare a amplasamentului" },
+  { key: "pv_trasare_data", label: "PV de trasare" },
+  { key: "pv_sapatura_data", label: "PV de săpătură" },
+  { key: "pv_asternere_data", label: "PV de așternere a patului de nisip" },
+  { key: "pv_montare_data", label: "PV de montare a conductei" },
+  { key: "pv_lansare_data", label: "PV de lansare în șanț și astupare" },
+  { key: "pv_fir_trasor_data", label: "PV de verificare a firului trasor" },
+  { key: "pv_rezistenta_data", label: "PV probă de rezistență" },
+  { key: "pv_etanseitate_data", label: "PV probă de etanșeitate" },
+  { key: "pv_lucrari_ascunse_data", label: "PV de lucrări ascunse" },
+  { key: "pv_control_calitate_data", label: "PV de control al calității" },
+];
 
 /** Text de tabel → rânduri `{nr_crt, coloană: valoare}`; gol → rândurile implicite. */
 export function parseDossierTable(table: DossierTable, value: unknown): Record<string, string>[] {
@@ -184,6 +208,11 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
   const teu = /^\s*(\d+(?:[.,]\d+)?)\s*[-/x]/i.exec(str(meta.teu_dn));
   if (teu) out.conducta_stradala_dn = teu[1];
   out.adresa_detalii_text = filled(meta.adresa_detalii) ? `, ${str(meta.adresa_detalii)}` : "";
+  const differ = str(meta.pv_date_diferite) === "da";
+  for (const { key } of PV_DATES) {
+    const v = differ && filled(meta[key]) ? str(meta[key]) : str(meta.pv_data);
+    if (v) out[key] = v;
+  }
   // RTE-ul poate fi al altei firme (NEOGAS: „Executant (RTE), ACTIVITATI DE INGINERIE…”).
   if (!filled(meta.rte_firma) && filled(meta.tenant_name)) out.rte_firma = str(meta.tenant_name);
   // Durata probelor se completează în minute; documentele o scriu „1 oră și 20 min”.

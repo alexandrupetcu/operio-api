@@ -117,6 +117,17 @@ describe("derivedDossierVars — dosarul NEOGAS (contract 28.10, partea a doua)"
     expect(derivedDossierVars({}).adresa_detalii_text).toBe("");
   });
 
+  it("datele PV-urilor: implicit toate = data comună; cu „date diferite”, fiecare PV are data lui (goală → data comună)", () => {
+    const same = derivedDossierVars({ pv_data: "16.09.2025", pv_trasare_data: "01.01.2020" });
+    expect(same.pv_trasare_data).toBe("16.09.2025");
+    expect(same.pv_lucrari_ascunse_data).toBe("16.09.2025");
+    const diff = derivedDossierVars({ pv_data: "16.09.2025", pv_date_diferite: "da", pv_trasare_data: "10.09.2025" });
+    expect(diff.pv_trasare_data).toBe("10.09.2025");
+    expect(diff.pv_sapatura_data).toBe("16.09.2025");
+    // Nimic completat → nu se scrie nimic (generatorul pune „..........”).
+    expect(derivedDossierVars({}).pv_trasare_data).toBeUndefined();
+  });
+
   it("firma RTE: implicit firma care execută; completată pe dosar rămâne", () => {
     expect(derivedDossierVars({ tenant_name: "PIC TERMO INSTAL GAZ S.R.L." }).rte_firma).toBe("PIC TERMO INSTAL GAZ S.R.L.");
     expect(derivedDossierVars({ tenant_name: "PIC", rte_firma: "ACTIVITATI DE INGINERIE SI CONSULTANTA S.R.L." }).rte_firma).toBeUndefined();

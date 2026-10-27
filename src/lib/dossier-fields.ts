@@ -8,14 +8,15 @@
  * numerele de registratură) se completează singure din date existente.
  */
 
-import { DOSSIER_TABLES, derivedDossierVars, type DossierTableColumn } from "./dossier-data.js";
+import { DOSSIER_TABLES, PV_DATES, derivedDossierVars, type DossierTableColumn } from "./dossier-data.js";
 
 export type DossierStep = "work" | "permits" | "materials";
 /**
  * `textarea` = text pe mai multe rânduri (ex. lista documentelor materialelor);
- * `table` = rânduri cu coloane (`columns`), păstrat ca text: o linie pe rând, celule cu „|”.
+ * `table` = rânduri cu coloane (`columns`), păstrat ca text: o linie pe rând, celule cu „|”;
+ * `checkbox` = da / nu, păstrat ca „da” sau gol.
  */
-export type DossierFieldType = "text" | "textarea" | "date" | "number" | "select" | "table";
+export type DossierFieldType = "text" | "textarea" | "date" | "number" | "select" | "table" | "checkbox";
 
 export interface DossierField {
   /** Cheia din șablon (și din `Project.metadata`). */
@@ -36,9 +37,15 @@ export interface DossierField {
   /** Doar pentru `table`: coloanele și rândurile implicite (prima coloană). */
   columns?: DossierTableColumn[];
   rows?: string[];
+  itemLabel?: string;
 }
 
-const table = (key: keyof typeof DOSSIER_TABLES & string) => ({ type: "table" as const, columns: DOSSIER_TABLES[key].columns, rows: DOSSIER_TABLES[key].rows });
+const table = (key: keyof typeof DOSSIER_TABLES & string) => ({
+  type: "table" as const,
+  columns: DOSSIER_TABLES[key].columns,
+  rows: DOSSIER_TABLES[key].rows,
+  itemLabel: DOSSIER_TABLES[key].itemLabel,
+});
 
 export const DOSSIER_STEPS: { key: DossierStep; label: string }[] = [
   { key: "work", label: "Lucrarea" },
@@ -181,7 +188,9 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "proba_etanseitate_presiune", label: "Presiunea de probă", step: "materials", section: "Proba de etanșeitate", type: "number", unit: PRESSURE_UNIT },
   { key: "proba_etanseitate_timp", label: "Durata probei", step: "materials", section: "Proba de etanșeitate", type: "number", unit: "minute", aliases: ["timp_proba_etanseitate"] },
   { key: "proba_etanseitate_temperatura", label: "Temperatura", step: "materials", section: "Proba de etanșeitate", type: "number", unit: "°C" },
-  { key: "pv_data", label: "Data proceselor-verbale", help: "Data trecută pe PV-urile de lucrări ascunse și de probe.", step: "materials", section: "Procese-verbale", type: "date" },
+  { key: "pv_data", label: "Data proceselor-verbale", help: "Data trecută pe PV-urile de șantier (predare, trasare, săpătură, probe, lucrări ascunse…).", step: "materials", section: "Procese-verbale", type: "date" },
+  { key: "pv_date_diferite", label: "PV-urile au date diferite", help: "Bifează dacă PV-urile nu s-au încheiat toate în aceeași zi: apare câte o dată pentru fiecare, pornind de la data comună.", step: "materials", section: "Procese-verbale", type: "checkbox" },
+  ...PV_DATES.map((d) => ({ key: d.key, label: `${d.label} — data`, step: "materials" as const, section: "Procese-verbale", type: "date" as const })),
   { key: "pv_predare_nr", label: "PV de predare a amplasamentului — nr.", step: "materials", section: "Procese-verbale", type: "text" },
   { key: "pv_trasare_nr", label: "PV de trasare — nr.", step: "materials", section: "Procese-verbale", type: "text" },
   { key: "pv_sapatura_nr", label: "PV de săpătură — nr.", step: "materials", section: "Procese-verbale", type: "text" },
@@ -213,6 +222,7 @@ const TABLE_COLUMN_KEYS = new Set([...Object.values(DOSSIER_TABLES).flatMap((t) 
 const SUDURI_TABEL_ONLY = ["sudor", "procedeu", "omologare"];
 const ROLE_KEY = new RegExp(`^(${DOSSIER_ROLES.join("|")})_([a-z_]+)$`);
 
+const PV_DATE_KEYS = new Set(PV_DATES.map((d) => d.key));
 const BY_KEY = new Map<string, DossierField>();
 for (const f of DOSSIER_FIELDS) for (const k of [f.key, ...(f.aliases ?? [])]) BY_KEY.set(k, f);
 
@@ -299,6 +309,16 @@ export function fieldsForPlaceholders(docs: { name: string; placeholders: Set<st
     }
   }
 
+  // O dată de PV aduce și data comună + bifa „date diferite” (implicit, data comună le completează pe toate).
+  const pvDocs = [...fieldDocs.values()].filter((e) => PV_DATE_KEYS.has(e.field.key)).flatMap((e) => [...e.docs]);
+  if (pvDocs.length) {
+    for (const key of ["pv_data", "pv_date_diferite"]) {
+      const e = fieldDocs.get(key) ?? { field: BY_KEY.get(key)!, docs: new Set<string>() };
+      for (const d of pvDocs) e.docs.add(d);
+      fieldDocs.set(key, e);
+    }
+  }
+
   const order = new Map(DOSSIER_FIELDS.map((f, i) => [f.key, i]));
   const fields = [...fieldDocs.values()]
     .sort((a, b) => (order.get(a.field.key) ?? 1e6) - (order.get(b.field.key) ?? 1e6) || a.field.key.localeCompare(b.field.key))
@@ -339,7 +359,8 @@ export function dossierCompletion(
   let filled = 0;
   // Câmpurile calculate (ex. lungimea totală) nu se cer dacă se pot deduce.
   values = { ...values, ...derivedDossierVars(values) };
-  for (const { field, docs } of plan.fields) {
+  const counted = plan.fields.filter((f) => f.field.type !== "checkbox");
+  for (const { field, docs } of counted) {
     const v = values[field.key];
     if (v !== undefined && v !== null && String(v).trim() !== "") filled++;
     else missing.push({ key: field.key, label: field.label, step: field.step, docs });
@@ -348,5 +369,5 @@ export function dossierCompletion(
     if (assignedRoles.has(r.role)) filled++;
     else missing.push({ key: `role:${r.role}`, label: r.role, step: "team", docs: r.docs });
   }
-  return { filled, total: plan.fields.length + plan.roles.length, missing };
+  return { filled, total: counted.length + plan.roles.length, missing };
 }
