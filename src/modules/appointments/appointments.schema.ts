@@ -67,6 +67,9 @@ export const updateAppointmentSchema = z.object({
 // Checklist item: DA / NU / N/A
 const checklistValue = z.enum(["DA", "NU", "NA"]);
 
+// E-mailul clientului vine gol de pe telefon când nu există: „” înseamnă „fără e-mail”, nu un e-mail invalid.
+const optionalEmail = z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.string().email().optional());
+
 const equipmentDataSchema = z.object({
   name: z.string().optional(),
   internalName: z.string().optional(),
@@ -143,7 +146,7 @@ const reportDataSchema = z.object({
     signatureDataUrl: z.string().optional(),     // PNG base64 data URL
     gdprConsent: z.boolean().default(false),
     gdprConsentAt: z.string().optional(),        // ISO datetime
-    clientEmail: z.string().email().optional(),   // to save on client + send docs
+    clientEmail: optionalEmail,   // to save on client + send docs
   }).optional(),
 });
 
@@ -257,7 +260,7 @@ export const instalatieReportSchema = z.object({
     signatureDataUrl: z.string().optional(),
     gdprConsent: z.boolean().default(false),
     gdprConsentAt: z.string().optional(),
-    clientEmail: z.string().email().optional(),
+    clientEmail: optionalEmail,
   }).optional(),
 });
 
