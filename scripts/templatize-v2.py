@@ -1142,7 +1142,10 @@ def op_break_before(doc: Docx, op, log):
 def op_set_ind(doc: Docx, op, log):
     p = find_para(doc, op["match"], part=op.get("part", "word/document.xml"), whole=False)
     ppr = p.find(w("pPr"))
-    ind = ppr.find(w("ind"))
+    if ppr is None:
+        ppr = etree.Element(w("pPr"))
+        p.insert(0, ppr)
+    ind = child_in_order(ppr, "ind", PPR_ORDER)
     for k, v in op["ind"].items():
         ind.set(w(k), str(v))
     log.append(f"indent of {op['match']!r} → {op['ind']}")
