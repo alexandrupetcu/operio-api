@@ -12,6 +12,7 @@ import { dispatchWorkflowEvent } from "../../modules/notifications/dispatch.js";
 import { executeActions } from "./action-executor.js";
 import { spawnSubWorkflow } from "./sub-workflow.js";
 import { triggerDocumentGeneration } from "./document-trigger.js";
+import { projectFacts } from "./project-facts.js";
 import { applyStepProjectStatus } from "./project-status-sync.js";
 
 /** Shared BullMQ queue for engine-level delayed jobs (reminders, activations, etc.) */
@@ -154,10 +155,12 @@ export async function resolveTransitions(
           projectTypeId: true,
           clientId: true,
           distributorId: true,
+          distributor: { select: { code: true } },
+          projectType: { select: { code: true } },
         },
       });
       if (result) {
-        project = result as unknown as Record<string, unknown>;
+        project = projectFacts(result);
         cache.set(cacheKey, project);
       }
     }

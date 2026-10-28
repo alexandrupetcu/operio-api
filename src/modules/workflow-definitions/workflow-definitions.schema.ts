@@ -14,6 +14,9 @@ export const createWorkflowDefinitionSchema = z.object({
   role: z.enum(["primary", "secondary"]).optional(),
   projectTypeId: z.string().min(1).optional().nullable(),
   distributorId: z.string().min(1).optional().nullable(),
+  // Doar pentru workflow-urile de sistem: potrivirea după cod (vezi findPrimaryWorkflowFor).
+  projectTypeCode: z.string().min(1).max(50).optional().nullable(),
+  distributorCode: z.string().min(1).max(50).optional().nullable(),
   entityType: z.string().default("project"),
   configJson: z.any().optional(),
 });
@@ -26,6 +29,9 @@ export const updateWorkflowDefinitionSchema = z.object({
   role: z.enum(["primary", "secondary"]).optional(),
   projectTypeId: z.string().min(1).optional().nullable(),
   distributorId: z.string().min(1).optional().nullable(),
+  // Doar pentru workflow-urile de sistem: potrivirea după cod (vezi findPrimaryWorkflowFor).
+  projectTypeCode: z.string().min(1).max(50).optional().nullable(),
+  distributorCode: z.string().min(1).max(50).optional().nullable(),
   configJson: z.any().optional(),
 });
 

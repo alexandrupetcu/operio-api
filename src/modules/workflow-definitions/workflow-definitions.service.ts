@@ -70,9 +70,12 @@ export async function list(
  * Find the primary workflow definition for a given (projectType, distributor) tuple.
  *
  * Resolution order:
- *   1. Exact match on (tenantId, projectTypeId, distributorId, role=primary, status=published)
- *   2. Fallback to (tenantId, projectTypeId, distributorId=null) — workflow valid for any distributor
- *   3. Returns null if no match is found.
+ *   1. The tenant's own workflows, by id: exact (projectTypeId, distributorId), then
+ *      projectType-only (distributorId null = any distributor).
+ *   2. The system/master workflows (tenantId null), by CODE — `projectTypeCode` +
+ *      `distributorCode` (null = any distributor) — so one general workflow serves
+ *      every firm, whatever its own ids are.
+ *   3. null.
  */
 export async function findPrimaryWorkflowFor(
   fastify: FastifyInstance,
@@ -80,41 +83,30 @@ export async function findPrimaryWorkflowFor(
   projectTypeId: string,
   distributorId: string | null
 ) {
-  // Within a scope (the tenant, then the system/master scope tenantId=null),
-  // try the exact distributor match first, then the projectType-only fallback
-  // (distributorId NULL = applies to any distributor).
-  const lookup = (scopeTenantId: string | null) =>
-    (async () => {
-      if (distributorId) {
-        const exact = await fastify.prisma.workflowDefinition.findFirst({
-          where: {
-            tenantId: scopeTenantId,
-            projectTypeId,
-            distributorId,
-            role: "primary",
-            status: "published",
-            isActive: true,
-          },
-          orderBy: { version: "desc" },
-        });
-        if (exact) return exact;
-      }
-      return fastify.prisma.workflowDefinition.findFirst({
-        where: {
-          tenantId: scopeTenantId,
-          projectTypeId,
-          distributorId: null,
-          role: "primary",
-          status: "published",
-          isActive: true,
-        },
-        orderBy: { version: "desc" },
-      });
-    })();
+  const base = { role: "primary", status: "published", isActive: true } as const;
+  const first = async (wheres: Prisma.WorkflowDefinitionWhereInput[]) => {
+    for (const where of wheres) {
+      const found = await fastify.prisma.workflowDefinition.findFirst({ where: { ...base, ...where }, orderBy: { version: "desc" } });
+      if (found) return found;
+    }
+    return null;
+  };
 
-  // A tenant-specific workflow wins; otherwise fall back to a system/master one
-  // (tenantId=null) — this is what makes a "general" workflow auto-attach.
-  return (await lookup(tenantId)) ?? (await lookup(null));
+  const own = await first([
+    ...(distributorId ? [{ tenantId, projectTypeId, distributorId }] : []),
+    { tenantId, projectTypeId, distributorId: null },
+  ]);
+  if (own) return own;
+
+  const [projectType, distributor] = await Promise.all([
+    fastify.prisma.projectType.findFirst({ where: { id: projectTypeId, tenantId }, select: { code: true } }),
+    distributorId ? fastify.prisma.distributor.findFirst({ where: { id: distributorId, tenantId }, select: { code: true } }) : null,
+  ]);
+  if (!projectType) return null;
+  return first([
+    ...(distributor?.code ? [{ tenantId: null, projectTypeCode: projectType.code, distributorCode: distributor.code }] : []),
+    { tenantId: null, projectTypeCode: projectType.code, distributorCode: null },
+  ]);
 }
 
 export async function getById(
@@ -327,6 +319,11 @@ export async function createMaster(
       name: input.name,
       entityType: input.entityType ?? "project",
       projectTypeId: input.projectTypeId ?? null,
+      // Un workflow de sistem e al tuturor firmelor: se potrivește după cod, nu după id-uri.
+      projectTypeCode: input.projectTypeCode ?? null,
+      distributorCode: input.distributorCode ?? null,
+      role: input.role ?? "primary",
+      category: input.category ?? null,
       description: input.description ?? null,
       configJson: input.configJson as Prisma.InputJsonValue | undefined,
       version: 1,
@@ -365,6 +362,10 @@ export async function updateMaster(
     data: {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.description !== undefined && { description: input.description }),
+      ...(input.category !== undefined && { category: input.category }),
+      ...(input.role !== undefined && { role: input.role }),
+      ...(input.projectTypeCode !== undefined && { projectTypeCode: input.projectTypeCode }),
+      ...(input.distributorCode !== undefined && { distributorCode: input.distributorCode }),
       ...(input.configJson !== undefined && {
         configJson: input.configJson as Prisma.InputJsonValue,
       }),
@@ -820,6 +821,19 @@ export async function clone(
   });
   const nextVersion = (maxVersion?.version ?? 0) + 1;
 
+  // Un workflow general (de sistem) copiat într-o firmă primește tipul și distribuitorul
+  // FIRMEI după cod; unul al firmei își păstrează id-urile.
+  let projectTypeId = source.projectTypeId;
+  let distributorId = source.distributorId;
+  if (source.tenantId === null) {
+    const [pt, dist] = await Promise.all([
+      source.projectTypeCode ? fastify.prisma.projectType.findFirst({ where: { tenantId, code: source.projectTypeCode }, select: { id: true } }) : null,
+      source.distributorCode ? fastify.prisma.distributor.findFirst({ where: { tenantId, code: source.distributorCode }, select: { id: true } }) : null,
+    ]);
+    projectTypeId = pt?.id ?? null;
+    distributorId = dist?.id ?? null;
+  }
+
   return fastify.prisma.$transaction(async (tx) => {
     // Create the new definition
     const newDefinition = await tx.workflowDefinition.create({
@@ -828,7 +842,10 @@ export async function clone(
         code: targetCode,
         name: input?.name ?? source.name,
         entityType: source.entityType,
-        projectTypeId: source.projectTypeId,
+        projectTypeId,
+        distributorId,
+        role: source.role,
+        category: source.category,
         description: source.description,
         configJson: source.configJson ?? undefined,
         version: nextVersion,

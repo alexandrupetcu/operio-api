@@ -52,6 +52,21 @@ export async function triggerDocumentGeneration(
       orderBy: { sortOrder: "asc" },
     });
     templateIds = templates.map((t) => t.id);
+  } else if (typeof stepConfig.dossierCategory === "string") {
+    // Workflow general: setul dosarului (CARTE_BRANSAMENT, CARTE_CONDUCTA, DOSAR_ISCIR) după proiect —
+    // cel ales în „Completează dosarul”, altfel grupul categoriei pentru distribuitorul proiectului
+    // (al firmei înaintea celui de sistem; un grup fără distribuitor e bun pentru oricare).
+    const groupId = await dossierGroupFor(fastify, tenantId, projectId, stepConfig.dossierCategory);
+    if (!groupId) {
+      await markStepFailed(fastify, tenantId, stepInstanceId, {
+        message:
+          "Nu s-a găsit setul de documente pentru acest proiect. Alegeți distribuitorul proiectului sau deschideți „Completează dosarul” și alegeți setul.",
+        code: "DOSSIER_GROUP_NOT_FOUND",
+        dossierCategory: stepConfig.dossierCategory,
+      });
+      return false;
+    }
+    templateIds = [groupId];
   } else if (stepConfig.templateRef) {
     // Single template reference by ID. A DOCX group is NOT flattened here — it
     // becomes one Document whose file is a ZIP of all rendered members (the
@@ -182,4 +197,34 @@ async function markStepFailed(
       } as Prisma.InputJsonValue,
     },
   });
+}
+
+/** Grupul DOCX al dosarului de categoria dată pentru proiect (vezi `dossierCategory`). */
+async function dossierGroupFor(
+  fastify: FastifyInstance,
+  tenantId: string,
+  projectId: string,
+  categoryCode: string
+): Promise<string | null> {
+  const project = await fastify.prisma.project.findFirst({
+    where: { id: projectId, tenantId },
+    select: {
+      distributor: { select: { code: true } },
+      templateGroup: { select: { id: true, categoryCode: true, isActive: true } },
+    },
+  });
+  if (!project) return null;
+  const chosen = project.templateGroup;
+  if (chosen?.isActive && chosen.categoryCode === categoryCode) return chosen.id;
+
+  const groups = await fastify.prisma.documentTemplate.findMany({
+    where: { type: "group", isActive: true, categoryCode, OR: [{ tenantId }, { tenantId: null }] },
+    select: { id: true, tenantId: true, distributorCode: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const code = project.distributor?.code ?? null;
+  const rank = (g: (typeof groups)[number]) =>
+    (g.distributorCode === code && code ? 0 : g.distributorCode === null ? 2 : 9) + (g.tenantId ? 0 : 1);
+  const best = groups.filter((g) => rank(g) < 9).sort((a, b) => rank(a) - rank(b))[0];
+  return best?.id ?? null;
 }

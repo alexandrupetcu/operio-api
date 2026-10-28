@@ -948,6 +948,10 @@ model WorkflowDefinition {
   projectType        ProjectType?         @relation(fields: [projectTypeId], references: [id])
   distributorId      String?
   distributor        Distributor?         @relation(fields: [distributorId], references: [id])
+  // Workflow-urile de sistem (tenantId null) se potrivesc după COD, nu după id-urile unei firme:
+  // tipul de proiect („bransament”, „conducta”…) și distribuitorul („DISTRIGAZ”…; null = oricare).
+  projectTypeCode    String?
+  distributorCode    String?
   role               String               @default("primary") // "primary" (attached to projects) | "secondary" (callable as sub-workflow only)
   code               String
   name               String
@@ -976,6 +980,7 @@ model WorkflowDefinition {
   @@index([tenantId, distributorId])
   @@index([tenantId, role])
   @@index([tenantId, role, projectTypeId, distributorId])
+  @@index([tenantId, role, projectTypeCode, distributorCode])
   @@index([tenantId, isActive])
   @@index([tenantId, category])
   @@index([baseDefinitionId])
