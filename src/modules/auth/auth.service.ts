@@ -1,6 +1,7 @@
 import { resolveEntitlements, serializeEntitlements } from "../../lib/entitlements/index.js";
 import { ensureEmployeeForMobileUser } from "../users/employee-link.js";
 import { ensureDefaultProjectTypes } from "../../lib/default-project-types.js";
+import { ensureDefaultDistributors } from "../../lib/default-distributors.js";
 import type { FastifyInstance } from "fastify";
 import { createHash, randomBytes } from "crypto";
 import { hashPassword, verifyPassword } from "../../lib/hash.js";
@@ -211,6 +212,8 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
 
     // Tipurile de proiect de bază (dosare, asistentul de proiect le caută după cod).
     await ensureDefaultProjectTypes(tx, tenant.id);
+    // Distribuitorii cu seturi de dosare (workflow-urile generale îi caută după cod).
+    await ensureDefaultDistributors(tx, tenant.id);
 
     const user = await tx.user.create({
       data: {
