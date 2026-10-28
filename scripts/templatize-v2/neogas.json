@@ -734,7 +734,8 @@
       "out": "24. Tabel sudori autorizati.docx",
       "src": "24. Tabel sudori autorizati.docx",
       "preOps": [
-        {"op": "table_row_loop", "table": 1, "row": 3, "cells": ["{#sudori_autorizatii}{nr_crt}", "{nume}", "{autorizatie}{/sudori_autorizatii}"], "deleteRows": [2, 4, 5]}
+        {"op": "table_row_loop", "table": 1, "row": 3, "cells": ["{#sudori_autorizatii}{nr_crt}", "{nume}", "{autorizatie}{/sudori_autorizatii}"], "deleteRows": [2, 4, 5]},
+        {"op": "drop_grid_col", "table": 1, "col": 3}
       ],
       "rules": [
         {"find": "(?<=Ing\\. )Ivan Florin Madalin", "replace": "{rts_nume}", "regex": true}

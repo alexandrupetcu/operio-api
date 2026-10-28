@@ -141,6 +141,11 @@ export function parseDossierTable(table: DossierTable, value: unknown): Record<s
   });
 }
 
+/** Rânduri goale pentru o buclă de tabel (inclusiv `nr_crt`). */
+function blankRows(count: number, keys: string[]): Record<string, string>[] {
+  return Array.from({ length: count }, () => Object.fromEntries(["nr_crt", ...keys].map((k) => [k, ""])));
+}
+
 /** „04.08.2025” / „2025-08-04” → „2025”. */
 function yearOf(v: unknown): string | null {
   const s = str(v);
@@ -196,6 +201,8 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
   }
   const n = (out.suduri as unknown[]).length;
   out.total_suduri = n ? String(n) : "";
+  // Fără suduri: câteva rânduri goale, ca tabelele (execuția sudurilor, buletinul) să se poată completa de mână.
+  if (!n) out.suduri = blankRows(4, ["cod", "sudor", "autorizatie", "procedeu", "omologare", "rezultat"]);
 
   for (const k of ["teava_cc", "teava_dc"] as const) {
     const y = yearOf(meta[`${k}_data`]);
@@ -301,6 +308,11 @@ export function teamDocVars(members: TeamMemberLike[]): Record<string, unknown> 
       return (auts.length ? auts : [""]).map((autorizatie) => ({ nume: m.name, autorizatie }));
     })
     .map((r, i) => ({ nr_crt: String(i + 1), ...r }));
+  // Fără sudori alocați: rânduri goale, nu un tabel doar cu antetul.
+  if (!sudori.length) {
+    data.sudori_autorizatii = blankRows(3, ["nume", "autorizatie"]);
+    data.project_sudori = blankRows(1, ["sudor_ol_nume", "sudor_ol_aut_intern", "sudor_ol_aut_iscir", "sudor_ol_poanson", "sudor_pe_nume", "sudor_pe_aut_intern", "sudor_pe_aut_iscir", "sudor_pe_poanson"]);
+  }
 
   for (const m of members) {
     data[`${m.role}_nume`] = m.name;

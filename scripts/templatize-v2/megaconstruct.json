@@ -453,6 +453,14 @@
    "find": "89C-43[34] / 2024",
    "replace": "{procedeu_omologare_pe}",
    "regex": true
+  },
+  {
+   "find": "Page 21 of 21",
+   "replace": "",
+   "whole": true,
+   "parts": [
+    "footer"
+   ]
   }
  ],
  "members": [
@@ -896,9 +904,89 @@
      "op": "image_placeholder",
      "tag": "project_drawing",
      "nth": 2
+    },
+    {
+     "op": "columns_line",
+     "match": "R.T.E,\t\t\t\tSudor PE,",
+     "cells": [
+      "R.T.E.",
+      "Sudor PE,",
+      "R.T.S."
+     ],
+     "positions": [
+      1700,
+      5100,
+      8500
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Ing. {rte_nume}",
+     "cells": [
+      "Ing. {rte_nume}",
+      "{sudor_pe_nume}",
+      "Ing. {rts_nume}"
+     ],
+     "positions": [
+      1700,
+      5100,
+      8500
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Instalator autorizat\t\t\t\t\tR.T.S.",
+     "cells": [
+      "Instalator autorizat",
+      "R.T.S."
+     ],
+     "positions": [
+      2550,
+      7650
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "{instalator_nume}\t\t\t",
+     "cells": [
+      "{instalator_nume}",
+      "Ing. {rts_nume}"
+     ],
+     "positions": [
+      2550,
+      7650
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Instalator autorizat,\t\t\tSudor PE,",
+     "cells": [
+      "Instalator autorizat,",
+      "Sudor PE,",
+      "R.T.S.,"
+     ],
+     "positions": [
+      1700,
+      5100,
+      8500
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "{instalator_nume}               {sudor_pe_nume}",
+     "cells": [
+      "{instalator_nume}",
+      "{sudor_pe_nume}",
+      "Ing. {rts_nume}"
+     ],
+     "positions": [
+      1700,
+      5100,
+      8500
+     ]
     }
    ],
-   "notes": "Fișierul clientului n-are salturi de pagină: fiecare formular începea pe pagină nouă doar pentru că precedentul umplea pagina Letter. Pe A4 le pun explicit (page_break_before). Tabelul sudurilor rămâne cu 14 rânduri goale după cele completate (originalul: 20 de rânduri), ca să încapă pe o pagină. Înainte de tabelul sudurilor există deja un salt de secțiune."
+   "notes": "Fișierul clientului n-are salturi de pagină: fiecare formular începea pe pagină nouă doar pentru că precedentul umplea pagina Letter. Pe A4 le pun explicit (page_break_before). Tabelul sudurilor rămâne cu 14 rânduri goale după cele completate (originalul: 20 de rânduri), ca să încapă pe o pagină. Înainte de tabelul sudurilor există deja un salt de secțiune. Semnăturile de sub schema izometrică / tabelul sudurilor / buletin: nume pe tab-uri centrate sub rol (originalul le alinia cu spații, după lungimea numelor-exemplu). Subsolul secțiunii a doua avea textul fix „Page 21 of 21” — golit."
   }
  ]
 }

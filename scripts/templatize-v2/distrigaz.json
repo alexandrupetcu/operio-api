@@ -300,7 +300,8 @@
         {"find": "Ivan Florin Madalin", "replace": "{@constructor_nume}"}
       ],
       "ops": [
-        {"op": "image_placeholder", "tag": "project_drawing"}
+        {"op": "image_placeholder", "tag": "project_drawing"},
+        {"op": "table_float_y", "table": 1, "y": 6400}
       ],
       "notes": "Schița lucrării-exemplu → {%project_drawing} în același paragraf (tabelul e flotant, poziționat sub desen)."
     },

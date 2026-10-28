@@ -493,17 +493,27 @@ def table_width(tbl) -> int:
     return sum(twips(g.get(w("w"), 0)) for g in grid.findall(w("gridCol")))
 
 
-def scale_tables(doc: Docx, page_w: int, left_margin: int, right_margin: int, log: list[str]) -> None:
+def scale_tables(doc: Docx, sections: list, log: list[str]) -> None:
     """Shrink top-level tables whose right edge would come closer than 10 mm to the A4 page edge.
 
     Tables that overhang the text area but still keep ≥ 10 mm to the paper edge are left as the
     client drew them (many Distrigaz forms do that on purpose)."""
     root = doc.part("word/document.xml")
     body = root.find(w("body"))
-    limit = page_w - MIN_MARGIN
+    # Each top-level table belongs to the section that ends after it (a paragraph's sectPr ends a
+    # section; the body's sectPr is the last one) — sections can have different margins.
+    sec = 0
+    owner = {}
+    for el in body:
+        if el.tag == w("tbl"):
+            owner[el] = min(sec, len(sections) - 1)
+        elif el.tag == w("p") and el.find(f"{w('pPr')}/{w('sectPr')}") is not None:
+            sec += 1
     for tbl in body.iter(w("tbl")):
         if tbl.getparent().tag != w("body"):
             continue  # nested tables scale with their cell
+        page_w, left_margin, right_margin = sections[owner.get(tbl, len(sections) - 1)]
+        limit = page_w - MIN_MARGIN
         tw = table_width(tbl)
         if not tw:
             continue
@@ -816,6 +826,54 @@ def op_tab_signature(doc: Docx, op, log):
     log.append(f"signature block on a {op.get('align', 'right')} tab at {op['pos']}")
 
 
+def op_table_float_y(doc: Docx, op, log):
+    """Move a floating table down (tblpY, twips from its anchor) — e.g. to leave room above it for
+    the generated sketch, which is larger than the client's picture."""
+    tbl = list(doc.part("word/document.xml").iter(w("tbl")))[op["table"] - 1]
+    fp = tbl.find(f"{w('tblPr')}/{w('tblpPr')}")
+    old = fp.get(w("tblpY"))
+    fp.set(w("tblpY"), str(op["y"]))
+    log.append(f"floating table {op['table']} tblpY {old} → {op['y']}")
+
+
+def op_columns_line(doc: Docx, op, log):
+    """A signature line whose names were lined up under their roles with spaces (fits only the
+    sample names): rewrite it as `cells` separated by tabs, on centered tab stops at `positions`
+    (twips from the left margin), keeping the first run's formatting. Use it on the role line and
+    on the names line with the same positions."""
+    p = find_para(doc, op["match"], whole=op.get("whole", False), nth=op.get("nth", 1))
+    runs = [r for r in p.iter(w("r")) if r.find(w("t")) is not None]
+    keep = runs[0]
+    for r in list(p.iter(w("r"))):
+        if r is not keep:
+            r.getparent().remove(r)
+    for k in list(keep):
+        if k.tag != w("rPr"):
+            keep.remove(k)
+    rpr = keep.find(w("rPr"))
+    for i, text in enumerate(op["cells"]):
+        tab = etree.SubElement(keep, w("tab"))
+        t = etree.SubElement(keep, w("t"))
+        t.text = text
+        t.set(XML_SPACE, "preserve")
+    if rpr is not None:
+        clean_run_props(keep)
+    ppr = p.find(w("pPr"))
+    if ppr is None:
+        ppr = etree.Element(w("pPr"))
+        p.insert(0, ppr)
+    for tag in ("tabs", "ind", "jc"):
+        el = ppr.find(w(tag))
+        if el is not None:
+            ppr.remove(el)
+    tabs = child_in_order(ppr, "tabs", PPR_ORDER)
+    for pos in op["positions"]:
+        t = etree.SubElement(tabs, w("tab"))
+        t.set(w("val"), "center")
+        t.set(w("pos"), str(pos))
+    log.append(f"columns line {op['cells']} on centered tabs {op['positions']}")
+
+
 def op_table_row_loop(doc: Docx, op, log):
     """Turn a table row into a docxtemplater row loop: cells[i] ← texts[i] (first paragraph of each
     cell keeps its first run's formatting; other paragraphs of the cell are emptied)."""
@@ -832,6 +890,27 @@ def op_table_row_loop(doc: Docx, op, log):
         put_paragraph_text(ps[0], txt)
         for p in ps[1:]:
             put_paragraph_text(p, "")
+    # The repeated row must close the table: when the original last row goes, its bottom
+    # border moves to the loop row (cells that only drew a top border would leave the
+    # last repetition open).
+    if len(rows) in op.get("deleteRows", []):
+        last_cells = rows[-1].findall(w("tc"))
+        for i, tc in enumerate(cells):
+            src = last_cells[min(i, len(last_cells) - 1)].find(f"{w('tcPr')}/{w('tcBorders')}/{w('bottom')}") if last_cells else None
+            if src is None:
+                continue
+            tcpr = tc.find(w("tcPr"))
+            if tcpr is None:
+                tcpr = etree.Element(w("tcPr"))
+                tc.insert(0, tcpr)
+            borders = child_in_order(tcpr, "tcBorders", TCPR_ORDER)
+            old_b = borders.find(w("bottom"))
+            if old_b is not None:
+                borders.remove(old_b)
+            # CT_TcBorders order: top, start/left, bottom, end/right, insideH, insideV, tl2br, tr2bl
+            after = [k for k in borders if k.tag in (w("top"), w("start"), w("left"))]
+            borders.insert(len(after), copy.deepcopy(src))
+        log.append(f"loop row in table {op['table']} takes the bottom border of the deleted last row")
     for idx in op.get("deleteRows", []):
         rows[idx - 1].getparent().remove(rows[idx - 1])
     log.append(f"row loop in table {op['table']} row {op['row']}: {' | '.join(texts)}")
@@ -982,7 +1061,10 @@ def op_drop_grid_col(doc: Docx, op, log):
     gc = grid.findall(w("gridCol"))
     width = twips(gc[col].get(w("w")))
     for tr in tbl.findall(w("tr")):
-        tc = cell_at_grid(tr, col)
+        try:
+            tc = cell_at_grid(tr, col)
+        except IndexError:
+            continue  # the row stops before this column
         pr = tc.find(w("tcPr"))
         span_el = pr.find(w("gridSpan")) if pr is not None else None
         if span_el is None or int(span_el.get(w("val"))) == 1:
@@ -1066,6 +1148,8 @@ OPS = {
     "unwrap_hyperlinks": op_unwrap_hyperlinks,
     "page_break_before": op_page_break_before,
     "unfloat_table": op_unfloat_table,
+    "columns_line": op_columns_line,
+    "table_float_y": op_table_float_y,
     "image_placeholder": op_image_placeholder,
     "remove_drawings": op_remove_drawings,
     "tab_signature": op_tab_signature,
@@ -1188,8 +1272,7 @@ def build_member(member: dict, cfg: dict, global_rules: list, roles: dict, work:
             log.append(f"pgMar {k} {mar.get(w(k))} → {v} (override)")
             mar.set(w(k), str(v))
     if sections and not member.get("noTableScale"):
-        page_w, left, right = sections[-1]
-        scale_tables(doc, page_w, left, right, log)
+        scale_tables(doc, sections, log)
 
     doc.save(out)
     return {"out": member["out"], "log": log}

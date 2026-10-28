@@ -61,8 +61,12 @@ describe("derivedDossierVars — câmpuri calculate", () => {
     expect(v.total_suduri).toBe("4");
   });
 
-  it("fără listă de suduri → buclă goală, total gol", () => {
-    expect(derivedDossierVars({})).toMatchObject({ suduri: [], total_suduri: "" });
+  it("fără suduri → rânduri goale în tabele (se completează de mână), total gol", () => {
+    const v = derivedDossierVars({});
+    expect(v.total_suduri).toBe("");
+    const rows = v.suduri as Record<string, string>[];
+    expect(rows.length).toBe(4);
+    expect(rows.every((r) => r.cod === "" && r.nr_crt === "" && r.rezultat === "")).toBe(true);
   });
 });
 
@@ -207,6 +211,12 @@ describe("teamDocVars — echipa dosarului", () => {
       { nr_crt: "4", nume: "Mihaescu Florin", autorizatie: "568857" },
       { nr_crt: "5", nume: "Pop Ion", autorizatie: "" },
     ]);
+  });
+
+  it("fără sudori alocați, tabelele de sudori au rânduri goale (nu doar antetul)", () => {
+    const v = teamDocVars([member("rte", "Coman Gabriel")]);
+    expect(v.sudori_autorizatii).toEqual([1, 2, 3].map(() => ({ nr_crt: "", nume: "", autorizatie: "" })));
+    expect((v.project_sudori as unknown[]).length).toBe(1);
   });
 
   it("semnătura angajatului ajunge ca imagine", () => {
