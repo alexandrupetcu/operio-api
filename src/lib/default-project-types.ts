@@ -6,10 +6,10 @@ import type { Prisma, PrismaClient } from "@prisma/client";
  * trebuie să le aibă — nu doar cea din seed. Aceeași listă e în migrarea
  * `20261021090000_default_project_types` (firmele existente).
  */
+// Fără „Revizie Centrală”: reviziile se fac din Programări / Revizii, nu ca proiecte (scos 28.10.2026).
 export const DEFAULT_PROJECT_TYPES = [
   { code: "bransament", name: "Branșament Gaz", description: "Proiecte de branșament la rețeaua de gaze naturale" },
   { code: "conducta", name: "Extindere Conductă", description: "Proiecte de extindere a conductei de gaze" },
-  { code: "revizie_centrala", name: "Revizie Centrală", description: "Revizii periodice ale centralelor termice" },
   { code: "dosar_iscir", name: "Dosar ISCIR", description: "Dosare pentru inspecții ISCIR" },
 ] as const;
 

@@ -91,16 +91,6 @@ async function main() {
       },
     }),
     prisma.projectType.upsert({
-      where: { tenantId_code: { tenantId: tenant.id, code: "revizie_centrala" } },
-      update: {},
-      create: {
-        tenantId: tenant.id,
-        code: "revizie_centrala",
-        name: "Revizie Centrală",
-        description: "Revizii periodice ale centralelor termice",
-      },
-    }),
-    prisma.projectType.upsert({
       where: { tenantId_code: { tenantId: tenant.id, code: "dosar_iscir" } },
       update: {},
       create: {
@@ -112,7 +102,7 @@ async function main() {
     }),
   ]);
 
-  const [bransament, conducta, revizieCentrala, dosarIscir] = projectTypes;
+  const [bransament, conducta, dosarIscir] = projectTypes;
 
   // Create distributors
   const distributors = await Promise.all([
@@ -350,31 +340,6 @@ async function main() {
     createdById: admin.id,
     steps: bransamentSteps, // Same steps as bransament
     transitions: bransamentTransitions,
-  });
-
-  // ── Revizie Centrală Workflow ──────────────────────────────────────────
-  await createWorkflowDefinition({
-    tenantId: tenant.id,
-    projectTypeId: revizieCentrala.id,
-    code: "revizie_centrala_standard",
-    name: "Revizie Centrală Standard",
-    description: "Flux standard pentru revizii de centrală termică",
-    createdById: admin.id,
-    steps: [
-      { code: "programare", name: "Programare revizie", stepType: "human_task", orderIndex: 0, isStart: true, configJson: { estimatedDays: 0 } },
-      { code: "inspectie", name: "Deplasare și inspecție", stepType: "human_task", orderIndex: 1, configJson: { estimatedDays: 1 } },
-      { code: "raport", name: "Completare raport revizie", stepType: "document_generation", orderIndex: 2, configJson: { estimatedDays: 3 } },
-      { code: "predare", name: "Predare documente client", stepType: "human_task", orderIndex: 3, configJson: { estimatedDays: 2 } },
-      { code: "finalizat", name: "Finalizat", stepType: "final", orderIndex: 4, isTerminal: true },
-      { code: "followup", name: "Follow-up peste 2 ani", stepType: "timer_wait", orderIndex: 5, isTerminal: true, configJson: { duration: { years: 2 }, action: "create_followup" } },
-    ],
-    transitions: [
-      { fromStepCode: "programare", toStepCode: "inspectie", transitionType: "default" },
-      { fromStepCode: "inspectie", toStepCode: "raport", transitionType: "default" },
-      { fromStepCode: "raport", toStepCode: "predare", transitionType: "default" },
-      { fromStepCode: "predare", toStepCode: "finalizat", transitionType: "default" },
-      { fromStepCode: "finalizat", toStepCode: "followup", transitionType: "default" },
-    ],
   });
 
   // ── Dosar ISCIR Workflow ───────────────────────────────────────────────

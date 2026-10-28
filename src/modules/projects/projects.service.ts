@@ -289,10 +289,7 @@ export async function create(
     if (!emp) throw fastify.httpErrors.notFound("Employee not found");
   }
 
-  const initialStatus =
-    input.scheduledDate && projectType.code === "revizie_centrala"
-      ? "scheduled"
-      : "draft";
+  const initialStatus = "draft";
 
   const project = await fastify.prisma.project.create({
     data: {
@@ -442,10 +439,7 @@ export async function createWithClient(
       if (!emp) throw fastify.httpErrors.notFound("Employee not found");
     }
 
-    const initialStatus =
-      input.scheduling?.scheduledDate && projectType.code === "revizie_centrala"
-        ? "scheduled"
-        : "draft";
+    const initialStatus = "draft";
 
     const created = await tx.project.create({
       data: {

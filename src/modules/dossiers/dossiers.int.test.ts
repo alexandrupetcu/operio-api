@@ -177,7 +177,7 @@ describe("dosare — creare cu client nou", () => {
     }));
     expect(d.clientName).toBe("X Y");
     const types = await prisma.projectType.findMany({ where: { tenantId: f.a.id }, select: { code: true } });
-    expect(types.map((t) => t.code).sort()).toEqual(["bransament", "conducta", "dosar_iscir", "revizie_centrala"]);
+    expect(types.map((t) => t.code).sort()).toEqual(["bransament", "conducta", "dosar_iscir"]);
   });
 
   it("ensureDefaultProjectTypes nu dublează și nu atinge tipurile existente", async () => {
@@ -185,7 +185,7 @@ describe("dosare — creare cu client nou", () => {
     await ensureDefaultProjectTypes(prisma, f.a.id);
     await ensureDefaultProjectTypes(prisma, f.a.id);
     const types = await prisma.projectType.findMany({ where: { tenantId: f.a.id } });
-    expect(types).toHaveLength(4);
+    expect(types).toHaveLength(3);
     expect(types.find((t) => t.code === "bransament")!.name).toBe("Numele firmei");
   });
 });

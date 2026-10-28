@@ -2,7 +2,6 @@
 // These define the valid status progressions for each project type
 
 const WORKFLOWS: Record<string, string[]> = {
-  revizie_centrala: ["draft", "scheduled", "in_progress", "completed"],
   bransament: [
     "draft",
     "in_progress",
