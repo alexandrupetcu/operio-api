@@ -1041,42 +1041,42 @@
      "table": 3,
      "row": 4,
      "cell": 4,
-     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+     "text": " Extindere conducta stradala Dn {dn_etapa} mm, L={lungime_etapa} ml "
     },
     {
      "op": "set_cell",
      "table": 3,
      "row": 5,
      "cell": 4,
-     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+     "text": " Extindere conducta stradala Dn {dn_etapa} mm, L={lungime_etapa} ml "
     },
     {
      "op": "set_cell",
      "table": 3,
      "row": 6,
      "cell": 4,
-     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+     "text": " Extindere conducta stradala Dn {dn_etapa} mm, L={lungime_etapa} ml "
     },
     {
      "op": "set_cell",
      "table": 3,
      "row": 7,
      "cell": 4,
-     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+     "text": " Extindere conducta stradala Dn {dn_etapa} mm, L={lungime_etapa} ml "
     },
     {
      "op": "set_cell",
      "table": 3,
      "row": 8,
      "cell": 4,
-     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+     "text": " Extindere conducta stradala Dn {dn_etapa} mm, L={lungime_etapa} ml "
     },
     {
      "op": "set_cell",
      "table": 3,
      "row": 9,
      "cell": 4,
-     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+     "text": " Extindere conducta stradala Dn {dn_etapa} mm, L={lungime_etapa} ml "
     }
    ],
    "rules": [
