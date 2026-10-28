@@ -418,10 +418,9 @@
      "text": "   2.{nr_crt}. Subtraversare {descriere}      TP {material}   L={lungime}m, Dn{dn}mm               sapatura la cota: H= {adancime}"
     },
     {
-     "op": "paragraph_loop",
-     "match": "Ţeavă......................................Dn63mm",
-     "tag": "lungimi_dn",
-     "text": "Ţeavă......................................Dn{dn}mm............................................................ {lungime}m...."
+     "op": "delete_paragraph",
+     "text": "Ţeavă......................................Dn63mm",
+     "whole": false
     }
    ],
    "rules": [
@@ -1050,9 +1049,409 @@
      "find": "^cana(?=Nu s-au)",
      "replace": "",
      "regex": true
+    },
+    {
+     "find": "(?<=Cod Client:    \\{client_name\\})…+\\.?",
+     "replace": " / {client_cod}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Nr\\. Comanda PM:) *$",
+     "replace": " {comanda_pm_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Valoarea lucrarilor receptionate:)…+",
+     "replace": " {valoare_lucrari} lei",
+     "regex": true
+    },
+    {
+     "find": "(?<=Nr\\. MF existent:)…+\\.?",
+     "replace": " {nr_mf_existent}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Astăzi, )…+(?=, comisia)",
+     "replace": "{data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "(?<=încheiat astazi, )…+\\.*(?=în 3 exemplare)",
+     "replace": "{data_pv_rt} ",
+     "regex": true
+    },
+    {
+     "find": "(?<=Încheiat astăzi, )ziua \\.+ luna \\.+, anul \\.+,",
+     "replace": "{data_pif},",
+     "regex": true
+    },
+    {
+     "find": "(?<=delegat al operatorului de distribu.ie )\\.+",
+     "replace": "{osd_delegat_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=\\.\\.)EGD(?=\\.\\.)",
+     "replace": "{instalator_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=recepţionata cu PVRTL )nr\\.+ +din ziua \\.+ luna \\.+ anul \\.+",
+     "replace": "nr. {pv_rt_br_nr} din {data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "(?<=pusa in funcţiune la data de:) +ziua [….]+ luna [….]+ anul [….]+",
+     "replace": " {data_pif}",
+     "regex": true
+    },
+    {
+     "find": "(?<=-   diametru )[.…]+",
+     "replace": "{tub_protectie_diametru}",
+     "regex": true
+    },
+    {
+     "find": "(?<=material)[.…]+$",
+     "replace": "… {tub_protectie_material}",
+     "regex": true
+    },
+    {
+     "find": "(?<=fara capac GN,buc)[.…]+",
+     "replace": "….…{rasuflatori_fara_capace}",
+     "regex": true
+    },
+    {
+     "find": "tip…+sferic…+\\.* diametru [.…]+ buc [.…]+",
+     "replace": "tip… {robinet_tip}… diametru… {robinet_diametru}… buc… {robinet_bucati}",
+     "regex": true
+    },
+    {
+     "find": "(?<=receptie calitativa nr\\. )1 / 2019",
+     "replace": "{pv_receptie_calitativa_nr} / {pv_receptie_calitativa_data}",
+     "regex": true
+    },
+    {
+     "find": "(?<=: )[….]+(?=ºC)",
+     "replace": "{proba_rezistenta_temperatura} ",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=: )[….]+(?=ºC)",
+     "replace": "{proba_rezistenta_temperatura} ",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=: )[….]+(?=ºC)",
+     "replace": "{proba_etanseitate_temperatura} ",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=: )[….]+(?=ºC)",
+     "replace": "{proba_etanseitate_temperatura} ",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Desen montaj nr\\. )dosar preliminar  pozitie montaj PE",
+     "replace": "{nr_schema_izometrica}",
+     "regex": true
+    },
+    {
+     "find": "(?<=până la data de )[….]+",
+     "replace": "{data_receptie_terminare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=încheiat astăzi )[….]+",
+     "replace": "{data_receptie_terminare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=investitiei” )Extindere conducta",
+     "replace": "{lucrare_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=… )nu s-au constatat",
+     "replace": "{abateri_constatate}{^abateri_constatate}nu s-au constatat{/abateri_constatate}",
+     "regex": true
+    },
+    {
+     "find": "(?<=la minim ) ml\\.(?= fata)",
+     "replace": "{distanta_limita}",
+     "regex": true
+    },
+    {
+     "find": "(?<=sapatura la cota – )1,40(?= m)",
+     "replace": "{sapatura_adancime}",
+     "regex": true
+    },
+    {
+     "find": "60 cm \\( 30 cm stanga – dreapta axului trasat\\)",
+     "replace": "{sapatura_latime} m (stanga – dreapta axului trasat)",
+     "regex": true
+    },
+    {
+     "find": "(?<=adancime de )1,40(?=m pentru)",
+     "replace": "{sapatura_adancime}",
+     "regex": true
+    },
+    {
+     "find": "(?<=prin procedeul )cap la cap/electrofuziune",
+     "replace": "{procedeu_sudura}",
+     "regex": true
+    },
+    {
+     "find": "(?<=de )presiune redusa/medie",
+     "replace": "{bransament_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=\\{instalator_legitimatie\\} )EGD",
+     "replace": "{instalator_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=autorizat )EGD(?= - )",
+     "replace": "{instalator_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=autorizat )PGD",
+     "replace": "{proiectant_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Aut\\. )PGD(?= NR\\.)",
+     "replace": "{proiectant_tip}",
+     "regex": true
     }
    ],
    "ops": [
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 2,
+     "cell": 2,
+     "text": "{instalator_nume}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 2,
+     "cell": 3,
+     "text": "{instalator_tip} {instalator_legitimatie}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 3,
+     "cell": 2,
+     "text": "{rte_nume}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 3,
+     "cell": 3,
+     "text": "{rte_atestat}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 4,
+     "cell": 2,
+     "text": "{sudor_pe_nume}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 4,
+     "cell": 3,
+     "text": "{sudor_pe_autorizatii}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 6,
+     "cell": 2,
+     "text": "{proiectant_nume}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 6,
+     "cell": 3,
+     "text": "{proiectant_tip} {proiectant_legitimatie}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 9,
+     "cell": 2,
+     "text": "{diriginte_nume}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 9,
+     "cell": 3,
+     "text": "{diriginte_legitimatie}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 7,
+     "row": 10,
+     "cell": 2,
+     "text": "{osd_delegat_nume}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 19,
+     "row": 2,
+     "cell": 1,
+     "text": "{nr_comunicare_incepere}"
+    },
+    {
+     "op": "set_cell",
+     "table": 19,
+     "row": 2,
+     "cell": 2,
+     "text": "{nr_program_control}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 19,
+     "row": 2,
+     "cell": 3,
+     "text": "{nr_convocare_faza}",
+     "formatFrom": [
+      2,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 28,
+     "row": 1,
+     "cell": 2,
+     "text": "{instalator_nume}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 28,
+     "row": 1,
+     "cell": 3,
+     "text": "{instalator_legitimatie}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 28,
+     "row": 2,
+     "cell": 3,
+     "text": "{sudor_pe_autorizatii}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 28,
+     "row": 4,
+     "cell": 3,
+     "text": "{diriginte_legitimatie}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 28,
+     "row": 4,
+     "cell": 2,
+     "text": "{diriginte_nume}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "Dopuri....",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "Coturi....",
+     "whole": false
+    },
+    {
+     "op": "paragraph_loop",
+     "match": "Mufe.....",
+     "tag": "materiale_conducta",
+     "text": "{denumire}............ {diametru}............ {furnizor}............ {cantitate}"
+    },
     {
      "op": "page_break_before",
      "targets": [
