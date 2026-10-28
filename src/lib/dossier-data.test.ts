@@ -235,3 +235,115 @@ describe("durata probelor ca text", () => {
     expect(derivedDossierVars({}).proba_rezistenta_durata_text).toBeUndefined();
   });
 });
+
+describe("derivedDossierVars — conductă (tronsoane, probă de casă)", () => {
+  const tronsoane = "Mihăilești | Str. Unirii | nr. 25C | conducta existentă | 63 | PE100 SDR11 | 60.30 | 24.06.2026\nMihăilești | Str. Florilor | nr. 2 | nr. 30 | 63 | PE100 SDR11 | 18.50 | 10.09.2026\nMihăilești | Str. Morii | | | 90 | PE100 SDR11 | 12 | 10.09.2026";
+
+  it("lungimea totală și lungimile pe diametre, din tronsoane", () => {
+    const v = derivedDossierVars({ tronsoane });
+    expect(v.conducta_lungime_totala).toBe("90.80");
+    expect(v.lungimi_dn).toEqual([
+      { dn: "63", lungime: "78.80" },
+      { dn: "90", lungime: "12" },
+    ]);
+    expect(v.lungime_dn_63).toBe("78.80");
+    expect(v.lungime_dn_90).toBe("12");
+    expect(v.lungime_dn_32).toBe("");
+    expect(v.conducta_dn_lungimi_text).toBe("Dn 63 mm = 78.80 m, Dn 90 mm = 12 m");
+  });
+
+  it("materialele conductei au lista lor implicită (nu cea de branșament)", () => {
+    const rows = derivedDossierVars({}).materiale_conducta as Record<string, string>[];
+    expect(rows.map((r) => r.denumire)).toContain("Material tubular PE");
+    expect(rows.map((r) => r.denumire)).not.toContain("Capăt branșament PE-OL");
+  });
+
+  it("diametrele conductei, toate („Dn 63/90 mm”), nu doar Dn-ul lucrării", () => {
+    expect(derivedDossierVars({ tronsoane, project_dn: "63" }).conducta_dn_text).toBe("63/90");
+    expect(derivedDossierVars({ project_dn: "63", project_length: "40" }).conducta_dn_text).toBe("63");
+  });
+
+  it("fiecare tronson are lungimea în coloana diametrului lui (anexa cu coloane Ø90 / Ø63 / Ø32)", () => {
+    const rows = derivedDossierVars({ tronsoane }).tronsoane as Record<string, string>[];
+    expect(rows[0]).toMatchObject({ nr_crt: "1", strada: "Str. Unirii", ldn_63: "60.30", ldn_90: "", ldn_32: "" });
+    expect(rows[2]).toMatchObject({ nr_crt: "3", ldn_90: "12", ldn_63: "" });
+  });
+
+  it("fără tronsoane, un singur tronson din datele lucrării (dosarele vechi)", () => {
+    const v = derivedDossierVars({ project_city: "Jilava", lucrare_strada: "Teilor", project_dn: "63", project_material: "PE 100", project_length: "40" });
+    expect(v.tronsoane).toEqual([expect.objectContaining({ nr_crt: "1", comuna: "Jilava", strada: "Teilor", dn: "63", lungime: "40", ldn_63: "40" })]);
+    expect(v.conducta_lungime_totala).toBe("40");
+  });
+
+  it("documentele materialelor, câte un rând (o listă cu liniuță pe document)", () => {
+    expect(derivedDossierVars({ documente_materiale: "FACTURA Nr. 1;\n\nCC Nr. 2;\nDC Nr. 3" }).documente_materiale_linii).toEqual([
+      { text: "FACTURA Nr. 1;" },
+      { text: "CC Nr. 2;" },
+      { text: "DC Nr. 3" },
+    ]);
+  });
+
+  it("rezumatul tronsoanelor pentru registrul PV-urilor și proba de casă", () => {
+    expect(derivedDossierVars({ tronsoane }).tronsoane_text).toBe(
+      "Tronson Dn 63 mm, L=60.30 ml, între Str. Unirii nr. 25C și conducta existentă; Tronson Dn 63 mm, L=18.50 ml, între Str. Florilor nr. 2 și nr. 30; Tronson Dn 90 mm, L=12 ml, Str. Morii",
+    );
+  });
+
+  it("proba de casă ia presiunea și durata probei de rezistență, dacă nu e completată", () => {
+    expect(derivedDossierVars({ proba_rezistenta_presiune: "4", proba_rezistenta_timp: "60" })).toMatchObject({
+      proba_casa_presiune: "4",
+      proba_casa_durata_text: "1 oră",
+    });
+    expect(derivedDossierVars({ proba_rezistenta_presiune: "4", proba_casa_presiune: "6", proba_casa_timp: "30" })).toMatchObject({
+      proba_casa_durata_text: "30 min",
+    });
+    expect(derivedDossierVars({ proba_rezistenta_presiune: "4", proba_casa_presiune: "6" }).proba_casa_presiune).toBeUndefined();
+  });
+});
+
+describe("derivedDossierVars — conductă Distrigaz", () => {
+  it("tipul lucrării implicit, cele două coloane de tronson ale fișei tehnice, codurile sudurilor", () => {
+    const v = derivedDossierVars({
+      tronsoane: "Jilava | Teilor | | | 63 | PE100 SDR11 | 40 |",
+      suduri_tabel: "S72 | Matei Florin | 1 | SRM | 1\nS78 | Matei Florin | 1 | SRM | 1",
+    });
+    expect(v.lucrare_tip).toBe("Extindere conductă");
+    expect(v).toMatchObject({ dn_1: "63", lungime_1: "40", dn_2: "-", lungime_2: "-" });
+    expect(v.suduri_coduri_text).toBe("S72, S78");
+    expect(derivedDossierVars({ lucrare_tip: "Deviere conductă" }).lucrare_tip).toBeUndefined();
+  });
+});
+
+describe("derivedDossierVars — MegaConstruct conductă (etape, Anexa 25)", () => {
+  const tronsoane = "Balotești | Lacul Vlasia | nr. 31B | | 63 | PE100 SDR11 | 60 | 24.06.2026\nBalotești | Lacul Vlasia | | conducta existentă | 63 | PE100 SDR11 | 7 | 10.09.2026\nBalotești | Lacul Vlasia | | | 2\" | OL | 3 | 10.09.2026";
+
+  it("etapele: o etapă pe dată de execuție, cu sufixul -n doar când sunt mai multe", () => {
+    const v = derivedDossierVars({ tronsoane, pv_trasare_data: "01.06.2026" });
+    const etape = v.etape as Record<string, string>[];
+    expect(etape).toHaveLength(2);
+    expect(etape[0]).toMatchObject({ nr_etapa: "1", sufix: "-1", data: "24.06.2026", lungime_etapa: "60", pv_trasare_data: "24.06.2026" });
+    expect(etape[1]).toMatchObject({ sufix: "-2", lungime_etapa: "10" });
+    const one = derivedDossierVars({ tronsoane: "X | Y | | | 63 | PE | 40 |", pv_trasare_data: "01.06.2026" }).etape as Record<string, string>[];
+    expect(one).toEqual([expect.objectContaining({ sufix: "", lungime_etapa: "40", pv_trasare_data: "01.06.2026" })]);
+  });
+
+  it("lungimile PE / OL pe diametre și totaluri", () => {
+    const v = derivedDossierVars({ tronsoane });
+    expect(v.lungime_dn_63).toBe("67");
+    expect(v.lungime_dn_ol_2).toBe("3");
+    expect(v.lungime_total_pe).toBe("67");
+    expect(v.lungime_total_ol).toBe("3");
+  });
+
+  it("fitingurile pe tip (două rânduri pe tip la PE), materialele OL și terasamentele", () => {
+    const v = derivedDossierVars({
+      fitinguri_pe: "Mufă EF | 63 | 2\nMufă EF | 32 | 1\nȘa branșament | 75-63 | 1",
+      fitinguri_ol: "Fir trasor | | 69",
+      terasamente: "Săpătură șanț conductă | 67 | 0.6 | 7 | | | | 60",
+    });
+    expect(v).toMatchObject({ fpe_mufa_ef_1_dn: "63", fpe_mufa_ef_1_buc: "2", fpe_mufa_ef_2_dn: "32", fpe_sa_bransament_1_dn: "75-63", fpe_cot_injectat_1_dn: "" });
+    expect(v).toMatchObject({ fol_fir_trasor_q: "69", fol_vana_ol_dn: "" });
+    const ter = v.terasamente as Record<string, string>[];
+    expect(ter[0]).toMatchObject({ operatiune: "Săpătură șanț conductă", lungime: "67", spatiu_verde: "7", asfalt_carosabil: "60" });
+  });
+});

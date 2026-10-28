@@ -56,6 +56,7 @@ const DOCX_IMAGE_OPTS: ImageRenderOptions = {
     tenant_logo: [155, 80],        // ~4.1 × 2.1 cm — letterhead default; matches the
                                    // pre-existing header logo size in carte-bransament templates.
     project_drawing: [560, 360],
+    project_drawing_mic: [520, 280], // aceeași schiță, mai joasă — schița conductei Distrigaz (schiță + tabel pe o pagină)
     ...roleSignatureSizes,
   },
   defaultSize: [570, 380],
@@ -1327,6 +1328,7 @@ async function processJob(job: Job<DocumentJobData>) {
       // Pass project drawing as image reference for DOCX rendering
       if (project.drawingS3Key) {
         data.project_drawing = { s3Key: project.drawingS3Key, mimetype: "image/png" };
+        data.project_drawing_mic = data.project_drawing;
       }
 
       // Professional credentials come from the assigned EMPLOYEE (Employees page);

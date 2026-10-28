@@ -509,6 +509,10 @@ def fix_page(doc: Docx, log: list[str]) -> list[int]:
             # the header whatever the top margin says — keep the client's value.
             if key == "top" and has_header and header_dist >= MIN_MARGIN and v >= 0:
                 continue
+            # Same at the bottom: a footer (ISO block, form code) holds that band — the body may
+            # end where the client had it.
+            if key == "bottom" and sp.find(w("footerReference")) is not None and v >= 0:
+                continue
             if abs(v) < MIN_MARGIN:
                 mar.set(w(key), str(MIN_MARGIN if v >= 0 else -MIN_MARGIN))
         # header/footer distances are left as the client set them: the Distrigaz letterhead
@@ -520,10 +524,26 @@ def fix_page(doc: Docx, log: list[str]) -> list[int]:
 
 
 def table_width(tbl) -> int:
+    """The width Word lays out: the grid, unless the cells' own widths (tcW) are clearly
+    narrower — some converted forms carry a bogus grid column (a 45 cm table that Word
+    still draws within the page from its tcW)."""
     grid = tbl.find(w("tblGrid"))
     if grid is None:
         return 0
-    return sum(twips(g.get(w("w"), 0)) for g in grid.findall(w("gridCol")))
+    grid_w = sum(twips(g.get(w("w"), 0)) for g in grid.findall(w("gridCol")))
+    rows = []
+    for tr in tbl.findall(w("tr")):
+        ws = []
+        for tc in tr.findall(w("tc")):
+            tcw = tc.find(f"{w('tcPr')}/{w('tcW')}")
+            if tcw is None or tcw.get(w("type"), "dxa") != "dxa":
+                ws = None
+                break
+            ws.append(twips(tcw.get(w("w"), 0)))
+        if ws:
+            rows.append(sum(ws))
+    cell_w = max(rows) if rows else 0
+    return cell_w if cell_w and cell_w < grid_w * 0.8 else grid_w
 
 
 def scale_tables(doc: Docx, sections: list, log: list[str]) -> None:
@@ -662,6 +682,177 @@ def find_para(doc: Docx, text: str, part="word/document.xml", whole=True, nth=1)
     raise KeyError(f"paragraph not found: {text!r} in {part}")
 
 
+def body_sibling(doc: Docx, p, offset: int = 0):
+    """The top-level body element holding `p`, moved `offset` body elements forward/back."""
+    body = doc.part("word/document.xml").find(w("body"))
+    el = p
+    while el.getparent() is not body:
+        el = el.getparent()
+    kids = list(body)
+    i = kids.index(el) + offset
+    if not 0 <= i < len(kids):
+        raise KeyError(f"body offset {offset} out of range")
+    return kids[i]
+
+
+def op_delete_range(doc: Docx, op, log):
+    """Delete a stretch of body elements: from the one holding paragraph `from` (+`fromOffset`) up to,
+    not including, the one holding paragraph `until` (+`untilOffset`). Used to drop the second copy of
+    a form the sample filled twice (MegaConstruct: PVs per execution stage → kept once, in a loop)."""
+    first = body_sibling(doc, find_para(doc, op["from"], whole=op.get("whole", False), nth=op.get("from_nth", 1)),
+                         op.get("fromOffset", 0))
+    stop = body_sibling(doc, find_para(doc, op["until"], whole=op.get("whole", False), nth=op.get("until_nth", 1)),
+                        op.get("untilOffset", 0))
+    body = first.getparent()
+    kids = list(body)
+    i, j = kids.index(first), kids.index(stop)
+    assert j > i, "delete_range: `until` is not after `from`"
+    for el in kids[i:j]:
+        body.remove(el)
+    log.append(f"deleted {j - i} body elements {op['from']!r}{op.get('fromOffset', 0):+d} … {op['until']!r}")
+
+
+def op_vml_fallback(doc: Docx, op, log):
+    """Shapes (lines, connectors) stored as mc:AlternateContent → keep only their VML fallback. A shape
+    inside a loop is copied with its wp:docPr id, and Word refuses a file with duplicate docPr ids;
+    VML shapes carry no docPr and Word draws them the same."""
+    root = doc.part(op.get("part", "word/document.xml"))
+    n = 0
+    for ac in list(root.iter(f"{{{MC_NS}}}AlternateContent")):
+        fb = ac.find(f"{{{MC_NS}}}Fallback")
+        if fb is None or not len(fb) or ac.getparent() is None:
+            continue
+        parent = ac.getparent()
+        i = parent.index(ac)
+        for k in list(fb):
+            parent.insert(i, k)
+            i += 1
+        parent.remove(ac)
+        n += 1
+    log.append(f"{n} shapes reduced to their VML fallback")
+
+
+def _num_label(n: int, fmt: str) -> str:
+    if fmt in ("upperLetter", "lowerLetter"):
+        s = ""
+        while n > 0:
+            n, r = divmod(n - 1, 26)
+            s = chr(65 + r) + s
+        return s if fmt == "upperLetter" else s.lower()
+    if fmt in ("upperRoman", "lowerRoman"):
+        vals = [(1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
+                (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")]
+        s = ""
+        for v, sym in vals:
+            while n >= v:
+                s, n = s + sym, n - v
+        return s if fmt == "upperRoman" else s.lower()
+    return str(n)
+
+
+def op_numbering_to_text(doc: Docx, op, log):
+    """Automatic list numbers inside the `{#tag}…{/tag}` body loops → literal text („A.” + tab, with the
+    level's indents). docxtemplater copies the paragraphs with the same w:numId, so Word would keep
+    counting into the second copy (D, E, F instead of A, B, C); each copy now prints its own labels."""
+    body = doc.part("word/document.xml").find(w("body"))
+    nroot = doc.part("word/numbering.xml")
+    nums = {n.get(w("numId")): n for n in nroot.findall(w("num"))}
+    absn = {a.get(w("abstractNumId")): a for a in nroot.findall(w("abstractNum"))}
+
+    def lvl_of(num_id, ilvl):
+        n = nums[num_id]
+        start = None
+        for ov in n.findall(w("lvlOverride")):
+            if ov.get(w("ilvl")) == str(ilvl):
+                if ov.find(w("lvl")) is not None:
+                    return ov.find(w("lvl")), None
+                so = ov.find(w("startOverride"))
+                start = int(so.get(w("val"))) if so is not None else None
+        a = absn[n.find(w("abstractNumId")).get(w("val"))]
+        return next(l for l in a.findall(w("lvl")) if l.get(w("ilvl")) == str(ilvl)), start
+
+    def val(el, tag, default=None):
+        x = el.find(w(tag)) if el is not None else None
+        return x.get(w("val")) if x is not None else default
+
+    tag, inside, n_conv = op.get("tag", "etape"), False, 0
+    counters: dict = {}
+    for el in body:
+        t = "".join(x.text or "" for x in el.iter(w("t"))).strip()
+        if t == "{#" + tag + "}":
+            inside, counters = True, {}
+            continue
+        if t == "{/" + tag + "}":
+            inside = False
+            continue
+        if not inside:
+            continue
+        for p in ([el] if el.tag == w("p") else list(el.iter(w("p")))):
+            ppr = p.find(w("pPr"))
+            np_ = ppr.find(w("numPr")) if ppr is not None else None
+            if np_ is None or val(np_, "numId", "0") == "0":
+                continue
+            num_id, ilvl = val(np_, "numId"), int(val(np_, "ilvl", "0"))
+            lvl, start_ov = lvl_of(num_id, ilvl)
+            c = counters.setdefault(num_id, {})
+            for k in [k for k in c if k > ilvl]:
+                del c[k]
+
+            def start_of(level):
+                l, so = lvl_of(num_id, level)
+                return so if so is not None else int(val(l, "start", "1"))
+
+            c[ilvl] = c.get(ilvl, start_of(ilvl) - 1) + 1
+            fmt, text = val(lvl, "numFmt", "decimal"), val(lvl, "lvlText", "")
+            if fmt != "bullet":
+                for k in range(ilvl + 1):
+                    lk, _ = lvl_of(num_id, k)
+                    text = text.replace(f"%{k + 1}", _num_label(c.get(k, start_of(k)), val(lk, "numFmt", "decimal")))
+            # the label run: formatting of the paragraph's first run, font of the numbering level
+            first = next((r for r in p.iter(w("r")) if r.find(w("t")) is not None), None)
+            run = etree.Element(w("r"))
+            rpr = copy.deepcopy(first.find(w("rPr"))) if first is not None and first.find(w("rPr")) is not None else None
+            lrpr = lvl.find(w("rPr"))
+            if lrpr is not None and lrpr.find(w("rFonts")) is not None:
+                if rpr is None:
+                    rpr = etree.Element(w("rPr"))
+                for old in rpr.findall(w("rFonts")):
+                    rpr.remove(old)
+                rpr.insert(0, copy.deepcopy(lrpr.find(w("rFonts"))))
+            if rpr is not None:
+                run.append(rpr)
+            tt = etree.SubElement(run, w("t"))
+            set_t(tt, text + (" " if val(lvl, "suff", "tab") == "space" else ""))
+            if val(lvl, "suff", "tab") == "tab":
+                etree.SubElement(run, w("tab"))
+            first_run = next((k for k in p if k.tag in (w("r"), w("hyperlink"), w("smartTag"), w("ins"))), None)
+            (first_run.addprevious if first_run is not None else p.append)(run)
+            # indents / tab stops of the level, the paragraph's own values win
+            lppr = lvl.find(w("pPr"))
+            lind = lppr.find(w("ind")) if lppr is not None else None
+            if lind is not None:
+                ind = child_in_order(ppr, "ind", PPR_ORDER)
+                own = dict(ind.attrib)
+                for k in list(ind.attrib):
+                    del ind.attrib[k]
+                merged = dict(lind.attrib)
+                if w("firstLine") in own:
+                    merged.pop(w("hanging"), None)
+                if w("hanging") in own:
+                    merged.pop(w("firstLine"), None)
+                merged.update(own)
+                for k, v in merged.items():
+                    ind.set(k, v)
+            ltabs = lppr.find(w("tabs")) if lppr is not None else None
+            if ltabs is not None and ppr.find(w("tabs")) is None:
+                child_in_order(ppr, "tabs", PPR_ORDER).extend(copy.deepcopy(list(ltabs)))
+            for k in list(np_):
+                np_.remove(k)
+            etree.SubElement(np_, w("numId")).set(w("val"), "0")  # 0 = no numbering, even from the style
+            n_conv += 1
+    log.append(f"{n_conv} numbered paragraphs inside {{#{tag}}} loops → literal labels")
+
+
 def op_collapse(doc: Docx, op, log):
     """Keep the first paragraph (its first run's formatting), set its text, delete up to `last`."""
     first = find_para(doc, op["first"], whole=op.get("whole", True))
@@ -717,6 +908,9 @@ def op_page_break_before(doc: Docx, op, log):
             log.append(f"page break before table {t['table']}")
         else:
             p = find_para(doc, t["match"], whole=t.get("whole", True), nth=t.get("nth", 1))
+            if t.get("offset"):  # a sibling of the matched body element (e.g. the title above a „Nr. …” line)
+                p = body_sibling(doc, p, t["offset"])
+                assert p.tag == w("p"), f"page break target {t['match']!r}{t['offset']:+d} is not a paragraph"
             if p.getparent().tag == w("body"):
                 drop_spacers_before(p)
             ppr = p.find(w("pPr"))
@@ -902,6 +1096,51 @@ def op_row_borders(doc: Docx, op, log):
     log.append(f"uniform borders on table {op['table']} rows {op['rows']}")
 
 
+def op_paragraph_loop(doc: Docx, op, log):
+    """Repeat one paragraph per item of a list: its text becomes `text` (with the item's fields)
+    and it is wrapped by `{#tag}` / `{/tag}` paragraphs (docxtemplater paragraphLoop drops them)."""
+    p = find_para(doc, op["match"], whole=op.get("whole", False), nth=op.get("nth", 1))
+    if not op.get("keep"):  # keep: the paragraph stays as the client wrote it (tabs, runs); rules fill it
+        put_paragraph_text(p, op["text"])
+    for tag_text, where in ((f"{{#{op['tag']}}}", "before"), (f"{{/{op['tag']}}}", "after")):
+        q = etree.Element(w("p"))
+        if p.find(w("pPr")) is not None:
+            q.append(copy.deepcopy(p.find(w("pPr"))))
+        r = etree.SubElement(q, w("r"))
+        t = etree.SubElement(r, w("t"))
+        t.text = tag_text
+        (p.addprevious if where == "before" else p.addnext)(q)
+    log.append(f"paragraph loop {op['tag']}: {op.get('text', op['match'])!r}")
+
+
+def op_section_loop(doc: Docx, op, log):
+    """Repeat a whole stretch of the body (paragraphs, tables, page breaks) once per list item:
+    a `{#tag}` paragraph goes before the body element holding paragraph `from`, a `{/tag}` paragraph
+    after the one holding `to` (docxtemplater paragraphLoop drops both tag paragraphs). Used for the
+    PVs that repeat per execution stage (MegaConstruct: PV 2–6, 5a, lucrări ascunse)."""
+    body = doc.part("word/document.xml").find(w("body"))
+
+    def top(p):
+        while p.getparent() is not body:
+            p = p.getparent()
+        return p
+
+    first = top(find_para(doc, op["from"], whole=op.get("whole", False), nth=op.get("from_nth", 1)))
+    last = top(find_para(doc, op["to"], whole=op.get("whole", False), nth=op.get("to_nth", 1)))
+    # optional offsets in body elements (anchor on a unique „Nr. …” line, wrap from the title above it)
+    if op.get("fromOffset"):
+        first = body_sibling(doc, first, op["fromOffset"])
+    if op.get("toOffset"):
+        last = body_sibling(doc, last, op["toOffset"])
+    for tag_text, anchor, where in ((f"{{#{op['tag']}}}", first, "before"), (f"{{/{op['tag']}}}", last, "after")):
+        q = etree.Element(w("p"))
+        r = etree.SubElement(q, w("r"))
+        t = etree.SubElement(r, w("t"))
+        t.text = tag_text
+        (anchor.addprevious if where == "before" else anchor.addnext)(q)
+    log.append(f"section loop {op['tag']}: {op['from']!r} … {op['to']!r}")
+
+
 def op_table_float_y(doc: Docx, op, log):
     """Move a floating table down (tblpY, twips from its anchor) — e.g. to leave room above it for
     the generated sketch, which is larger than the client's picture."""
@@ -928,7 +1167,8 @@ def op_columns_line(doc: Docx, op, log):
             keep.remove(k)
     rpr = keep.find(w("rPr"))
     for i, text in enumerate(op["cells"]):
-        tab = etree.SubElement(keep, w("tab"))
+        if i or op.get("leadingTab", True):  # leadingTab false: the first cell starts at the margin
+            etree.SubElement(keep, w("tab"))
         t = etree.SubElement(keep, w("t"))
         t.text = text
         t.set(XML_SPACE, "preserve")
@@ -945,7 +1185,7 @@ def op_columns_line(doc: Docx, op, log):
     tabs = child_in_order(ppr, "tabs", PPR_ORDER)
     for pos in op["positions"]:
         t = etree.SubElement(tabs, w("tab"))
-        t.set(w("val"), "center")
+        t.set(w("val"), op.get("align", "center"))
         t.set(w("pos"), str(pos))
     log.append(f"columns line {op['cells']} on centered tabs {op['positions']}")
 
@@ -1051,6 +1291,21 @@ def op_set_cell(doc: Docx, op, log):
     put_paragraph_text(ps[0], op["text"])
     for p in ps[1:]:
         put_paragraph_text(p, "")
+    if op.get("formatFrom"):  # [row, cell] of the same table: its paragraph + run formatting (an empty
+        # cell of the client often carries a stray font — tiny, blue, bold — from some other text)
+        sr, sc = op["formatFrom"]
+        src_p = tbl.findall(w("tr"))[sr - 1].findall(w("tc"))[sc - 1].find(w("p"))
+        old = ps[0].find(w("pPr"))
+        if old is not None:
+            ps[0].remove(old)
+        if src_p.find(w("pPr")) is not None:
+            ps[0].insert(0, copy.deepcopy(src_p.find(w("pPr"))))
+        src_r = next((r.find(w("rPr")) for r in src_p.iter(w("r")) if r.find(w("t")) is not None), None)
+        for r in ps[0].findall(w("r")):
+            for k in r.findall(w("rPr")):
+                r.remove(k)
+            if src_r is not None:
+                r.insert(0, copy.deepcopy(src_r))
     log.append(f"cell t{op['table']} r{op['row']} c{op['cell']} ← {op['text']!r}")
 
 
@@ -1244,12 +1499,17 @@ def op_python(doc: Docx, op, log, member, ctx):
 OPS = {
     "collapse": op_collapse,
     "delete_paragraph": op_delete_paragraph,
+    "delete_range": op_delete_range,
+    "vml_fallback": op_vml_fallback,
+    "numbering_to_text": op_numbering_to_text,
     "unwrap_hyperlinks": op_unwrap_hyperlinks,
     "page_break_before": op_page_break_before,
     "unfloat_table": op_unfloat_table,
     "columns_line": op_columns_line,
     "table_float_y": op_table_float_y,
     "row_borders": op_row_borders,
+    "paragraph_loop": op_paragraph_loop,
+    "section_loop": op_section_loop,
     "image_placeholder": op_image_placeholder,
     "remove_drawings": op_remove_drawings,
     "tab_signature": op_tab_signature,

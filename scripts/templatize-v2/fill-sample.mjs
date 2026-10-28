@@ -18,7 +18,7 @@ const InspectModule = require("docxtemplater/js/inspect-module.js");
 const [dataPath, imgDir, ...pairs] = process.argv.slice(2);
 const data = JSON.parse(readFileSync(dataPath, "utf8"));
 // Sizes as in DOCX_IMAGE_OPTS of the worker.
-const SIZES = { tenant_logo: [155, 80], project_drawing: [560, 360], tenant_signature: [200, 90] };
+const SIZES = { tenant_logo: [155, 80], project_drawing: [560, 360], project_drawing_mic: [520, 280], tenant_signature: [200, 90] };
 const images = {};
 for (const k of Object.keys(SIZES)) {
   const p = join(imgDir, `${k}.png`);

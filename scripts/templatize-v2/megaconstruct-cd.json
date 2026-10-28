@@ -1,0 +1,3236 @@
+{
+ "distributor": "MEGACONSTRUCT — conductă",
+ "sourceDir": "documente/Conducta/Carte Coducta Megaconstruct",
+ "outDir": "documente/Conducta/Megaconstruct-v2",
+ "workDir": "documente/Conducta/Megaconstruct-v2/_src",
+ "roles": {},
+ "denyList": [
+  "GENERAL MIH",
+  "CENUSA",
+  "COMAN",
+  "ENE MARIANA",
+  "OPRESCU",
+  "VIRJAN",
+  "NICULESCU",
+  "IVAN FLORIN",
+  "PADURARU",
+  "LACUL VLASIA",
+  "Lacul Vlasia",
+  "BALOTESTI",
+  "Balotesti",
+  "31B",
+  "NC69296",
+  "414/2025",
+  "414/CND",
+  "22973",
+  "22974",
+  "133/26.05.2025",
+  "BL_6621",
+  "501201598",
+  "00026448",
+  "00002635",
+  "209200742",
+  "V140900130",
+  "569830",
+  "569831",
+  "73621",
+  "73622",
+  "ELEKTRA",
+  "4242",
+  "24/06/2025",
+  "10/09/2025",
+  "24.06.2025",
+  "10.09.2025",
+  "17.01.2025",
+  "25.05.2026",
+  "27.09.2023",
+  "25376182",
+  "25089896",
+  "906453",
+  "1 / 2019",
+  "riflat",
+  "TP-OL"
+ ],
+ "global": [],
+ "members": [
+  {
+   "id": "01",
+   "out": "1. Carte tehnica Conducta MegaConstruct.docx",
+   "src": "Antet (1).docx",
+   "preOps": [
+    {
+     "op": "vml_fallback"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 3,
+     "cell": 2,
+     "text": "{pv_predare_nr} / {pv_predare_data}",
+     "formatFrom": [
+      3,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 3,
+     "cell": 5,
+     "text": "{tronsoane_text}",
+     "formatFrom": [
+      3,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 10,
+     "cell": 2,
+     "text": "{pv_proba_casa_nr} / {pv_proba_casa_data}",
+     "formatFrom": [
+      10,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 10,
+     "cell": 5,
+     "text": "{tronsoane_text}",
+     "formatFrom": [
+      10,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 11,
+     "cell": 2,
+     "text": "{pv_rezistenta_nr} / {pv_rezistenta_data}",
+     "formatFrom": [
+      11,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 11,
+     "cell": 5,
+     "text": "{tronsoane_text}",
+     "formatFrom": [
+      11,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 12,
+     "cell": 2,
+     "text": "{pv_etanseitate_nr} / {pv_etanseitate_data}",
+     "formatFrom": [
+      12,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 12,
+     "cell": 5,
+     "text": "{tronsoane_text}",
+     "formatFrom": [
+      12,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 1,
+     "text": "{#etape}2"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 2,
+     "text": "{pv_trasare_nr}{sufix} / {pv_trasare_data}",
+     "formatFrom": [
+      4,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 5,
+     "text": "{tronsoane_etapa_text}",
+     "formatFrom": [
+      4,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 6,
+     "text": "{/etape}"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 5,
+     "cell": 1,
+     "text": "{#etape}3"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 5,
+     "cell": 2,
+     "text": "{pv_sapatura_nr}{sufix} / {pv_sapatura_data}",
+     "formatFrom": [
+      5,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 5,
+     "cell": 5,
+     "text": "{tronsoane_etapa_text}",
+     "formatFrom": [
+      5,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 5,
+     "cell": 6,
+     "text": "{/etape}"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 6,
+     "cell": 1,
+     "text": "{#etape}4"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 6,
+     "cell": 2,
+     "text": "{pv_asternere_nr}{sufix} / {pv_asternere_data}",
+     "formatFrom": [
+      6,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 6,
+     "cell": 5,
+     "text": "{tronsoane_etapa_text}",
+     "formatFrom": [
+      6,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 6,
+     "cell": 6,
+     "text": "{/etape}"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 7,
+     "cell": 1,
+     "text": "{#etape}5"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 7,
+     "cell": 2,
+     "text": "{pv_montare_nr}{sufix} / {pv_montare_data}",
+     "formatFrom": [
+      7,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 7,
+     "cell": 5,
+     "text": "{tronsoane_etapa_text}",
+     "formatFrom": [
+      7,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 7,
+     "cell": 6,
+     "text": "{/etape}"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 8,
+     "cell": 1,
+     "text": "{#etape}5a"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 8,
+     "cell": 2,
+     "text": "{pv_receptie_calitativa_nr}{sufix} / {pv_receptie_calitativa_data}",
+     "formatFrom": [
+      8,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 8,
+     "cell": 5,
+     "text": "{tronsoane_etapa_text}",
+     "formatFrom": [
+      8,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 8,
+     "cell": 6,
+     "text": "{/etape}"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 9,
+     "cell": 1,
+     "text": "{#etape}6"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 9,
+     "cell": 2,
+     "text": "{pv_lansare_nr}{sufix} / {pv_lansare_data}",
+     "formatFrom": [
+      9,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 9,
+     "cell": 5,
+     "text": "{tronsoane_etapa_text}",
+     "formatFrom": [
+      9,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 9,
+     "cell": 6,
+     "text": "{/etape}"
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 3,
+     "cell": 3,
+     "text": "{osd_telefon}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 4,
+     "cell": 3,
+     "text": "{diriginte_nume}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 5,
+     "cell": 3,
+     "text": "{diriginte_legitimatie} / {diriginte_domeniu}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 7,
+     "cell": 3,
+     "text": "{tenant_name}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 8,
+     "cell": 3,
+     "text": "{tenant_phone}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 9,
+     "cell": 3,
+     "text": "{tenant_name}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 10,
+     "cell": 3,
+     "text": "PDSB nr. {tenant_autorizatie_proiectare_nr} / {tenant_autorizatie_proiectare_data}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 11,
+     "cell": 3,
+     "text": "{tenant_name}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 12,
+     "cell": 3,
+     "text": "{tenant_phone}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 13,
+     "cell": 3,
+     "text": "{rte_nume}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 14,
+     "cell": 3,
+     "text": "{rte_atestat} / {rte_domeniu}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 15,
+     "cell": 3,
+     "text": "{tenant_name}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 16,
+     "cell": 3,
+     "text": "EDSB nr. {tenant_autorizatie_anre} / {tenant_autorizatie_data}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 17,
+     "cell": 3,
+     "text": "{rts_nume}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 2,
+     "row": 18,
+     "cell": 3,
+     "text": "{rts_atestat}",
+     "formatFrom": [
+      1,
+      3
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 9,
+     "row": 2,
+     "cells": [
+      "{#suduri}{cod}",
+      "{sudor}",
+      "{autorizatie}",
+      "{procedeu}",
+      "{/suduri}"
+     ],
+     "deleteRows": [
+      3,
+      4,
+      5,
+      6
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 10,
+     "row": 2,
+     "cells": [
+      "{#suduri}{nr_crt}",
+      "{cod}",
+      "Fara defect",
+      "ADMIS{/suduri}"
+     ],
+     "deleteRows": [
+      3,
+      4,
+      5,
+      6
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 13,
+     "row": 2,
+     "cells": [
+      "{#sudori_autorizatii}{nr_crt}",
+      "{nume}",
+      "{autorizatie}{/sudori_autorizatii}"
+     ],
+     "deleteRows": [
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 14,
+     "row": 7,
+     "cell": 2,
+     "text": "{osd_delegat_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 16,
+     "row": 7,
+     "cell": 2,
+     "text": "{osd_delegat_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 18,
+     "row": 2,
+     "cell": 1,
+     "text": "{nr_comunicare_incepere}"
+    },
+    {
+     "op": "set_cell",
+     "table": 18,
+     "row": 2,
+     "cell": 2,
+     "text": "{nr_program_control}"
+    },
+    {
+     "op": "set_cell",
+     "table": 18,
+     "row": 2,
+     "cell": 3,
+     "text": "{nr_convocare_faza}"
+    },
+    {
+     "op": "set_cell",
+     "table": 22,
+     "row": 3,
+     "cell": 3,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 22,
+     "row": 6,
+     "cell": 3,
+     "text": "{osd_delegat_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 24,
+     "row": 3,
+     "cell": 3,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 24,
+     "row": 6,
+     "cell": 3,
+     "text": "{osd_delegat_nume}"
+    },
+    {
+     "op": "table_row_loop",
+     "table": 23,
+     "row": 3,
+     "cells": [
+      "{#tronsoane}{nr_crt}",
+      "{comuna}",
+      "{strada}",
+      "{ldn_90}",
+      "{ldn_63}",
+      "{ldn_32}",
+      "{lungime}{/tronsoane}"
+     ],
+     "deleteRows": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 25,
+     "row": 3,
+     "cells": [
+      "{#materiale}{denumire}",
+      "{diametru}",
+      "{cantitate}",
+      "{furnizor}",
+      "{certificat}",
+      "{declaratie}{/materiale}"
+     ],
+     "deleteRows": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 2,
+     "cell": 2,
+     "text": "{instalator_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 2,
+     "cell": 3,
+     "text": "{instalator_tip} {instalator_legitimatie}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 3,
+     "cell": 2,
+     "text": "{rte_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 3,
+     "cell": 3,
+     "text": "{rte_atestat}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 4,
+     "cell": 2,
+     "text": "{sudor_pe_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 4,
+     "cell": 3,
+     "text": "{sudor_pe_autorizatii}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 6,
+     "cell": 2,
+     "text": "{proiectant_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 6,
+     "cell": 3,
+     "text": "{proiectant_tip} {proiectant_legitimatie}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 9,
+     "cell": 2,
+     "text": "{diriginte_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 9,
+     "cell": 3,
+     "text": "{diriginte_legitimatie}"
+    },
+    {
+     "op": "set_cell",
+     "table": 26,
+     "row": 10,
+     "cell": 2,
+     "text": "{osd_delegat_nume}"
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "Mufe........",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "Dopuri.......",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "Teu Sa EF.......",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "Vana PE.......",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "Răsuflători.......",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "Capace GN .......",
+     "whole": false
+    },
+    {
+     "op": "paragraph_loop",
+     "match": "Ţeavă......",
+     "tag": "materiale",
+     "text": "{denumire} .................... {diametru} .................... {furnizor} .................... {cantitate}"
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "2.2. Subtraversare drum",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "2.3. Subtraversare canalizatie",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "2.4. Subtraversare cablu electric",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "2.5. Subtraversare drum",
+     "whole": false
+    },
+    {
+     "op": "paragraph_loop",
+     "match": "2.1. Subtraversare Str, Lacul Vlasia",
+     "tag": "subtraversari",
+     "text": "   2.{nr_crt}. Subtraversare {descriere}    TP {material}  L= {lungime}m, Dn{dn}mm  sapatura la cota: H= {adancime}"
+    },
+    {
+     "op": "delete_range",
+     "from": "414/2025/2-2 Data",
+     "fromOffset": -2,
+     "until": "414/2025/3-1 Data",
+     "untilOffset": -2
+    },
+    {
+     "op": "delete_range",
+     "from": "414/2025/3-2 Data",
+     "fromOffset": -2,
+     "until": "414/2025/4-1 Data",
+     "untilOffset": -2
+    },
+    {
+     "op": "delete_range",
+     "from": "414/2025/4-2 Data",
+     "fromOffset": -2,
+     "until": "414/2025/5-1 Data",
+     "untilOffset": -2
+    },
+    {
+     "op": "delete_range",
+     "from": "414/2025/5-2 Data",
+     "fromOffset": -2,
+     "until": "414/2025/5a-1 Data",
+     "untilOffset": -10
+    },
+    {
+     "op": "delete_range",
+     "from": "414/2025/5a-2 Data",
+     "fromOffset": -10,
+     "until": "414/2025/6-1 Data",
+     "untilOffset": -2
+    },
+    {
+     "op": "delete_range",
+     "from": "414/2025/6-2 Data",
+     "fromOffset": -2,
+     "until": "414/2025/7 Data",
+     "untilOffset": -2
+    },
+    {
+     "op": "delete_range",
+     "from": "414/CND-2 Data",
+     "fromOffset": -2,
+     "until": "414/2025/TP Data",
+     "untilOffset": -2
+    },
+    {
+     "op": "page_break_before",
+     "targets": [
+      {
+       "table": 1
+      },
+      {
+       "match": "BENEFICIAR:  SC MEGACONSTRUCT SA",
+       "whole": false
+      },
+      {
+       "match": "APROB ADMITEREA"
+      },
+      {
+       "match": "FISA DE DATE A OBIECTIVULUI DE CONSTRUCTIE"
+      },
+      {
+       "match": "Registrul de evidenta a proceselor verbale",
+       "offset": -3
+      },
+      {
+       "table": 4
+      },
+      {
+       "match": "414/2025/2-1 Data",
+       "whole": false,
+       "offset": -2
+      },
+      {
+       "match": "414/2025/3-1 Data",
+       "whole": false,
+       "offset": -2
+      },
+      {
+       "match": "414/2025/4-1 Data",
+       "whole": false,
+       "offset": -2
+      },
+      {
+       "match": "414/2025/5-1 Data",
+       "whole": false,
+       "offset": -2
+      },
+      {
+       "match": "414/2025/5a-1 Data",
+       "whole": false,
+       "offset": -10
+      },
+      {
+       "match": "414/2025/6-1 Data",
+       "whole": false,
+       "offset": -2
+      },
+      {
+       "match": "414/2025/7 Data",
+       "whole": false,
+       "offset": -2
+      },
+      {
+       "table": 5
+      },
+      {
+       "table": 7
+      },
+      {
+       "match": "TABEL PRIVIND EXECUTIA SUDURILOR"
+      },
+      {
+       "match": "414/CND-1 Data",
+       "whole": false,
+       "offset": -2
+      },
+      {
+       "match": "414/2025/TP Data",
+       "whole": false,
+       "offset": -2
+      },
+      {
+       "match": "PROCES-VERBAL DE CONTROL"
+      },
+      {
+       "match": "PROCES-VERBAL de RECEPTIE TEHNICA"
+      },
+      {
+       "match": "FISA TEHNICA A CONDUCTEI"
+      },
+      {
+       "match": "de punere in funcţiune a conductei",
+       "whole": false,
+       "offset": -1
+      },
+      {
+       "match": "R E F E R A T U L    P R O I E C T A N T U L U I"
+      },
+      {
+       "match": "R E F E R A T U L    RESPONSABILULUI TEHNIC CU EXECUTIA"
+      }
+     ]
+    },
+    {
+     "op": "section_loop",
+     "tag": "etape",
+     "from": "414/2025/2-1 Data",
+     "fromOffset": -2,
+     "to": "414/2025/3-1 Data",
+     "toOffset": -3
+    },
+    {
+     "op": "section_loop",
+     "tag": "etape",
+     "from": "414/2025/3-1 Data",
+     "fromOffset": -2,
+     "to": "414/2025/4-1 Data",
+     "toOffset": -3
+    },
+    {
+     "op": "section_loop",
+     "tag": "etape",
+     "from": "414/2025/4-1 Data",
+     "fromOffset": -2,
+     "to": "414/2025/5-1 Data",
+     "toOffset": -3
+    },
+    {
+     "op": "section_loop",
+     "tag": "etape",
+     "from": "414/2025/5-1 Data",
+     "fromOffset": -2,
+     "to": "414/2025/5a-1 Data",
+     "toOffset": -11
+    },
+    {
+     "op": "section_loop",
+     "tag": "etape",
+     "from": "414/2025/5a-1 Data",
+     "fromOffset": -10,
+     "to": "414/2025/6-1 Data",
+     "toOffset": -3
+    },
+    {
+     "op": "section_loop",
+     "tag": "etape",
+     "from": "414/2025/6-1 Data",
+     "fromOffset": -2,
+     "to": "414/2025/7 Data",
+     "toOffset": -3
+    },
+    {
+     "op": "section_loop",
+     "tag": "etape",
+     "from": "414/CND-1 Data",
+     "fromOffset": -2,
+     "to": "414/2025/TP Data",
+     "toOffset": -3
+    },
+    {
+     "op": "numbering_to_text",
+     "tag": "etape"
+    }
+   ],
+   "rules": [
+    {
+     "find": "antet",
+     "replace": "{%tenant_logo}",
+     "whole": true
+    },
+    {
+     "find": "MEGACONSTRUCT",
+     "replace": "{osd_denumire}",
+     "whole": true
+    },
+    {
+     "find": "^( +)I$",
+     "replace": "\\1{diriginte_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=constructiei nr\\. )…+\\.\\.",
+     "replace": "{proiect_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=din strada )\\.+",
+     "replace": "{project_street}",
+     "regex": true
+    },
+    {
+     "find": "(?<=localitatea )\\.+",
+     "replace": "{project_city}",
+     "regex": true
+    },
+    {
+     "find": "(?<=ATR\\. nr\\. )\\.+",
+     "replace": "{cod_atr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=AC nr)…+\\.",
+     "replace": " {autorizatie_construire_nr}/{autorizatie_construire_data}.",
+     "regex": true
+    },
+    {
+     "find": "(?<=^DIRECTOR)$",
+     "replace": " {tenant_admin_name}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Cod Client:    )PADURARU ADRIAN STEFAN",
+     "replace": "{client_name} / {client_cod}",
+     "regex": true
+    },
+    {
+     "find": "PADURARU ADRIAN STEFAN",
+     "replace": "{client_name}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/1 Data24/06/2025",
+     "replace": "Nr. {pv_predare_nr} Data {pv_predare_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/2-1 Data24/06/2025",
+     "replace": "Nr. {pv_trasare_nr}{sufix} Data {pv_trasare_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/3-1 Data24/06/2025",
+     "replace": "Nr. {pv_sapatura_nr}{sufix} Data {pv_sapatura_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/4-1 Data24/06/2025",
+     "replace": "Nr. {pv_asternere_nr}{sufix} Data {pv_asternere_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/5-1 Data24/06/2025",
+     "replace": "Nr. {pv_montare_nr}{sufix} Data {pv_montare_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/5a-1 Data24/06/2025",
+     "replace": "Nr. {pv_receptie_calitativa_nr}{sufix} Data {pv_receptie_calitativa_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/6-1 Data24/06/2025",
+     "replace": "Nr. {pv_lansare_nr}{sufix} Data {pv_lansare_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/7 Data10/09/2025",
+     "replace": "Nr. {pv_proba_casa_nr} Data {pv_proba_casa_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/8 Data10/09/2025",
+     "replace": "Nr. {pv_rezistenta_nr} Data {pv_rezistenta_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/9 Data10/09/2025",
+     "replace": "Nr. {pv_etanseitate_nr} Data {pv_etanseitate_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/TP Data10/09/2025",
+     "replace": "Nr. {pv_tub_protectie_nr} Data {pv_tub_protectie_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/CND-1 Data24/06/2025",
+     "replace": "Nr. {pv_lucrari_ascunse_nr}{sufix} Data {pv_lucrari_ascunse_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 414/2025/CND Data10/09/2025",
+     "replace": "Nr. {pv_rt_br_nr} Data {data_pv_rt}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Nr\\. 414/2025/CND Data10/09/2025",
+     "replace": "Nr. {fisa_racord_nr} Data {data_pif}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Nr\\. 414/2025/CND Data10/09/2025",
+     "replace": "Nr. {pv_pif_nr} Data {data_pif}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=receptie tehnica nr\\. )414/2025/CND Data24/06/2025",
+     "replace": "{pv_rt_br_nr} Data {data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "PVRT nr\\. 414/2025/CND din data10/09/2025",
+     "replace": "PVRT nr. {pv_rt_br_nr} din data {data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. …\\.  din …+\\.",
+     "replace": "Nr. {pv_receptie_nr} din {data_receptie_terminare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=încheiat astăzi )…+\\.",
+     "replace": "{data_receptie_terminare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=executate este de )[….]+(?= lei)",
+     "replace": "{valoare_lucrari}",
+     "regex": true
+    },
+    {
+     "find": "IJC[….]+DO[….]+/2025",
+     "replace": "IJC {adeverinta_ijc_nr}",
+     "regex": true
+    },
+    {
+     "find": "(-specialist *[….]+) {20,}",
+     "replace": "\\1              ",
+     "regex": true
+    },
+    {
+     "find": "Conducta Dn 63mm=67 m;",
+     "replace": "Conducta {conducta_dn_lungimi_text};",
+     "regex": true
+    },
+    {
+     "find": "conducta Dn63\\.mm, L=67m",
+     "replace": "conducta {conducta_dn_lungimi_text}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Incheiat astazi, )24/06/2025",
+     "replace": "{pv_trasare_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi, )24/06/2025",
+     "replace": "{pv_sapatura_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi, )24/06/2025",
+     "replace": "{pv_asternere_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi, )24/06/2025",
+     "replace": "{pv_montare_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi, )24/06/2025",
+     "replace": "{pv_lansare_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi, )10/09/2025",
+     "replace": "{pv_proba_casa_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Incheiat astazi, )10/09/2025",
+     "replace": "{pv_tub_protectie_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Încheiat astăzi, )10/09/2025",
+     "replace": "{pv_control_calitate_data}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Incheiat astăzi )24\\.06\\.2025",
+     "replace": "{pv_receptie_calitativa_data} ",
+     "regex": true
+    },
+    {
+     "find": "(?<=amplasament nr\\.  )414/2025/1 din 24/06/2025",
+     "replace": "{pv_predare_nr} din {pv_predare_data}",
+     "regex": true
+    },
+    {
+     "find": "414/2025/2-1/24/06/2025 si 414/2025/2-2/10/09/2025",
+     "replace": "{#etape}{pv_trasare_nr}{sufix}/{pv_trasare_data} {/etape}",
+     "regex": true
+    },
+    {
+     "find": "414/2025/3-1/24/06/2025 si 414/2025/3-2/10/09/2025",
+     "replace": "{#etape}{pv_sapatura_nr}{sufix}/{pv_sapatura_data} {/etape}",
+     "regex": true
+    },
+    {
+     "find": "414/2025/4-1/24/06/2025 si 414/2025/4-2/10/09/2025",
+     "replace": "{#etape}{pv_asternere_nr}{sufix}/{pv_asternere_data} {/etape}",
+     "regex": true
+    },
+    {
+     "find": "414/2025/5-1/24/06/2025 si 414/2025/5-2/10/09/2025",
+     "replace": "{#etape}{pv_montare_nr}{sufix}/{pv_montare_data} {/etape}",
+     "regex": true
+    },
+    {
+     "find": "414/2025/5a-1/24/06/2025 si 414/2025/5a-2/10/09/2025",
+     "replace": "{#etape}{pv_receptie_calitativa_nr}{sufix}/{pv_receptie_calitativa_data} {/etape}",
+     "regex": true
+    },
+    {
+     "find": "414/2025/6-1/24/06/2025 si 414/2025/6-2/10/09/2025",
+     "replace": "{#etape}{pv_lansare_nr}{sufix}/{pv_lansare_data} {/etape}",
+     "regex": true
+    },
+    {
+     "find": "414/2025/7 din 10/09/2025",
+     "replace": "{pv_proba_casa_nr} din {pv_proba_casa_data}",
+     "regex": true
+    },
+    {
+     "find": "414/2025/8 din 10/09/2025",
+     "replace": "{pv_rezistenta_nr} din {pv_rezistenta_data}",
+     "regex": true
+    },
+    {
+     "find": "414/2025/9 din 10/09/2025",
+     "replace": "{pv_etanseitate_nr} din {pv_etanseitate_data}",
+     "regex": true
+    },
+    {
+     "find": "414/CND-1 din 24\\.06\\.2025 si  414/CND-2 din 10\\.09\\.2025",
+     "replace": "{#etape}{pv_lucrari_ascunse_nr}{sufix} din {pv_lucrari_ascunse_data} {/etape}",
+     "regex": true
+    },
+    {
+     "find": "Proces verbal de receptie calitativa nr\\. 1 / 2019",
+     "replace": "Proces verbal de predare-primire amplasament nr. {pv_predare_nr}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Proces verbal de receptie calitativa nr\\. 1 / 2019",
+     "replace": "Proces verbal de receptie calitativa nr. {#etape}{pv_receptie_calitativa_nr}{sufix} / {pv_receptie_calitativa_data} {/etape}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=L=)60(?=m)",
+     "replace": "{lungime_etapa}",
+     "regex": true
+    },
+    {
+     "find": "(?<=L=)67(?= ml )",
+     "replace": "{lungime_etapa}",
+     "regex": true,
+     "nth": 2
+    },
+    {
+     "find": "(?<=L=)67(?= ml )",
+     "replace": "{lungime_etapa}",
+     "regex": true,
+     "nth": 2
+    },
+    {
+     "find": "(?<=L=)67(?= ml )",
+     "replace": "{lungime_etapa}",
+     "regex": true,
+     "nth": 2
+    },
+    {
+     "find": "(?<=L=)67(?= ml )",
+     "replace": "{lungime_etapa}",
+     "regex": true,
+     "nth": 2
+    },
+    {
+     "find": "(?<=L=)67(?= ml )",
+     "replace": "{lungime_etapa}",
+     "regex": true,
+     "nth": 2
+    },
+    {
+     "find": "(?<=L=)67(?= ml )",
+     "replace": "{lungime_etapa}",
+     "regex": true,
+     "nth": 2
+    },
+    {
+     "find": "diametrul Dn =63 mm şi Lungimea totala  =60\\.\\.m\\.l,",
+     "replace": "diametrul şi lungimea: {tronsoane_etapa_text},",
+     "regex": true
+    },
+    [
+     "Tronson Dn 63 mm L=67 ml, intre str. LACUL VLASIA(cale de acces)  nr. 31B, NC69296 si conducta existenta, PE 100 SDR11 Dn75mm pe str. LACUL VLASIA(drum public)",
+     "{tronsoane_text}, {project_material}"
+    ],
+    {
+     "find": "(?<=sapatura la cota – )1,40(?= m)",
+     "replace": "{sapatura_adancime}",
+     "regex": true
+    },
+    {
+     "find": "60 cm \\( 30 cm stanga – dreapta axului trasat\\)",
+     "replace": "{sapatura_latime} m (stanga – dreapta axului trasat)",
+     "regex": true
+    },
+    {
+     "find": "(?<=adancime de )1,40(?=m pentru)",
+     "replace": "{sapatura_adancime}",
+     "regex": true
+    },
+    {
+     "find": "^cana(?=Nu s-au intalnit)",
+     "replace": "",
+     "regex": true
+    },
+    {
+     "find": "s-a constatat  modificare punct de cuplare",
+     "replace": "{abateri_constatate}{^abateri_constatate}nu s-au constatat{/abateri_constatate}",
+     "regex": true
+    },
+    {
+     "find": "(?<=la minim  )0\\.5ml\\.",
+     "replace": "{distanta_limita}",
+     "regex": true
+    },
+    {
+     "find": "(?<=este de )0\\.9\\.(?= ml)",
+     "replace": "{adancime_pozare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Proiect de execuţie nr\\. )414/2025",
+     "replace": "{proiect_nr}{#dispozitie_santier} si Dispozitia de santier {dispozitie_santier}{/dispozitie_santier}",
+     "regex": true
+    },
+    {
+     "find": "(?<=pozare fiind )0\\.9(?= m)",
+     "replace": "{adancime_pozare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=sudor autorizat )NICULESCU DANUT-IONUT cu autorizatia nr\\.569831 SRS-SS prin procedeu omologat nr\\. 73622, respectiv autorizatia nr\\.569830 SRM-SW, prin procedeu omologat nr\\. 73621\\.",
+     "replace": "{sudor_pe_nume} cu autorizatiile nr. {sudor_pe_autorizatii}, prin procedeu omologat nr. {procedeu_omologare_pe}.",
+     "regex": true
+    },
+    {
+     "find": "(?<=Presiunea de proba )4(?= bari)",
+     "replace": "{proba_casa_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=presiunii este de )1 ora",
+     "replace": "{proba_casa_durata_text}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Scala )0-10 bari",
+     "replace": "{manometru_scala}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Seria nr\\.  )4242",
+     "replace": "{manometru_serie}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Clasa de precizie )1,6",
+     "replace": "{manometru_clasa}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Ultima verificare metrologica )17\\.01\\.2025",
+     "replace": "{manometru_verif_metrologica}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Valoare presiune proba: )4x105 Pa",
+     "replace": "{proba_rezistenta_presiune} bari",
+     "regex": true
+    },
+    {
+     "find": "(?<=Valoare presiune proba: )2x105 Pa",
+     "replace": "{proba_etanseitate_presiune} bari",
+     "regex": true
+    },
+    {
+     "find": "(?<=presiunea de proba: ____)\\.\\.\\.\\.(?= min)",
+     "replace": "{proba_rezistenta_timp}",
+     "regex": true
+    },
+    {
+     "find": "(?<=presiunea de proba: ____)\\.{8}(?=____ min)",
+     "replace": "{proba_etanseitate_timp}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Denumirea instalatiei: )bransament gaze naturale",
+     "replace": "conductă de distribuție gaze naturale",
+     "regex": true
+    },
+    {
+     "find": "(?<=pentru )bransament gaze naturale(?= in loc)",
+     "replace": "conducta de gaze naturale",
+     "regex": true
+    },
+    {
+     "find": "…4x105… bari, timp de 1h",
+     "replace": "…{proba_rezistenta_presiune}… bari, timp de {proba_rezistenta_durata_text}",
+     "regex": true
+    },
+    {
+     "find": "…2x105…\\. bari, timp de2h\\.",
+     "replace": "…{proba_etanseitate_presiune}…. bari, timp de {proba_etanseitate_durata_text}.",
+     "regex": true
+    },
+    {
+     "find": "(?<=Nr\\. Comanda PM:) ?$",
+     "replace": " {comanda_pm_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=receptionate:)…+",
+     "replace": "{valoare_lucrari}",
+     "regex": true
+    },
+    {
+     "find": "(?<=MF existent:)…+\\.",
+     "replace": "{nr_mf_existent}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Astăzi, )…+(?=, comisia)",
+     "replace": "{data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "(?<=încheiat astazi, )[….]+(?=în 3)",
+     "replace": "{data_pv_rt} ",
+     "regex": true
+    },
+    {
+     "find": "(?<=valoarea de \\(\\.\\.\\.\\.\\.)4(?=\\.\\.\\.\\))",
+     "replace": "{proba_rezistenta_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=valoarea de \\(\\.\\.\\.)2(?=\\.\\.\\.\\.\\.\\))",
+     "replace": "{proba_etanseitate_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=reprezentat de )[….]+(?=, Aut\\. EGD)",
+     "replace": "{osd_delegat_nume}",
+     "regex": true
+    },
+    {
+     "find": "VGd",
+     "replace": "{verificator_domeniu}",
+     "whole": true
+    },
+    {
+     "find": "BRANSAMENT:",
+     "replace": "CONDUCTA:",
+     "whole": true
+    },
+    [
+     "MONTAREA BRANSAMENTULUI",
+     "MONTAREA CONDUCTEI"
+    ],
+    {
+     "find": "Dn -180mm ,  L- 5m",
+     "replace": "{tub_protectie_diametru} ,  L- {tub_protectie_lungime}",
+     "regex": true
+    },
+    {
+     "find": "(?<=material…….…….)PE100 SDR26",
+     "replace": "{tub_protectie_material}",
+     "regex": true
+    },
+    {
+     "find": "(?<=cu capac GN,buc….…)3",
+     "replace": "{rasuflatori_cu_capace}",
+     "regex": true
+    },
+    {
+     "find": "(?<=tip……)vana PE……sferic",
+     "replace": "{robinet_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=diametru ….)63mm(?=\\.….. )",
+     "replace": "{robinet_diametru}",
+     "regex": true
+    },
+    {
+     "find": "(?<=\\.….. )1buc",
+     "replace": "{robinet_bucati} buc",
+     "regex": true
+    },
+    {
+     "find": "(?<=distribuţie )\\.{10,}(?= legitimatie)",
+     "replace": "{osd_delegat_nume}",
+     "regex": true
+    },
+    [
+     "Conducta si bransament GN",
+     "Conducta GN"
+    ],
+    {
+     "find": "(?<=ATR\\. nr\\. )BL_6621/02\\.10\\.2024",
+     "replace": "{cod_atr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=autorizat )PGD(?= – )",
+     "replace": "{proiectant_tip}",
+     "regex": true
+    },
+    {
+     "find": "- nu e cazul$",
+     "replace": "{^subtraversari}- nu e cazul{/subtraversari}",
+     "regex": true
+    },
+    {
+     "find": "(?<=din tuburi )…\\.\\.",
+     "replace": "{tub_protectie_material}",
+     "regex": true
+    },
+    {
+     "find": "(?<=/)CENUSA MARIUS(?= in calitate de Executant)",
+     "replace": "{sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "(Reprezentant executant: +SC GENERAL MIH INSTAL GAZ SRL +)CENUSA MARIUS",
+     "replace": "\\1{sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "(Executant: +SC GENERAL MIH INSTAL GAZ SRL +)CENUSA MARIUS",
+     "replace": "\\1{sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Sef santier )CENUSA MARIUS",
+     "replace": "{sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "^( {9})CENUSA MARIUS$",
+     "replace": "\\1{sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "CENUSA MARIUS",
+     "replace": "{sef_santier_nume}",
+     "whole": true,
+     "nth": 1
+    },
+    [
+     "CENUSA MARIUS",
+     "{instalator_nume}"
+    ],
+    {
+     "find": "VIRJAN CRISTIAN(?=diriginte)",
+     "replace": "{diriginte_nume} ",
+     "regex": true
+    },
+    [
+     "VIRJAN CRISTIAN",
+     "{diriginte_nume}"
+    ],
+    [
+     "00026448",
+     "{diriginte_legitimatie}"
+    ],
+    {
+     "find": "(?<=domeniul/subdomeniul )9\\.4",
+     "replace": "{diriginte_domeniu}",
+     "regex": true
+    },
+    [
+     "COMAN GABRIEL",
+     "{rte_nume}"
+    ],
+    [
+     "00002635",
+     "{rte_atestat}"
+    ],
+    {
+     "find": "(?<=domeniul )8\\.4D",
+     "replace": "{rte_domeniu}",
+     "regex": true
+    },
+    {
+     "find": "PGD NR\\. 209200742",
+     "replace": "{proiectant_tip} NR. {proiectant_legitimatie}",
+     "regex": true
+    },
+    [
+     "ENE MARIANA",
+     "{proiectant_nume}"
+    ],
+    [
+     "OPRESCU ION DANUT",
+     "{verificator_nume}"
+    ],
+    [
+     "V140900130",
+     "{verificator_legitimatie}"
+    ],
+    [
+     "569831, 569830",
+     "{sudor_pe_autorizatii}"
+    ],
+    [
+     "NICULESCU DANUT-IONUT",
+     "{sudor_pe_nume}"
+    ],
+    [
+     "IVAN FLORIN-MADALIN",
+     "{rts_nume}"
+    ],
+    [
+     "501201598",
+     "{instalator_legitimatie}"
+    ],
+    {
+     "find": "\\bEGD\\b(?! nr\\.)",
+     "replace": "{instalator_tip}",
+     "regex": true
+    },
+    {
+     "find": "SC GENERAL MIH INSTAL GAZ SRL(?=precum)",
+     "replace": "{tenant_name} ",
+     "regex": true
+    },
+    {
+     "find": "SC +GENERAL MIH INSTAL GAZ SRL(?:\\.*S\\.R\\.L)?",
+     "replace": "{tenant_name}",
+     "regex": true
+    },
+    {
+     "find": "(?<=PDSB Nr\\. …)22973…\\./  27\\.09\\.2023",
+     "replace": "{tenant_autorizatie_proiectare_nr}…./  {tenant_autorizatie_proiectare_data}",
+     "regex": true
+    },
+    {
+     "find": "(?<=EDSB Nr\\.   )22974…\\./  27\\.09\\.2023",
+     "replace": "{tenant_autorizatie_anre}…./  {tenant_autorizatie_data}",
+     "regex": true
+    },
+    [
+     "SC MEGACONSTRUCT SA",
+     "{osd_denumire}"
+    ],
+    {
+     "find": "(?<=Punct de lucru )Balotesti",
+     "replace": "{osd_fol}",
+     "regex": true
+    },
+    {
+     "find": "Primaria +Balotesti, ILFOV",
+     "replace": "{autorizatie_construire_emitent}",
+     "regex": true
+    },
+    {
+     "find": "(?<=eliberata de )Primaria Balotesti",
+     "replace": "{autorizatie_construire_emitent}",
+     "regex": true
+    },
+    {
+     "find": "(?<=cu valabilitate pana la )25\\.05\\.2026",
+     "replace": "{autorizatie_construire_valabilitate}",
+     "regex": true
+    },
+    {
+     "find": "133/26\\.05\\.2025",
+     "replace": "{autorizatie_construire_nr}/{autorizatie_construire_data}",
+     "regex": true
+    },
+    {
+     "find": "25376182/20\\.06\\.2025",
+     "replace": "{teava_cc_nr}/{teava_cc_data}",
+     "regex": true
+    },
+    {
+     "find": "25089896/20\\.06\\.2025",
+     "replace": "{teava_dc_nr}/{teava_dc_data}",
+     "regex": true
+    },
+    [
+     "ELEKTRA 315 serie 230605189",
+     "{aparat_sudura}"
+    ],
+    {
+     "find": "(?<=procedeul de )ELECTROFUZIUNE|(?<=procedeu…)ELECTROFUZIUNE|(?<=realizate prin )ELECTROFUZIUNE|(?<=procedeul de )electrofuziune",
+     "replace": "{procedeu_sudura}",
+     "regex": true
+    },
+    [
+     "REDUSA PRESIUNE",
+     "{bransament_presiune}"
+    ],
+    {
+     "find": "LACUL VLASIA",
+     "replace": "{project_street}",
+     "regex": true,
+     "ci": true
+    },
+    {
+     "find": "31B, NC69296",
+     "replace": "{project_street_number}{adresa_detalii_text}",
+     "regex": true
+    },
+    {
+     "find": "BALOTESTI",
+     "replace": "{project_city}",
+     "regex": true,
+     "ci": true
+    },
+    {
+     "find": "ILFOV",
+     "replace": "{project_county}",
+     "regex": true,
+     "ci": true
+    },
+    {
+     "find": "\\b414/2025\\b",
+     "replace": "{proiect_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=planşelor nr\\. )1|(?<=plansa )1\\b|(?<=Plansa )1\\b|(?<=nr\\.)1(?= din proiect)",
+     "replace": "{planse_nr}",
+     "regex": true
+    },
+    {
+     "find": "PE(?:HD)? ?100 ?SDR ?11",
+     "replace": "{project_material}",
+     "regex": true
+    },
+    {
+     "find": "(D[Nn] *=? *)63",
+     "replace": "\\1{project_dn}",
+     "regex": true
+    },
+    {
+     "find": "(?<=[=.\\s])67(?=[\\s.]*m)",
+     "replace": "{conducta_lungime_totala}",
+     "regex": true
+    },
+    {
+     "find": "67",
+     "replace": "{conducta_lungime_totala}",
+     "whole": true
+    }
+   ],
+   "ops": [
+    {
+     "op": "break_before",
+     "match": "DIRECTOR {tenant_admin_name}",
+     "before": [
+      "{tenant_admin_name}"
+     ]
+    },
+    {
+     "op": "set_paragraph",
+     "match": "{tenant_name}\t\t\t\t     ",
+     "whole": false,
+     "text": "{tenant_name} Ing. {proiectant_nume}"
+    },
+    {
+     "op": "set_ind",
+     "match": "{tenant_name} Ing. {proiectant_nume}",
+     "ind": {
+      "left": 4800,
+      "firstLine": 0
+     }
+    },
+    {
+     "op": "break_before",
+     "match": "{tenant_name} Ing. {proiectant_nume}",
+     "before": [
+      "Ing. {proiectant_nume}"
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Executant (RTE),",
+     "nth": 1,
+     "leadingTab": false,
+     "cells": [
+      "Executant (RTE),",
+      "Instalator autorizat,"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Executant (RTE),",
+     "nth": 2,
+     "leadingTab": false,
+     "cells": [
+      "Executant (RTE),",
+      "Instalator autorizat,"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Executant (RTE),",
+     "nth": 3,
+     "leadingTab": false,
+     "cells": [
+      "Executant (RTE),",
+      "Instalator autorizat,"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Executant (RTE),",
+     "nth": 4,
+     "leadingTab": false,
+     "cells": [
+      "Executant (RTE),",
+      "Instalator autorizat,"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Executant (RTE),",
+     "nth": 5,
+     "leadingTab": false,
+     "cells": [
+      "Executant (RTE),",
+      "Instalator autorizat,"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Executant (RTE),",
+     "nth": 6,
+     "leadingTab": false,
+     "cells": [
+      "Executant (RTE),",
+      "Instalator autorizat,"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "{tenant_name}\t",
+     "nth": 1,
+     "leadingTab": false,
+     "cells": [
+      "{tenant_name}",
+      "{tenant_name}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "{tenant_name}\t",
+     "nth": 2,
+     "leadingTab": false,
+     "cells": [
+      "{tenant_name}",
+      "{tenant_name}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "{tenant_name}\t",
+     "nth": 3,
+     "leadingTab": false,
+     "cells": [
+      "{tenant_name}",
+      "{tenant_name}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "{tenant_name}\t",
+     "nth": 4,
+     "leadingTab": false,
+     "cells": [
+      "{tenant_name}",
+      "{tenant_name}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "{tenant_name}\t",
+     "nth": 5,
+     "leadingTab": false,
+     "cells": [
+      "{tenant_name}",
+      "{tenant_name}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "{tenant_name}\t",
+     "nth": 6,
+     "leadingTab": false,
+     "cells": [
+      "{tenant_name}",
+      "{tenant_name}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Ing. {rte_nume}\t",
+     "nth": 1,
+     "leadingTab": false,
+     "cells": [
+      "Ing. {rte_nume}",
+      "{instalator_nume}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Ing. {rte_nume}\t",
+     "nth": 2,
+     "leadingTab": false,
+     "cells": [
+      "Ing. {rte_nume}",
+      "{instalator_nume}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Ing. {rte_nume}\t",
+     "nth": 3,
+     "leadingTab": false,
+     "cells": [
+      "Ing. {rte_nume}",
+      "{instalator_nume}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Ing. {rte_nume}\t",
+     "nth": 4,
+     "leadingTab": false,
+     "cells": [
+      "Ing. {rte_nume}",
+      "{instalator_nume}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Ing. {rte_nume}\t",
+     "nth": 5,
+     "leadingTab": false,
+     "cells": [
+      "Ing. {rte_nume}",
+      "{instalator_nume}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Ing. {rte_nume}\t",
+     "nth": 6,
+     "leadingTab": false,
+     "cells": [
+      "Ing. {rte_nume}",
+      "{instalator_nume}"
+     ],
+     "positions": [
+      7400
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Instalator autorizat\t\t",
+     "leadingTab": false,
+     "cells": [
+      "Instalator autorizat",
+      "R.T.S."
+     ],
+     "positions": [
+      7800
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "{instalator_nume}          ",
+     "leadingTab": false,
+     "cells": [
+      "{instalator_nume}",
+      "{rts_nume}"
+     ],
+     "positions": [
+      7800
+     ]
+    }
+   ],
+   "expectedPages": 26,
+   "notes": "Cartea tehnică MegaConstruct (format «Antet»): firma noastră în locul constructorului din exemplu. PV-urile pe etape (2–6, 5a, lucrări ascunse) apar o singură dată, fiecare într-o buclă {#etape} (nr. + sufix -1/-2, data și lungimea etapei); a doua copie din exemplu e ștearsă. Fiecare formular începe pe pagină nouă. Corecturi: «branșament» → conductă, PV-ul de recepție calitativă «nr. 1 / 2019» → PV-urile reale, PIF-ul citează PVRT-ul cu data lui, rândurile de subtraversări rămase din alt dosar au fost scoase."
+  },
+  {
+   "id": "02",
+   "out": "2. Anexa 16 Centralizator carte tehnica.docx",
+   "src": "Anexa 16 (1).docx",
+   "rules": [],
+   "notes": "Centralizatorul cărții tehnice — formular gol pe antetul MegaConstruct, păstrat ca atare (doar A4 / fără roșu)."
+  },
+  {
+   "id": "03",
+   "out": "3. Anexa 25 PV cantitati lucrari.docx",
+   "src": "Carte tehnica Conducta GN Megaconstruct (2) (1).docx",
+   "preOps": [
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 1,
+     "text": "{#nr_imobile_cerere}{nr_imobile_cerere}{/nr_imobile_cerere}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 2,
+     "text": "{#nr_imobile_existente}{nr_imobile_existente}{/nr_imobile_existente}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 3,
+     "text": "{#lungime_public}{lungime_public}{/lungime_public}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 4,
+     "text": "{#lungime_privat}{lungime_privat}{/lungime_privat}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 6,
+     "text": "{lungime_dn_63}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 7,
+     "text": "{lungime_dn_75}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 8,
+     "text": "{lungime_dn_90}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 9,
+     "text": "{lungime_dn_110}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 10,
+     "text": "{lungime_dn_125}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 11,
+     "text": "{lungime_dn_160}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 12,
+     "text": "{lungime_dn_180}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 13,
+     "text": "{lungime_dn_225}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 3,
+     "cell": 15,
+     "text": "{lungime_total_pe}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 6,
+     "text": "{#lungime_dn_ol_2}{lungime_dn_ol_2}{/lungime_dn_ol_2}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 7,
+     "text": "{#lungime_dn_ol_3}{lungime_dn_ol_3}{/lungime_dn_ol_3}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 8,
+     "text": "{#lungime_dn_ol_4}{lungime_dn_ol_4}{/lungime_dn_ol_4}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 9,
+     "text": "{#lungime_dn_ol_6}{lungime_dn_ol_6}{/lungime_dn_ol_6}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 10,
+     "text": "{#lungime_dn_ol_8}{lungime_dn_ol_8}{/lungime_dn_ol_8}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 11,
+     "text": "{#lungime_dn_ol_10}{lungime_dn_ol_10}{/lungime_dn_ol_10}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 12,
+     "text": "{#lungime_dn_ol_12}{lungime_dn_ol_12}{/lungime_dn_ol_12}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 13,
+     "text": "{#lungime_dn_ol_14}{lungime_dn_ol_14}{/lungime_dn_ol_14}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 15,
+     "text": "{lungime_total_ol}"
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 1,
+     "text": "{fpe_vana_pehd_1_dn}",
+     "formatFrom": [
+      10,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 2,
+     "text": "{fpe_vana_pehd_1_buc}",
+     "formatFrom": [
+      10,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 3,
+     "text": "{fpe_mufa_ef_1_dn}",
+     "formatFrom": [
+      10,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 4,
+     "text": "{fpe_mufa_ef_1_buc}",
+     "formatFrom": [
+      10,
+      4
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 5,
+     "text": "{fpe_reductie_injectat_1_dn}",
+     "formatFrom": [
+      10,
+      5
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 6,
+     "text": "{fpe_reductie_injectat_1_buc}",
+     "formatFrom": [
+      10,
+      6
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 7,
+     "text": "{fpe_reductie_electrofuziune_1_dn}",
+     "formatFrom": [
+      10,
+      7
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 8,
+     "text": "{fpe_reductie_electrofuziune_1_buc}",
+     "formatFrom": [
+      10,
+      8
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 9,
+     "text": "{fpe_cot_injectat_1_dn}",
+     "formatFrom": [
+      10,
+      9
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 10,
+     "text": "{fpe_cot_injectat_1_buc}",
+     "formatFrom": [
+      10,
+      10
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 11,
+     "text": "{fpe_cot_electrofuziune_1_dn}",
+     "formatFrom": [
+      10,
+      11
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 12,
+     "text": "{fpe_cot_electrofuziune_1_buc}",
+     "formatFrom": [
+      10,
+      12
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 13,
+     "text": "{fpe_teu_egal_injectat_1_dn}",
+     "formatFrom": [
+      10,
+      13
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 14,
+     "text": "{fpe_teu_egal_injectat_1_buc}",
+     "formatFrom": [
+      10,
+      14
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 15,
+     "text": "{fpe_teu_egal_electrofuziune_1_dn}",
+     "formatFrom": [
+      10,
+      15
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 16,
+     "text": "{fpe_teu_egal_electrofuziune_1_buc}",
+     "formatFrom": [
+      10,
+      16
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 17,
+     "text": "{fpe_teu_redus_injectat_1_dn}",
+     "formatFrom": [
+      10,
+      17
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 18,
+     "text": "{fpe_teu_redus_injectat_1_buc}",
+     "formatFrom": [
+      10,
+      18
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 19,
+     "text": "{fpe_teu_redus_electrofuziune_1_dn}",
+     "formatFrom": [
+      10,
+      19
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 20,
+     "text": "{fpe_teu_redus_electrofuziune_1_buc}",
+     "formatFrom": [
+      10,
+      20
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 21,
+     "text": "{fpe_sa_bransament_1_dn}",
+     "formatFrom": [
+      10,
+      21
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 22,
+     "text": "{fpe_sa_bransament_1_buc}",
+     "formatFrom": [
+      10,
+      22
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 23,
+     "text": "{fpe_capac_ef_1_dn}",
+     "formatFrom": [
+      10,
+      23
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 11,
+     "cell": 24,
+     "text": "{fpe_capac_ef_1_buc}",
+     "formatFrom": [
+      10,
+      24
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 1,
+     "text": "{fpe_vana_pehd_2_dn}",
+     "formatFrom": [
+      10,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 2,
+     "text": "{fpe_vana_pehd_2_buc}",
+     "formatFrom": [
+      10,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 3,
+     "text": "{fpe_mufa_ef_2_dn}",
+     "formatFrom": [
+      10,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 4,
+     "text": "{fpe_mufa_ef_2_buc}",
+     "formatFrom": [
+      10,
+      4
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 5,
+     "text": "{fpe_reductie_injectat_2_dn}",
+     "formatFrom": [
+      10,
+      5
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 6,
+     "text": "{fpe_reductie_injectat_2_buc}",
+     "formatFrom": [
+      10,
+      6
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 7,
+     "text": "{fpe_reductie_electrofuziune_2_dn}",
+     "formatFrom": [
+      10,
+      7
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 8,
+     "text": "{fpe_reductie_electrofuziune_2_buc}",
+     "formatFrom": [
+      10,
+      8
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 9,
+     "text": "{fpe_cot_injectat_2_dn}",
+     "formatFrom": [
+      10,
+      9
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 10,
+     "text": "{fpe_cot_injectat_2_buc}",
+     "formatFrom": [
+      10,
+      10
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 11,
+     "text": "{fpe_cot_electrofuziune_2_dn}",
+     "formatFrom": [
+      10,
+      11
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 12,
+     "text": "{fpe_cot_electrofuziune_2_buc}",
+     "formatFrom": [
+      10,
+      12
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 13,
+     "text": "{fpe_teu_egal_injectat_2_dn}",
+     "formatFrom": [
+      10,
+      13
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 14,
+     "text": "{fpe_teu_egal_injectat_2_buc}",
+     "formatFrom": [
+      10,
+      14
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 15,
+     "text": "{fpe_teu_egal_electrofuziune_2_dn}",
+     "formatFrom": [
+      10,
+      15
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 16,
+     "text": "{fpe_teu_egal_electrofuziune_2_buc}",
+     "formatFrom": [
+      10,
+      16
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 17,
+     "text": "{fpe_teu_redus_injectat_2_dn}",
+     "formatFrom": [
+      10,
+      17
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 18,
+     "text": "{fpe_teu_redus_injectat_2_buc}",
+     "formatFrom": [
+      10,
+      18
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 19,
+     "text": "{fpe_teu_redus_electrofuziune_2_dn}",
+     "formatFrom": [
+      10,
+      19
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 20,
+     "text": "{fpe_teu_redus_electrofuziune_2_buc}",
+     "formatFrom": [
+      10,
+      20
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 21,
+     "text": "{fpe_sa_bransament_2_dn}",
+     "formatFrom": [
+      10,
+      21
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 22,
+     "text": "{fpe_sa_bransament_2_buc}",
+     "formatFrom": [
+      10,
+      22
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 23,
+     "text": "{fpe_capac_ef_2_dn}",
+     "formatFrom": [
+      10,
+      23
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 12,
+     "cell": 24,
+     "text": "{fpe_capac_ef_2_buc}",
+     "formatFrom": [
+      10,
+      24
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 1,
+     "text": "{fol_vana_ol_dn}",
+     "formatFrom": [
+      15,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 2,
+     "text": "{fol_vana_ol_q}",
+     "formatFrom": [
+      15,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 3,
+     "text": "{fol_curba_sudura_dn}",
+     "formatFrom": [
+      15,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 4,
+     "text": "{fol_curba_sudura_q}",
+     "formatFrom": [
+      15,
+      4
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 5,
+     "text": "{fol_reductie_ol_dn}",
+     "formatFrom": [
+      15,
+      5
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 6,
+     "text": "{fol_reductie_ol_q}",
+     "formatFrom": [
+      15,
+      6
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 7,
+     "text": "{fol_fiting_tranzitie_ol_pe_dn}",
+     "formatFrom": [
+      15,
+      7
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 8,
+     "text": "{fol_fiting_tranzitie_ol_pe_q}",
+     "formatFrom": [
+      15,
+      8
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 9,
+     "text": "{fol_banda_izolatie_kebulen_dn}",
+     "formatFrom": [
+      15,
+      9
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 10,
+     "text": "{fol_banda_izolatie_kebulen_q}",
+     "formatFrom": [
+      15,
+      10
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 11,
+     "text": "{fol_rasuflator_spatiu_verde_dn}",
+     "formatFrom": [
+      15,
+      11
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 12,
+     "text": "{fol_rasuflator_spatiu_verde_q}",
+     "formatFrom": [
+      15,
+      12
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 13,
+     "text": "{fol_rasuflator_carosabil_dn}",
+     "formatFrom": [
+      15,
+      13
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 14,
+     "text": "{fol_rasuflator_carosabil_q}",
+     "formatFrom": [
+      15,
+      14
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 15,
+     "text": "{fol_capac_gn_dn}",
+     "formatFrom": [
+      15,
+      15
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 16,
+     "text": "{fol_capac_gn_q}",
+     "formatFrom": [
+      15,
+      16
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 18,
+     "text": "{fol_capac_gn_mare_q}",
+     "formatFrom": [
+      15,
+      18
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 19,
+     "text": "{fol_fir_trasor_q}",
+     "formatFrom": [
+      15,
+      19
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 16,
+     "cell": 20,
+     "text": "{fol_banda_avertizare_q}",
+     "formatFrom": [
+      15,
+      20
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 2,
+     "row": 4,
+     "cells": [
+      "{#terasamente}{operatiune}",
+      "{lungime}",
+      "{latime}",
+      "{spatiu_verde}",
+      "{pietris}",
+      "{macadam}",
+      "{pavele}",
+      "{asfalt_carosabil}",
+      "{asfalt_trotuar}",
+      "{beton}{/terasamente}"
+     ],
+     "deleteRows": [
+      5,
+      6,
+      7,
+      8
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 1,
+     "text": "{#groapa_cuplare_buc}{groapa_cuplare_buc}{/groapa_cuplare_buc}",
+     "formatFrom": [
+      3,
+      1
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 2,
+     "text": "{#sondaje_retele_ml}{sondaje_retele_ml}{/sondaje_retele_ml}",
+     "formatFrom": [
+      3,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 3,
+     "text": "{#foraj_ml}{foraj_ml}{/foraj_ml}",
+     "formatFrom": [
+      3,
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 4,
+     "text": "{#groapa_foraj_buc}{groapa_foraj_buc}{/groapa_foraj_buc}",
+     "formatFrom": [
+      3,
+      4
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 5,
+     "text": "{#tp_ol_dn}{tp_ol_dn}{/tp_ol_dn}",
+     "formatFrom": [
+      3,
+      5
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 6,
+     "text": "{#tp_ol_m}{tp_ol_m}{/tp_ol_m}",
+     "formatFrom": [
+      3,
+      6
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 7,
+     "text": "{#tp_pe_dn}{tp_pe_dn}{/tp_pe_dn}",
+     "formatFrom": [
+      3,
+      7
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 8,
+     "text": "{#tp_pe_ml}{tp_pe_ml}{/tp_pe_ml}",
+     "formatFrom": [
+      3,
+      8
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 9,
+     "text": "{#tp_pvc_dn}{tp_pvc_dn}{/tp_pvc_dn}",
+     "formatFrom": [
+      3,
+      9
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 10,
+     "text": "{#tp_pvc_ml}{tp_pvc_ml}{/tp_pvc_ml}",
+     "formatFrom": [
+      3,
+      10
+     ]
+    }
+   ],
+   "rules": [
+    {
+     "find": "(?<=DATA)\\.+",
+     "replace": " {data_pv_cantitati}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Adresa)\\.+(?=;)",
+     "replace": ": str. {project_street}, nr. {project_street_number}{adresa_detalii_text}, loc. {project_city}, jud. {project_county}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Contract de racordare: )[….]+(?= Solicitant)",
+     "replace": "{contract_racordare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Solicitant\\(i\\):)\\.+",
+     "replace": " {client_name}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Intocmita de: OE )[….]+(?= Reprezentata)",
+     "replace": "{tenant_name}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Reprezentata prin)\\.+",
+     "replace": " {sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Detaliere alte situatii particulare :)$",
+     "replace": " {alte_situatii}",
+     "regex": true
+    }
+   ],
+   "ops": [
+    {
+     "op": "columns_line",
+     "match": "Nume prenume____",
+     "leadingTab": false,
+     "align": "left",
+     "cells": [
+      "Nume prenume__________________________________",
+      "Nume prenume: {sef_santier_nume}",
+      "Nume prenume: {client_name}"
+     ],
+     "positions": [
+      4215,
+      8990
+     ]
+    }
+   ],
+   "notes": "Anexa 25 (vedere, 2 pagini): completată integral — antet, lungimi pe diametre PE/OL, fitinguri PE (2 rânduri pe tip) și OL, terasamente ({#terasamente}, 5 operațiuni implicite), lucrări speciale, semnături OEE / beneficiar."
+  }
+ ]
+}

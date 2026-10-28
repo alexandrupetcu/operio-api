@@ -1,0 +1,1417 @@
+{
+ "distributor": "Distrigaz Sud Rețele — conductă",
+ "sourceDir": "documente/Conducta/Carte Conducta Distrigaz/_backup-20260621-224104",
+ "outDir": "documente/Conducta/Distrigaz-v2",
+ "workDir": "documente/Conducta/Distrigaz-v2/_src",
+ "roles": {
+  "constructor": "sef_santier"
+ },
+ "denyList": [
+  "PIC",
+  "Pic Termo",
+  "Zoe Samurcasi",
+  "ZOE SAMURCASI",
+  "Ciorogarla",
+  "CIOROGARLA",
+  "Toma Dragos",
+  "TOMA DRAGOS",
+  "Ivan Caliopa",
+  "IVAN CALIOPA",
+  "Ivan Florin",
+  "IVAN FLORIN",
+  "Mihaescu",
+  "MIHAESCU",
+  "MIHASCU",
+  "Coman",
+  "COMAN",
+  "Constantinescu",
+  "Mihailesti",
+  "MIHAILESTI",
+  "MIHAILSTI",
+  "Mihilesti",
+  "Unirii",
+  "UNIRII",
+  "25C",
+  "FRIPTU",
+  "BRAGADIRU",
+  "TATU-PETCU",
+  "1955361",
+  "13792881",
+  "0238",
+  "380 / 17",
+  "C242",
+  "78.80",
+  "78,80",
+  "25399134",
+  "25105205",
+  "22503028",
+  "568855",
+  "509201366",
+  "00026301",
+  "211180011",
+  "19830",
+  "ZEEN",
+  "50198193",
+  "nr. 52",
+  "413 /",
+  "ENGIE",
+  "Dn 90",
+  "PE 90",
+  "BRANSAMENT",
+  "reiser",
+  "REISER",
+  "FE10",
+  "PRM S300"
+ ],
+ "global": [
+  {
+   "find": "S\\.C\\. *Pic Termo Instal Gaz +S\\.R\\.L\\.?",
+   "replace": "{tenant_name}",
+   "regex": true,
+   "ci": true
+  },
+  [
+   "19832 / 19830",
+   "{tenant_autorizatie_anre} / {tenant_autorizatie_proiectare_nr}"
+  ],
+  {
+   "find": "C242/PIC/2025",
+   "replace": "{proiect_nr}",
+   "regex": true
+  },
+  {
+   "find": "Constantinescu (?:Petre )?Adrian",
+   "replace": "{verificator_nume}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "V ?140900131",
+   "replace": "{verificator_legitimatie}",
+   "regex": true
+  },
+  {
+   "find": "(?<=domeniile )VGd",
+   "replace": "{verificator_domeniu}",
+   "regex": true
+  },
+  {
+   "find": "(Agen[tțţ]ia Opera[tțţ]ional?[aă]? +Lucr[aă]ri:? +)(?:Bucuresti|Bucucersti)",
+   "replace": "\\1{osd_regiune}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(Directia Regionala(?: de Distributie)? +)Bucuresti",
+   "replace": "\\1{osd_regiune}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(Punct de lucru:? +)(?:Marasesti|Bucuresti)",
+   "replace": "\\1{osd_punct_lucru}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(?:str\\. ?|Bd )?(?:B-dul\\.? +)?Mar[ae]sesti,? ?(?:nr\\.? ?)?4-6(?:,? ?sect(?:\\.|or) ?4)?",
+   "replace": "{osd_adresa}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "021\\.301\\.17\\.(?:37|40)\\.?",
+   "replace": "{osd_telefon}",
+   "regex": true
+  },
+  {
+   "find": "021\\.301\\.18\\.05\\.?",
+   "replace": "{osd_fax}",
+   "regex": true
+  },
+  {
+   "find": "(?<=Localitate\\. )Bucucresti",
+   "replace": "{osd_regiune}",
+   "regex": true
+  },
+  {
+   "find": "(?<=judet / sector\\. )4",
+   "replace": "{osd_sector}",
+   "regex": true
+  },
+  [
+   "Sectorul 4",
+   "{osd_sector}"
+  ],
+  {
+   "find": "(?:S\\.C\\. )?Distrigaz[ -]+Sud +Retele +S\\.?R\\.?L\\.?",
+   "replace": "{osd_denumire}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(?<=FOL COMPLEX  )BRAGADIRU",
+   "replace": "{osd_fol}",
+   "regex": true
+  },
+  [
+   "TATU-PETCU GEORGIANA",
+   "{osd_sef_aol}"
+  ],
+  {
+   "find": "(?:STR\\. )?Str\\. +Unirii,? +Nr\\. +25C,? *,? *loc\\. *Mih[a-z]*s?ti,? +jud\\. +Giurgiu",
+   "replace": "{project_address}, loc. {project_city}, jud. {project_county}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(?<=Localitatea )MIHAILESTI",
+   "replace": "{project_city}",
+   "regex": true
+  },
+  {
+   "find": "(?<=judetul/sector )GIURGIU",
+   "replace": "{project_county}",
+   "regex": true
+  },
+  {
+   "find": "FRIPTU STEFAN *- *ALEXANDRU",
+   "replace": "{client_name}",
+   "regex": true,
+   "ci": true
+  },
+  [
+   "13792881 / 10.06.2025",
+   "{cod_atr}"
+  ],
+  {
+   "find": "24-21-25 / 0238",
+   "replace": "{cod_sap}",
+   "regex": true
+  },
+  [
+   "1955361",
+   "{comanda_cm}"
+  ],
+  {
+   "find": "nr\\. 52 din 27\\.08\\.2025",
+   "replace": "nr. {autorizatie_construire_nr} din {autorizatie_construire_data}",
+   "regex": true
+  },
+  {
+   "find": "(?<=Autorizatie de construire nr\\. )52(?= din )",
+   "replace": "{autorizatie_construire_nr}",
+   "regex": true
+  },
+  {
+   "find": "(?<= din )27\\.08\\.2025",
+   "replace": "{autorizatie_construire_data}",
+   "regex": true
+  },
+  {
+   "find": "(?<=emisa de )Primaria MIHAILESTI",
+   "replace": "{autorizatie_construire_emitent}",
+   "regex": true
+  },
+  {
+   "find": "(?<=OL )50198193 / 04\\.07\\.2025",
+   "replace": "{ordin_lucru} / {data_ol}",
+   "regex": true
+  },
+  {
+   "find": "(?<=Produsul  )PE 90 SDR11",
+   "replace": "{project_material} Dn {project_dn}",
+   "regex": true
+  },
+  {
+   "find": "PE100 SDR11 Dn 90mm",
+   "replace": "{project_material} Dn {project_dn}mm",
+   "regex": true
+  },
+  {
+   "find": "DN 90 = 78\\.80m|Dn 90 = 78\\.80m|DN 63 = 78\\.80m",
+   "replace": "{conducta_dn_lungimi_text}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "78[.,]80 ?(m?l?)",
+   "replace": "{conducta_lungime_totala} \\1",
+   "regex": true
+  },
+  {
+   "find": "(?<![\\d/])63( ?)(mm|MM)",
+   "replace": "{project_dn}\\1\\2",
+   "regex": true
+  },
+  {
+   "find": "(D[Nn] ?)63\\b",
+   "replace": "\\1{project_dn}",
+   "regex": true
+  },
+  {
+   "find": "(?<=PE )63(?= mm)",
+   "replace": "{project_dn}",
+   "regex": true
+  },
+  {
+   "find": "25399134 / 24\\.09\\.2025",
+   "replace": "{teava_cc_nr} / {teava_cc_data}",
+   "regex": true
+  },
+  {
+   "find": "25105205 / 24\\.09\\.2025",
+   "replace": "{teava_dc_nr} / {teava_dc_data}",
+   "regex": true
+  },
+  [
+   "TehnoWorld",
+   "{teava_furnizor}"
+  ],
+  {
+   "find": "ZEEN *-? *800 *-? *PLUS",
+   "replace": "{aparat_sudura}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "(?<=prin Sudura )ELECTROFUZIUNE|(?<=procedeul  )ELECTROFUZIUNE|(?<=realizate prin )ELECTROFUZIUNE|(?<=procedeu  )ELECTROFUZIUNE",
+   "replace": "{procedeu_sudura}",
+   "regex": true
+  },
+  {
+   "find": "(?<=pozitie  montaj)$|^electrofuziune$",
+   "replace": "{procedeu_sudura}",
+   "regex": true
+  },
+  {
+   "find": "Toma +Dragos +Mihail?",
+   "replace": "{diriginte_nume}",
+   "regex": true,
+   "ci": true
+  },
+  [
+   "00026301",
+   "{diriginte_legitimatie}"
+  ],
+  {
+   "find": "(?<=domeniul de autorizare: )9\\.4",
+   "replace": "{diriginte_domeniu}",
+   "regex": true
+  },
+  {
+   "find": "Ivan Caliopa Gica",
+   "replace": "{proiectant_nume}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "Coman Gabriel|GABRIEL COMAN",
+   "replace": "{rte_nume}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "00002635 / 6(?:\\.3 8\\.4|38)4?D",
+   "replace": "{rte_atestat} / {rte_domeniu}",
+   "regex": true
+  },
+  [
+   "00002635",
+   "{rte_atestat}"
+  ],
+  {
+   "find": "MIHA?E?SCU FLORIN",
+   "replace": "{sudor_pe_nume}",
+   "regex": true,
+   "ci": true
+  },
+  {
+   "find": "568855,? 568856, 568857,? *– PIC 05",
+   "replace": "{sudor_pe_autorizatii} – {sudor_pe_poanson}",
+   "regex": true
+  },
+  {
+   "find": "568855,? 568856, 568857",
+   "replace": "{sudor_pe_autorizatii}",
+   "regex": true
+  },
+  {
+   "find": "Ivan Florin Madalin",
+   "replace": "{instalator_nume}",
+   "regex": true,
+   "ci": true
+  },
+  [
+   "509201366",
+   "{instalator_legitimatie}"
+  ],
+  {
+   "find": "(?<=211180011)",
+   "replace": "",
+   "regex": true
+  },
+  [
+   "211180011",
+   "{proiectant_legitimatie}"
+  ],
+  [
+   "18.11.2028",
+   "{proiectant_valabilitate}"
+  ]
+ ],
+ "members": [
+  {
+   "id": "00",
+   "out": "1.Catre DISTRIGAZ.docx",
+   "src": "1.Catre DISTRIGAZ.doc",
+   "rules": [
+    [
+     "Sediu : Str. Zoe Samurcasi nr. 11A, Ciorogarla - Ilfov",
+     "Sediu : {tenant_address}, {tenant_city} - {tenant_county}"
+    ],
+    [
+     "CUI :  RO41642121",
+     "CUI :  {tenant_cui}"
+    ],
+    [
+     "J23/4048/2019",
+     "{tenant_reg_com}"
+    ],
+    [
+     " 0723.532.078",
+     " {tenant_phone}"
+    ],
+    [
+     "picinstalgaz@gmail.com",
+     "{tenant_email}"
+    ],
+    {
+     "find": "(?<=cartea tehnica pentru )Extindere conducta",
+     "replace": "{lucrare_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Dn )63(?= mm)",
+     "replace": "{project_dn}",
+     "regex": true
+    },
+    [
+     "Ivan Caliopa Gica",
+     "{tenant_admin_name}"
+    ]
+   ],
+   "preOps": [
+    {
+     "op": "unwrap_hyperlinks",
+     "part": "word/header1.xml"
+    },
+    {
+     "op": "set_paragraph",
+     "part": "word/header1.xml",
+     "match": "caliopa.gica@gmail.com",
+     "whole": false,
+     "text": ""
+    }
+   ],
+   "ops": [
+    {
+     "op": "image_placeholder",
+     "part": "word/header1.xml",
+     "tag": "tenant_logo",
+     "framePr": {
+      "w": "2600",
+      "h": "1620",
+      "hRule": "atLeast",
+      "wrap": "around",
+      "vAnchor": "text",
+      "hAnchor": "text",
+      "x": "-335",
+      "y": "262"
+     }
+    },
+    {
+     "op": "tab_signature",
+     "paragraphs": [
+      "Administrator,",
+      "{tenant_admin_name}"
+     ],
+     "align": "right",
+     "pos": 8380
+    }
+   ]
+  },
+  {
+   "id": "01",
+   "out": "10. FD 079 304 PV de punere in functiune CD.docx",
+   "src": "10. FD 079 304 PV de punere in functiune CD.DOC",
+   "preOps": [
+    {
+     "op": "delete_paragraph",
+     "text": "Ţeavă................................................    mm",
+     "whole": false
+    },
+    {
+     "op": "paragraph_loop",
+     "match": "TehnoWorld                  78.80m",
+     "tag": "lungimi_dn",
+     "keep": true
+    }
+   ],
+   "rules": [
+    {
+     "find": "63(?= mm\\.{13}TehnoWorld)",
+     "replace": "{dn}",
+     "regex": true
+    },
+    {
+     "find": "78\\.80m$",
+     "replace": "{lungime}m",
+     "regex": true
+    }
+   ]
+  },
+  {
+   "id": "02",
+   "out": "11. FD 092-301 PV PREDARE-PRIMIRE AMPLASAMENT.docx",
+   "src": "11. FD 092-301 PV PREDARE-PRIMIRE AMPLASAMENT.docx",
+   "rules": [
+    {
+     "find": "(?<=ING\\. )Ivan Florin Madalin",
+     "replace": "{@constructor_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=planşelor nr\\. )1",
+     "replace": "{planse_nr}",
+     "regex": true
+    }
+   ],
+   "noTableScale": true
+  },
+  {
+   "id": "03",
+   "out": "12. FD 397 304 PV predare primire santier inainte de cuplare.docx",
+   "src": "12. FD 397 304 PV predare primire santier inainte de cuplare.docx",
+   "rules": [
+    {
+     "find": "(?<=Ing\\. )Ivan Florin Madalin",
+     "replace": "{@constructor_nume}",
+     "regex": true
+    }
+   ]
+  },
+  {
+   "id": "04",
+   "out": "13.FD 398 304 PV predare primire santier dupa cuplare.docx",
+   "src": "13.FD 398 304 PV predare primire santier dupa cuplare.docx",
+   "rules": [
+    {
+     "find": "(?<=Ing\\. )Ivan Florin Madalin",
+     "replace": "{@constructor_nume}",
+     "regex": true
+    }
+   ]
+  },
+  {
+   "id": "05",
+   "out": "14. FD 093-901 PV TRASARE CONDUCTA.docx",
+   "src": "14. FD 093-901 PV TRASARE CONDUCTA.docx",
+   "rules": [
+    {
+     "find": "Extindere conducta gaze naturale R\\.P\\. Dn 63 mm L = 78\\.80m",
+     "replace": "{lucrare_tip} gaze naturale R.P. Dn {project_dn} mm L = {conducta_lungime_totala}m",
+     "regex": true
+    },
+    {
+     "find": "(?<=pe  baza  planşei )1",
+     "replace": "{planse_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=X  =  )78\\.80m",
+     "replace": "{conducta_lungime_totala}m",
+     "regex": true
+    },
+    {
+     "find": "(?<=Cota  \\(Z\\) = )0,90(?= m)",
+     "replace": "{adancime_pozare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Ing\\. )Ivan Florin Madalin$",
+     "replace": "{@constructor_nume}",
+     "regex": true
+    }
+   ],
+   "noTableScale": true,
+   "notes": "Tabelul de layout are lățimi mai mari decât pagina, dar Word îl potrivește singur (ca în original) — fără scalare."
+  },
+  {
+   "id": "06",
+   "out": "15. FD 428 302 PV Readucere la starea initiala.docx",
+   "src": "15. FD 428 302 PV Readucere la starea initiala.doc",
+   "rules": [
+    {
+     "find": "(?<=Ing\\. )Ivan Florin Madalin",
+     "replace": "{@constructor_nume}",
+     "regex": true
+    }
+   ],
+   "preOps": [
+    {
+     "op": "table_row_loop",
+     "table": 1,
+     "row": 2,
+     "cells": [
+      "{#tronsoane}{nr_crt}.",
+      "{strada}",
+      "{de_la}",
+      "{zona_afectata}",
+      "{data_pif}",
+      "{/tronsoane}"
+     ],
+     "deleteRows": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+     ]
+    }
+   ]
+  },
+  {
+   "id": "07",
+   "out": "16. PV Calitate materiale.docx",
+   "src": "16. PV Calitate materiale.doc",
+   "rules": [
+    {
+     "find": "(?<=lucrarea: )extinderea de conducta(?= din)",
+     "replace": "{lucrare_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Ing\\. )Ivan Florin Madalin",
+     "replace": "{@constructor_nume}",
+     "regex": true
+    }
+   ],
+   "preOps": [
+    {
+     "op": "collapse",
+     "first": "Bon predare nr. 4919142922 / 16.09.2025,",
+     "last": "DC 2028-CPR-887; 2028-CPR-888; 2028-CPR-889.",
+     "text": "XXDOCSXX"
+    },
+    {
+     "op": "paragraph_loop",
+     "match": "XXDOCSXX",
+     "tag": "documente_materiale_linii",
+     "text": "{text}"
+    }
+   ]
+  },
+  {
+   "id": "08",
+   "out": "17. P V DE VERIFICARE A CALITATII LUCRARILOR.docx",
+   "src": "17. P V DE VERIFICARE A CALITATII LUCRARILOR.doc",
+   "rules": [
+    {
+     "find": "(?<=lucrarea )extindere conducta(?= din)",
+     "replace": "{lucrare_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=ADANCIME )1,00(?=m)",
+     "replace": "{sapatura_adancime}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Ing\\. )Ivan Florin Madalin",
+     "replace": "{@constructor_nume}",
+     "regex": true
+    }
+   ],
+   "noTableScale": true
+  },
+  {
+   "id": "09",
+   "out": "18. FD 096-301 TABEL SUDORI AUTORIZATI.docx",
+   "src": "18. FD 096-301 TABEL SUDORI AUTORIZATI.docx",
+   "rules": [
+    {
+     "find": "(?<=Lucrarea )EXTINDERE CONDUCTA",
+     "replace": "{lucrare_tip}",
+     "regex": true
+    }
+   ],
+   "preOps": [
+    {
+     "op": "table_row_loop",
+     "table": 1,
+     "row": 21,
+     "cells": [
+      "{#project_sudori}{#sudor_ol_nume}{nr_crt}{/sudor_ol_nume}",
+      "{sudor_ol_nume}",
+      "{sudor_ol_aut_intern}",
+      "{sudor_ol_aut_iscir}",
+      "{sudor_ol_poanson}",
+      "{#sudor_pe_nume}{nr_crt}{/sudor_pe_nume}",
+      "{sudor_pe_nume}",
+      "{sudor_pe_aut_intern}",
+      "{sudor_pe_aut_iscir}",
+      "{sudor_pe_poanson}",
+      ""
+     ],
+     "formatFrom": [
+      [
+       1,
+       6
+      ],
+      [
+       2,
+       7
+      ],
+      [
+       3,
+       8
+      ],
+      [
+       4,
+       9
+      ],
+      [
+       5,
+       10
+      ]
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 1,
+     "row": 22,
+     "cells": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "{/project_sudori}",
+      ""
+     ]
+    },
+    {
+     "op": "vmerge",
+     "table": 1,
+     "col": 1,
+     "rows": [
+      21,
+      22
+     ],
+     "vAlign": "center"
+    },
+    {
+     "op": "vmerge",
+     "table": 1,
+     "col": 2,
+     "rows": [
+      21,
+      22
+     ],
+     "vAlign": "center"
+    },
+    {
+     "op": "vmerge",
+     "table": 1,
+     "col": 6,
+     "rows": [
+      21,
+      22
+     ],
+     "vAlign": "center"
+    },
+    {
+     "op": "vmerge",
+     "table": 1,
+     "col": 7,
+     "rows": [
+      21,
+      22
+     ],
+     "vAlign": "center"
+    },
+    {
+     "op": "row_borders",
+     "table": 1,
+     "rows": [
+      21,
+      22
+     ]
+    }
+   ],
+   "ops": [
+    {
+     "op": "drop_grid_col",
+     "table": 1,
+     "col": 10
+    },
+    {
+     "op": "drop_trailing_empty_rows",
+     "table": 1
+    },
+    {
+     "op": "shrink_trailing_empty"
+    }
+   ]
+  },
+  {
+   "id": "10",
+   "out": "19. FD 097-301 TABEL EXAMINARE VIZUALA A SUDURILOR.docx",
+   "src": "19. FD 097-301 TABEL EXAMINARE VIZUALA A SUDURILOR.docx",
+   "preOps": [
+    {
+     "op": "table_row_loop",
+     "table": 1,
+     "row": 20,
+     "cells": [
+      "{#suduri}{nr_crt}",
+      "{cod}",
+      "",
+      "ADMIS{/suduri}",
+      "",
+      "",
+      "",
+      "",
+      ""
+     ],
+     "deleteRows": [
+      21
+     ]
+    }
+   ],
+   "ops": [
+    {
+     "op": "drop_trailing_empty_rows",
+     "table": 1
+    },
+    {
+     "op": "shrink_trailing_empty"
+    }
+   ],
+   "noTableScale": true
+  },
+  {
+   "id": "11",
+   "out": "2. Cartea tehnica a constr_.docx",
+   "src": "2. Cartea tehnica a constr_.docx",
+   "rules": [
+    {
+     "find": "Extindere conducta gaze",
+     "replace": "{lucrare_tip} gaze naturale",
+     "regex": true
+    },
+    {
+     "find": "de presiune Redusa",
+     "replace": "{bransament_presiune}",
+     "whole": true
+    },
+    {
+     "find": "(?<=Dn )63(?= mm)",
+     "replace": "{project_dn}",
+     "regex": true
+    },
+    {
+     "find": "Mihailesti, jud\\. Giurgiu",
+     "replace": "{project_city}, jud. {project_county}",
+     "regex": true
+    },
+    {
+     "find": "Str\\. Unirii, nr\\. 25C\\.?",
+     "replace": "{project_address}",
+     "regex": true
+    },
+    [
+     "S.C. ENGIE Romania S.A.",
+     "{osd_denumire}"
+    ]
+   ]
+  },
+  {
+   "id": "12",
+   "out": "20. Schita conducta Unirii 25C.docx",
+   "src": "20. Schita conducta Unirii 25C.docx",
+   "rules": [
+    {
+     "find": "Adresa:  Str\\. Unirii, Nr\\. 25C, Loc\\. Mihailesti, Jud\\. Giurgiu\\.",
+     "replace": "Adresa:  {project_address}, Loc. {project_city}, Jud. {project_county}.",
+     "regex": true
+    },
+    {
+     "find": "^Ing\\. Ivan Florin Madalin$",
+     "replace": "Ing. {@constructor_nume}",
+     "regex": true
+    }
+   ],
+   "preOps": [
+    {
+     "op": "table_row_loop",
+     "table": 1,
+     "row": 3,
+     "cells": [
+      "{#schita_materiale}{descriere}",
+      "{dimensiune}",
+      "{material}",
+      "{cantitate}{/schita_materiale}"
+     ],
+     "deleteRows": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ]
+    }
+   ],
+   "ops": [
+    {
+     "op": "image_placeholder",
+     "tag": "project_drawing_mic"
+    },
+    {
+     "op": "delete_paragraph",
+     "text": ""
+    },
+    {
+     "op": "delete_paragraph",
+     "text": ""
+    },
+    {
+     "op": "shrink_trailing_empty"
+    }
+   ]
+  },
+  {
+   "id": "13",
+   "out": "22 . FD 253 301 Raport lucrari executate.docx",
+   "src": "22 . FD 253 301 Raport lucrari executate.doc",
+   "rules": [
+    {
+     "find": "EXTINDERE CONDUCTA(?= gaze naturale R\\.P\\.)",
+     "replace": "{lucrare_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=cu dn )63(?= mm)",
+     "replace": "{project_dn}",
+     "regex": true
+    },
+    {
+     "find": "Str\\. UNIRII, nr\\. 25C, loc\\. MIHAILESTI, jud\\. GIURGIU",
+     "replace": "{project_address}, loc. {project_city}, jud. {project_county}",
+     "regex": true
+    },
+    {
+     "find": "^1 / 26\\.09\\.2025$|(?<=nr\\. )1 / 26\\.09\\.2025",
+     "replace": "{raport_lucrari_nr} / {data_finalizare_montaj}",
+     "regex": true
+    },
+    {
+     "find": "(?<=L = )1\\.10",
+     "replace": "{sapatura_adancime}",
+     "regex": true
+    },
+    {
+     "find": "T\\.P\\. – +PE100 SDR17",
+     "replace": "T.P. – {tub_protectie_material}",
+     "regex": true
+    },
+    {
+     "find": "200mm",
+     "replace": "{tub_protectie_diametru}",
+     "whole": true
+    },
+    {
+     "find": "1.5",
+     "replace": "{tub_protectie_lungime}",
+     "whole": true
+    },
+    {
+     "find": "(?<=Rasuflatori carosabil - )NU",
+     "replace": "{rasuflatori_cu_capace}",
+     "regex": true
+    },
+    {
+     "find": "78, +72, *",
+     "replace": "{suduri_coduri_text}",
+     "regex": true
+    },
+    {
+     "find": "Mufa GF dop, +Mufa GF, *",
+     "replace": "",
+     "regex": true
+    },
+    {
+     "find": "Dn63mm +Dn63mm",
+     "replace": "",
+     "regex": true
+    },
+    {
+     "find": "MIHAESCU",
+     "replace": "{sudor_pe_nume}",
+     "whole": true
+    },
+    {
+     "find": "FLORIN",
+     "replace": "",
+     "whole": true
+    },
+    {
+     "find": "568855",
+     "replace": "{sudor_pe_autorizatii}",
+     "whole": true
+    },
+    {
+     "find": "568856",
+     "replace": "",
+     "whole": true
+    },
+    {
+     "find": "568857",
+     "replace": "",
+     "whole": true
+    },
+    {
+     "find": "L = 78\\.80m; +Lot Lot 22503028 / 24\\.09\\.2025 +TehnoWorld",
+     "replace": "L = {conducta_lungime_totala}m; Lot {teava_lot} {teava_furnizor}",
+     "regex": true
+    },
+    [
+     "1 buc. vana pe100 sdr11 DN63 full bore gaz",
+     "{robinet_bucati} buc. {robinet_tip}"
+    ],
+    {
+     "find": "^\\s*2\\s*$",
+     "replace": "{total_suduri}",
+     "regex": true
+    }
+   ]
+  },
+  {
+   "id": "14",
+   "out": "23. FD 040 301 PV lucrari ascunse conducte CND.docx",
+   "src": "23. FD 040 301 PV lucrari ascunse conducte CND.DOC",
+   "rules": [
+    {
+     "find": "(?<=Nr\\. )1(?= , )",
+     "replace": "{pv_lucrari_ascunse_nr}",
+     "regex": true
+    },
+    {
+     "find": "ziua 26, luna 09, anul 2025",
+     "replace": "{pv_lucrari_ascunse_data}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Sudor autorizat, )Toma Dragos Mihail",
+     "replace": "{sudor_pe_nume}",
+     "regex": true
+    },
+    {
+     "find": "Ivan Florin Madalin\\. Legitimatie nr\\. 509201366",
+     "replace": "{instalator_nume}. Legitimatie nr. {instalator_legitimatie}",
+     "regex": true
+    },
+    {
+     "find": "(?<=diametrul )63(?= +mm)",
+     "replace": "{project_dn}",
+     "regex": true
+    },
+    {
+     "find": "C\\.C\\. Nr\\. 25399134 / 24\\.09\\.2025; si D\\.C\\. nr\\. +25105205 / 24\\.09\\.2025; *",
+     "replace": "C.C. Nr. {teava_cc_nr} / {teava_cc_data}; si D.C. nr. {teava_dc_nr} / {teava_dc_data};",
+     "regex": true
+    },
+    {
+     "find": "(?<=adâncimea de pozare fiind \\.\\.\\.)-0\\.9(?=\\.\\.\\. m)",
+     "replace": "{adancime_pozare}",
+     "regex": true
+    }
+   ]
+  },
+  {
+   "id": "15",
+   "out": "24) Referat proiectant  -  MODEL 19.02.2025.docx",
+   "src": "24) Referat proiectant  -  MODEL 19.02.2025.docx",
+   "rules": [
+    [
+     "S.C. PIC TERMO INSTAL GAZ  S.R.L.",
+     "{tenant_name}"
+    ],
+    [
+     "Str. Zoe Samurcasi, nr. 11A, loc. Ciorogarla, jud. Ilfov",
+     "{tenant_address}, loc. {tenant_city}, jud. {tenant_county}"
+    ],
+    [
+     "Tel. 0740950808",
+     "Tel. {tenant_phone}"
+    ],
+    {
+     "find": "413 / data 04\\.11\\.2025",
+     "replace": "{nr_inregistrare} / data {data_inregistrare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=instalator autorizat )PGD",
+     "replace": "{proiectant_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Autorizatie de construire nr\\. )52",
+     "replace": "{autorizatie_construire_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Montajul )conductei ",
+     "replace": "conductei ",
+     "regex": true
+    }
+   ]
+  },
+  {
+   "id": "16",
+   "out": "25.REFERAT RESPONSABIL TEHNIC CU EXECUTIA.docx",
+   "src": "25.REFERAT RESPONSABIL TEHNIC CU EXECUTIA.docx",
+   "rules": [
+    {
+     "find": "(?<=pentru )extindere conducta(?= gaze naturale DN)",
+     "replace": "{lucrare_tip}",
+     "regex": true
+    },
+    {
+     "find": "“Extindere conducta de distributie a gazelor naturale pe ",
+     "replace": "“{lucrare_tip} de distributie a gazelor naturale pe ",
+     "regex": true
+    },
+    {
+     "find": "(?<=Referitor lucrare: )Extindere conducta",
+     "replace": "{lucrare_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=CONDUCTA NOUA )Dn 90 = 78\\.80m",
+     "replace": "{conducta_dn_lungimi_text}",
+     "regex": true
+    }
+   ]
+  },
+  {
+   "id": "17",
+   "out": "26. FD 029 301 PV control in faze det.docx",
+   "src": "26. FD 029 301 PV control in faze det.doc",
+   "rules": [
+    {
+     "find": "EXTINDERE CONDUCTA DISTRIBUTIE SI  BRANSAMENT GAZE NATURALE redusa PRESIUNE *",
+     "replace": "{lucrare_tip} DE DISTRIBUȚIE GAZE NATURALE {bransament_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=la adresa )Str\\. UNIRII, nr\\. 25C, loc\\. MIHAILSTI, jud\\. GIURGIU",
+     "replace": "{project_address}, loc. {project_city}, jud. {project_county}",
+     "regex": true
+    },
+    {
+     "find": "(?<=p= )9 X 105(?= Pa)",
+     "replace": "{proba_rezistenta_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=timp de )1 ora si 20 min",
+     "replace": "{proba_rezistenta_durata_text}",
+     "regex": true
+    },
+    {
+     "find": "(?<=p= )6 x 105(?= Pa)",
+     "replace": "{proba_etanseitate_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=timp de )24 ore si 5 min",
+     "replace": "{proba_etanseitate_durata_text}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Dn )63(?= mm)",
+     "replace": "{project_dn}",
+     "regex": true
+    },
+    {
+     "find": "(?<=L = )78\\.80",
+     "replace": "{conducta_lungime_totala}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Pl\\. )01",
+     "replace": "{planse_nr}",
+     "regex": true
+    }
+   ]
+  },
+  {
+   "id": "18",
+   "out": "3. FD-697-327 Opis carte tehnică.docx",
+   "src": "3. FD-697-327 Opis carte tehnică.doc"
+  },
+  {
+   "id": "19",
+   "out": "4. FD-704-327 Minuta pregătire cuplare.docx",
+   "src": "4. FD-704-327 Minuta pregătire cuplare.doc",
+   "ops": [
+    {
+     "op": "shrink_trailing_empty"
+    }
+   ]
+  },
+  {
+   "id": "20",
+   "out": "5.  Comunicare finalizare lucrări în vederea programării cuplării.docx",
+   "src": "5.  Comunicare finalizare lucrări în vederea programării cuplării.doc",
+   "ops": [
+    {
+     "op": "delete_paragraph",
+     "text": "................................................................................................................................................................",
+     "whole": true,
+     "nth": 4
+    },
+    {
+     "op": "shrink_trailing_empty"
+    }
+   ],
+   "noTableScale": true
+  },
+  {
+   "id": "21",
+   "out": "6. Comanda de cuplare.docx",
+   "src": "6. Comanda de cuplare.doc",
+   "rules": [
+    {
+     "find": "EXTINDERE CONDUCTA \\+ BRANSAMENT PE g\\.n\\.",
+     "replace": "{lucrare_tip} PE g.n.",
+     "regex": true
+    },
+    {
+     "find": "(?<=C-da CM Conducta: )\\.+",
+     "replace": "{comanda_cm}",
+     "regex": true
+    }
+   ]
+  },
+  {
+   "id": "22",
+   "out": "6.1. Anexa A - Notificare finalizare etapă montaj lucrări.docx",
+   "src": "6.1. Anexa A - Notificare finalizare etapă montaj lucrări.docx",
+   "rules": [
+    {
+     "find": "380 / 17\\.10\\.2025",
+     "replace": "{nr_inregistrare} / {data_inregistrare}",
+     "regex": true
+    },
+    [
+     "CIOROGARLA",
+     "{tenant_city}"
+    ],
+    [
+     "str. ZOE SAMURCASI, nr. 11A",
+     "{tenant_address}"
+    ],
+    [
+     "ILFOV",
+     "{tenant_county}"
+    ],
+    [
+     "IVAN CALIOPA GICA",
+     "{tenant_admin_name}"
+    ],
+    [
+     "tel. 0740950808",
+     "tel. {tenant_phone}"
+    ],
+    [
+     "picinstalgaz@gmail.com",
+     "{tenant_email}"
+    ],
+    [
+     "26.09.2025",
+     "{data_finalizare_montaj}"
+    ]
+   ],
+   "preOps": [
+    {
+     "op": "unwrap_hyperlinks"
+    }
+   ]
+  },
+  {
+   "id": "23",
+   "out": "6.2. Anexa B - Solicitare programare în vederea recepției tehnice.docx",
+   "src": "6.2. Anexa B - Solicitare programare în vederea recepției tehnice.docx",
+   "rules": [
+    {
+     "find": "380 / 17\\.10\\.2025",
+     "replace": "{nr_inregistrare} / {data_inregistrare}",
+     "regex": true
+    },
+    [
+     "CIOROGARLA",
+     "{tenant_city}"
+    ],
+    [
+     "str. ZOE SAMURCASI, nr. 11A",
+     "{tenant_address}"
+    ],
+    [
+     "ILFOV",
+     "{tenant_county}"
+    ],
+    [
+     "IVAN CALIOPA GICA",
+     "{tenant_admin_name}"
+    ],
+    [
+     "tel. 0740950808",
+     "tel. {tenant_phone}"
+    ],
+    [
+     "picinstalgaz@gmail.com",
+     "{tenant_email}"
+    ],
+    [
+     "05.11.2025",
+     "{data_programare_receptie}"
+    ],
+    [
+     "30.09.2025",
+     "{data_finalizare_lucrari}"
+    ],
+    {
+     "find": "conducta gaze naturale R\\.P\\. PE100 SDR11 Dn 90mm",
+     "replace": "conducta gaze naturale R.P. {project_material} Dn {project_dn}mm",
+     "regex": true
+    }
+   ],
+   "preOps": [
+    {
+     "op": "unwrap_hyperlinks"
+    }
+   ]
+  },
+  {
+   "id": "24",
+   "out": "7.  FD-705-327 ATE.docx",
+   "src": "7.  FD-705-327 ATE.doc",
+   "rules": [
+    {
+     "find": "CONDUCTA PE g\\.n\\. R\\.P\\. dn 63mm",
+     "replace": "CONDUCTĂ PE g.n. R.P. dn {project_dn}mm",
+     "regex": true
+    },
+    {
+     "find": "C-da CM Bransament: 1955361\\.",
+     "replace": "C-da CM Conductă: {comanda_cm}.",
+     "regex": true
+    },
+    {
+     "find": "IVAN FLORIN MADALIN",
+     "replace": "{@constructor_nume}",
+     "whole": true
+    }
+   ]
+  },
+  {
+   "id": "25",
+   "out": "8.FD 048 302 PV receptie tehnica CD.docx",
+   "src": "8.FD 048 302 PV receptie tehnica CD.DOC",
+   "rules": [
+    {
+     "find": "(?<=\\t)78\\.80m(?= )",
+     "replace": "{lungime}m",
+     "regex": true
+    },
+    {
+     "find": "63mm(?= +TehnoWorld)",
+     "replace": "{dn}mm",
+     "regex": true
+    },
+    {
+     "find": "(?<=la \\.\\.\\.)9\\*10\\^5(?=\\.\\.\\. Pa)",
+     "replace": "{proba_rezistenta_presiune}",
+     "regex": true
+    },
+    {
+     "find": "1 ora si 20 min\\.?",
+     "replace": "{proba_rezistenta_durata_text}",
+     "regex": true
+    },
+    {
+     "find": "(?<=la \\.\\.\\.)6\\*10\\^5(?=\\.\\.\\. Pa)",
+     "replace": "{proba_etanseitate_presiune}",
+     "regex": true
+    },
+    {
+     "find": "24 ore si 5 min",
+     "replace": "{proba_etanseitate_durata_text}",
+     "regex": true
+    },
+    {
+     "find": "(?<=\\.\\.\\.\\.\\.\\.\\. )2 buc(?= \\.)",
+     "replace": "{rasuflatori_cu_capace} buc",
+     "regex": true
+    }
+   ],
+   "preOps": [
+    {
+     "op": "paragraph_loop",
+     "match": "25399134 / 24.09.2025",
+     "tag": "lungimi_dn",
+     "keep": true
+    }
+   ]
+  },
+  {
+   "id": "26",
+   "out": "9.Fisa tehnica CD -model nou.docx",
+   "src": "9.Fisa tehnica CD -model nou.doc",
+   "rules": [
+    {
+     "find": "Presiune redusa",
+     "replace": "{bransament_presiune}",
+     "regex": true
+    },
+    {
+     "find": "63 mm +- mm",
+     "replace": "{dn_1} mm                            {dn_2} mm",
+     "regex": true
+    },
+    {
+     "find": "78\\.80m +- m",
+     "replace": "{lungime_1} m                           {lungime_2} m",
+     "regex": true
+    },
+    {
+     "find": "Ing\\. Ivan Florin Madalin, +EGD",
+     "replace": "Ing. {instalator_nume},  {instalator_tip}",
+     "regex": true
+    }
+   ]
+  }
+ ]
+}

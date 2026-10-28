@@ -20,7 +20,8 @@ const prisma = new PrismaClient();
 
 const CATEGORY_CODE = "CARTE_CONDUCTA";
 const GROUP_NAME = "Dosar Conducta NEOGAS GRID";
-const FOLDER = join(process.cwd(), "..", "documente", "Carte Conducta Neogas Grid");
+// TEMPLATES_DIR: folderul cu șabloanele refăcute din originalele clientului (scripts/templatize-v2.py).
+const FOLDER = process.env.TEMPLATES_DIR ?? join(process.cwd(), "..", "documente", "Carte Conducta Neogas Grid");
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function cleanName(file: string): string {
@@ -69,7 +70,7 @@ async function main() {
   }
 
   const files = readdirSync(FOLDER)
-    .filter((f) => f.toLowerCase().endsWith(".docx") && !f.startsWith("~$") && !f.startsWith("_"))
+    .filter((f) => f.toLowerCase().endsWith(".docx") && !f.startsWith("~$") && !f.startsWith(".") && !f.startsWith("_"))
     .sort((a, b) => a.localeCompare(b));
 
   const last = await prisma.documentTemplate.findFirst({

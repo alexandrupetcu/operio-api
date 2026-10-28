@@ -100,6 +100,13 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "bransament_lungime_totala", label: "Lungimea totală a branșamentului", help: "Lasă gol: se calculează lungimea conductei + reiserul.", step: "work", section: "Conducta", type: "number", unit: "m" },
   { key: "teu_dn", label: "Teul de branșament (DN)", help: "ex. 63/32 — primul număr e diametrul conductei stradale.", step: "work", section: "Conducta", type: "text" },
   { key: "bransament_presiune", label: "Regimul de presiune", step: "work", section: "Conducta", type: "select", options: ["Redusă presiune", "Medie presiune"] },
+  { key: "lucrare_tip", label: "Tipul lucrării", help: "Cum apare pe documentele conductei, ex. „Extindere conductă”.", step: "work", section: "Conducta", type: "select", options: ["Extindere conductă", "Conductă nouă", "Deviere conductă", "Înlocuire conductă"] },
+  { key: "tronsoane", label: "Tronsoanele conductei", help: "Câte un rând pe tronson (stradă / diametru). Lungimea totală și lungimile pe diametre se calculează din ele.", step: "work", section: "Tronsoanele conductei", ...table("tronsoane") },
+  { key: "abateri_constatate", label: "Abateri constatate la predarea amplasamentului", help: "ex. „modificare punct de cuplare”; gol = nu s-au constatat.", step: "work", section: "Lucrarea", type: "text" },
+  { key: "dispozitie_santier", label: "Dispoziție de șantier", help: "ex. „nr. 1/03.07.2026 privind modificarea punctului de cuplare”", step: "work", section: "Lucrarea", type: "text" },
+  { key: "schita_materiale", label: "Materialele din schiță", step: "work", section: "Schița", ...table("schita_materiale") },
+  { key: "subtraversari", label: "Subtraversări (tuburi de protecție)", help: "Lasă gol dacă nu e cazul.", step: "work", section: "Subtraversări", ...table("subtraversari") },
+  { key: "adancime_pozare", label: "Adâncimea de pozare", step: "work", section: "Săpătura", type: "text", unit: "m", help: "ex. 0,90" },
   { key: "zona_afectata", label: "Zona afectată", help: "Ce s-a spart și se readuce la starea inițială, ex. „Pietriș”, „Asfalt”.", step: "work", section: "Lucrarea", type: "text" },
   { key: "distanta_limita", label: "Distanța față de limita de proprietate", help: "ex. „1 m dreapta”", step: "work", section: "Lucrarea", type: "text" },
   { key: "sapatura_adancime", label: "Adâncimea săpăturii", step: "work", section: "Săpătura", type: "number", unit: "m" },
@@ -109,6 +116,7 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "tub_protectie_lungime", label: "Tubul de protecție — lungime", step: "work", section: "Fișa tehnică", type: "text" },
   { key: "tub_protectie_material", label: "Tubul de protecție — material", step: "work", section: "Fișa tehnică", type: "text" },
   { key: "robinet_diametru", label: "Robinetul — diametru", help: "ex. 1”", step: "work", section: "Fișa tehnică", type: "text" },
+  { key: "robinet_tip", label: "Robinetul — tip", help: "ex. „vană PE100 SDR11 full bore gaz”", step: "work", section: "Fișa tehnică", type: "text" },
   { key: "robinet_bucati", label: "Robinetul — bucăți", step: "work", section: "Fișa tehnică", type: "number" },
   { key: "rasuflatori_cu_capace", label: "Răsuflători cu capace GN — bucăți", step: "work", section: "Fișa tehnică", type: "text" },
   { key: "rasuflatori_fara_capace", label: "Răsuflători fără capace GN — bucăți", step: "work", section: "Fișa tehnică", type: "text" },
@@ -122,6 +130,15 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "osd_fax", label: "Faxul agenției", help: "Din Setări → Distribuitori; completează aici doar ca să schimbi valoarea pe acest dosar.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_directia", label: "Direcția", help: "ex. Direcția Operațională Muntenia Nord", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_punct_lucru", label: "Punctul de lucru", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
+  { key: "osd_fol", label: "FOL / punctul de exploatare", help: "ex. „Bragadiru”", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
+  { key: "client_cod", label: "Codul clientului (OSD)", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
+  { key: "comanda_pm_nr", label: "Nr. comandă PM", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
+  { key: "nr_mf_existent", label: "Nr. MF existent", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
+  { key: "contract_racordare", label: "Contractul de racordare", help: "nr. / dată", step: "permits", section: "Acte și avize", type: "text" },
+  { key: "valoare_lucrari", label: "Valoarea lucrărilor (lei, fără TVA)", step: "permits", section: "Acte și avize", type: "text" },
+  { key: "adeverinta_ijc_nr", label: "Adeverința IJC — nr.", step: "permits", section: "Acte și avize", type: "text" },
+  { key: "osd_sef_aol", label: "Șeful agenției operaționale (AOL)", help: "Semnează comanda de cuplare.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
+  { key: "comanda_cm", label: "Comanda CM / interfața", help: "Numărul din comanda de cuplare și din ATE, ex. 1955361.", step: "permits", section: "Acte și avize", type: "text" },
   { key: "osd_delegat_nume", label: "Delegatul distribuitorului", help: "Numele delegatului OSD care semnează PV-urile de recepție calitativă.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_director", label: "Directorul care aprobă recepția", help: "ex. „IONIȚĂ Ion – Director Executiv”. Din Setări → Distribuitori; completează aici doar ca să schimbi valoarea pe acest dosar.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "cod_atr", label: "Număr ATR / aviz tehnic de racordare", step: "permits", section: "Acte și avize", type: "text" },
@@ -142,6 +159,7 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "data_pv_rt", label: "Data procesului-verbal de recepție tehnică", step: "permits", section: "Termene", type: "date" },
   { key: "data_incepere_executie", label: "Data începerii execuției", step: "permits", section: "Termene", type: "date" },
   { key: "data_pif", label: "Data punerii în funcțiune", step: "permits", section: "Termene", type: "date" },
+  { key: "data_receptie_terminare", label: "Data recepției la terminarea lucrărilor", step: "permits", section: "Termene", type: "date" },
   { key: "data_receptie_finala", label: "Data recepției finale", help: "Lasă gol dacă nu s-a făcut încă.", step: "permits", section: "Termene", type: "date" },
   { key: "pv_receptie_nr", label: "PV de recepție la terminarea lucrărilor — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
   { key: "pv_control_calitate_nr", label: "PV de control al calității (fază determinantă) — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
@@ -150,6 +168,11 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "pv_pif_nr", label: "PV de punere în funcțiune a racordului — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
   { key: "pv_pif_srm_nr", label: "PV de punere în funcțiune a postului de reglare — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
   { key: "pv_lucrari_ascunse_nr", label: "PV de lucrări ascunse — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "pv_proba_casa_nr", label: "PV probă de casă — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "pv_tub_protectie_nr", label: "PV de lucrări ascunse — tub de protecție — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "pv_receptie_calitativa_nr", label: "PV de recepție calitativă a montării — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "raport_lucrari_nr", label: "Raportul de lucrări executate — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
+  { key: "nr_convocare_faza", label: "Nr. convocare pentru faza determinantă", step: "permits", section: "ISCIR", type: "text" },
   { key: "fisa_racord_nr", label: "Fișa tehnică a racordului — nr.", help: "ex. 1 / 2025", step: "permits", section: "Numerele documentelor", type: "text" },
   { key: "fisa_srm_nr", label: "Fișa tehnică a postului de reglare — nr.", help: "ex. 2 / 2025", step: "permits", section: "Numerele documentelor", type: "text" },
   { key: "rte_firma", label: "Firma responsabilului tehnic cu execuția", help: "Lasă gol dacă RTE-ul e al firmei care execută.", step: "permits", section: "Echipa", type: "text" },
@@ -167,6 +190,7 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "reiser_lot", label: "Lotul reiserului", help: "ex. 2373/2024", step: "materials", section: "Reiser și firidă", type: "text" },
   { key: "firida_tip", label: "Tipul firidei", help: "ex. PRM S300", step: "materials", section: "Reiser și firidă", type: "text" },
   { key: "materiale", label: "Materialele racordului", help: "Câte un rând pe material: furnizor, certificat de calitate și declarație de conformitate.", step: "materials", section: "Materialele racordului", ...table("materiale") },
+  { key: "materiale_conducta", label: "Materialele conductei", help: "Câte un rând pe material: diametru, cantitate, furnizor, certificat de calitate și declarație de conformitate.", step: "materials", section: "Materialele conductei", ...table("materiale_conducta") },
   { key: "materiale_srm", label: "Materialele postului de reglare", step: "materials", section: "Materialele postului de reglare", ...table("materiale_srm") },
   { key: "documente_materiale", label: "Documentele materialelor", help: "Facturi, certificate de calitate, declarații de conformitate — câte unul pe rând.", step: "materials", section: "Documentele materialelor", type: "textarea" },
   { key: "regulator_tip", label: "Tipul regulatorului", step: "materials", section: "Regulator", type: "text" },
@@ -185,6 +209,27 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "proba_rezistenta_presiune", label: "Presiunea de probă", step: "materials", section: "Proba de rezistență", type: "number", unit: PRESSURE_UNIT },
   { key: "proba_rezistenta_timp", label: "Durata probei", step: "materials", section: "Proba de rezistență", type: "number", unit: "minute", aliases: ["timp_proba_rezistenta"] },
   { key: "proba_rezistenta_temperatura", label: "Temperatura", step: "materials", section: "Proba de rezistență", type: "number", unit: "°C" },
+  { key: "data_pv_cantitati", label: "PV de cantități — data", step: "materials", section: "Cantități (Anexa 25)", type: "date" },
+  { key: "nr_imobile_cerere", label: "Imobile cu cerere de racordare", step: "materials", section: "Cantități (Anexa 25)", type: "number" },
+  { key: "nr_imobile_existente", label: "Imobile existente pe traseu", step: "materials", section: "Cantități (Anexa 25)", type: "number" },
+  { key: "lungime_public", label: "Conductă pe domeniul public", step: "materials", section: "Cantități (Anexa 25)", type: "number", unit: "m" },
+  { key: "lungime_privat", label: "Conductă pe teren privat", step: "materials", section: "Cantități (Anexa 25)", type: "number", unit: "m" },
+  { key: "fitinguri_pe", label: "Fitinguri PE100 SDR11", help: "Tipul din listă, Dn și bucăți — câte două rânduri pe tip intră în formular.", step: "materials", section: "Cantități (Anexa 25)", ...table("fitinguri_pe") },
+  { key: "fitinguri_ol", label: "Materiale și fitinguri OL / fontă", step: "materials", section: "Cantități (Anexa 25)", ...table("fitinguri_ol") },
+  { key: "terasamente", label: "Terasamente", help: "Lungimea și lățimea șanțului, apoi metrii pe fiecare tip de suprafață.", step: "materials", section: "Cantități (Anexa 25)", ...table("terasamente") },
+  { key: "groapa_cuplare_buc", label: "Gropi de cuplare (buc)", step: "materials", section: "Lucrări speciale", type: "number" },
+  { key: "sondaje_retele_ml", label: "Sondaje rețele (ml)", step: "materials", section: "Lucrări speciale", type: "number" },
+  { key: "foraj_ml", label: "Foraj orizontal (ml)", step: "materials", section: "Lucrări speciale", type: "number" },
+  { key: "groapa_foraj_buc", label: "Gropi poziție foraj 2x1x1 (buc)", step: "materials", section: "Lucrări speciale", type: "number" },
+  { key: "tp_ol_dn", label: "Tub protecție OL — Dn (″)", step: "materials", section: "Lucrări speciale", type: "text" },
+  { key: "tp_ol_m", label: "Tub protecție OL — m", step: "materials", section: "Lucrări speciale", type: "number" },
+  { key: "tp_pe_dn", label: "Tub protecție PE — Dn (mm)", step: "materials", section: "Lucrări speciale", type: "text" },
+  { key: "tp_pe_ml", label: "Tub protecție PE — ml", step: "materials", section: "Lucrări speciale", type: "number" },
+  { key: "tp_pvc_dn", label: "Tub protecție PVC — Dn (mm)", step: "materials", section: "Lucrări speciale", type: "text" },
+  { key: "tp_pvc_ml", label: "Tub protecție PVC — ml", step: "materials", section: "Lucrări speciale", type: "number" },
+  { key: "alte_situatii", label: "Alte situații particulare", step: "materials", section: "Lucrări speciale", type: "textarea" },
+  { key: "proba_casa_presiune", label: "Presiunea de probă", help: "Lasă gol: se ia presiunea probei de rezistență.", step: "materials", section: "Proba de casă", type: "number", unit: PRESSURE_UNIT },
+  { key: "proba_casa_timp", label: "Durata probei", help: "Lasă gol: se ia durata probei de rezistență.", step: "materials", section: "Proba de casă", type: "number", unit: "minute" },
   { key: "proba_etanseitate_presiune", label: "Presiunea de probă", step: "materials", section: "Proba de etanșeitate", type: "number", unit: PRESSURE_UNIT },
   { key: "proba_etanseitate_timp", label: "Durata probei", step: "materials", section: "Proba de etanșeitate", type: "number", unit: "minute", aliases: ["timp_proba_etanseitate"] },
   { key: "proba_etanseitate_temperatura", label: "Temperatura", step: "materials", section: "Proba de etanșeitate", type: "number", unit: "°C" },
@@ -215,9 +260,9 @@ export const ASSIGNMENT_FIELDS = ["decizie_nr", "decizie_data"] as const;
  * curente, registratura, imaginile, tabelul sudorilor și cel al sudurilor
  * (`{#suduri}{nr_crt} {cod} {rezultat}{/suduri}`, derivat din „Sudurile executate”).
  */
-const AUTO_KEY = /^(tenant_|client_|current_|nr_inregistrare|data_inregistrare|project_(type|status|street)$|project_drawing$|project_sudori$|project_length_km$|teava_(cc|dc)_an$|bransament_presiune_abr$|conducta_stradala_dn$|adresa_detalii_text$|nr_crt$|sudor_(ol|pe)_|sudori_autorizatii$|suduri$|total_suduri$|cod$|rezultat$|year$)/;
+const AUTO_KEY = /^(tenant_|client_|current_|nr_inregistrare|data_inregistrare|project_(type|status|street)$|project_drawing(_mic)?$|project_sudori$|project_length_km$|teava_(cc|dc)_an$|conducta_lungime_totala$|conducta_dn_(lungimi_)?text$|lungimi_dn$|lungime_dn_[a-z0-9_]+$|ldn_[0-9_]+$|proba_casa_durata_text$|dn_[12]$|lungime_[12]$|suduri_coduri_text$|tronsoane_text$|documente_materiale_linii$|lungime_total_(pe|ol)$|etape$|nr_etapa$|sufix$|lungime_etapa$|tronsoane_etapa_text$|fpe_[a-z0-9_]+$|fol_[a-z0-9_]+$|bransament_presiune_abr$|conducta_stradala_dn$|adresa_detalii_text$|nr_crt$|sudor_(ol|pe)_|sudori_autorizatii$|suduri$|total_suduri$|cod$|rezultat$|year$)/;
 /** Coloanele tabelelor (și ale buclei `sudori_autorizatii`) — nu se cer separat. */
-const TABLE_COLUMN_KEYS = new Set([...Object.values(DOSSIER_TABLES).flatMap((t) => t.columns.map((c) => c.key)), "nume"]);
+const TABLE_COLUMN_KEYS = new Set([...Object.values(DOSSIER_TABLES).flatMap((t) => t.columns.map((c) => c.key)), "nume", "text"]);
 /** Coloane care există doar în tabelul sudurilor NEOGAS — o buclă `suduri` care le folosește cere tabelul. */
 const SUDURI_TABEL_ONLY = ["sudor", "procedeu", "omologare"];
 const ROLE_KEY = new RegExp(`^(${DOSSIER_ROLES.join("|")})_([a-z_]+)$`);
@@ -274,7 +319,7 @@ export function fieldsForPlaceholders(docs: { name: string; placeholders: Set<st
     for (const raw of doc.placeholders) {
       const key = raw.replace(/^[#/^%]/, "");
       if (raw.startsWith("/")) continue;
-      if (key === "project_drawing") needsDrawing = true;
+      if (key === "project_drawing" || key === "project_drawing_mic") needsDrawing = true;
       if (key === "project_sudori" || key === "sudori_autorizatii") {
         usesSudoriTable = true;
         addRole("sudor", doc.name);

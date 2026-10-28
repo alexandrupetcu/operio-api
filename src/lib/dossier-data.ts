@@ -44,6 +44,8 @@ export function distributorDocVars(distributor: { name: string; contactJson: unk
 export interface DossierTableColumn {
   key: string;
   label: string;
+  /** Variante propuse în pagina Dosare (ex. tipurile de fitinguri). */
+  options?: string[];
 }
 export interface DossierTable {
   /** Ce e un rând, pentru butonul „Adaugă …” din pagina Dosare. */
@@ -84,6 +86,22 @@ export const DOSSIER_TABLES: Record<string, DossierTable> = {
       "Capace GN",
     ],
   },
+  materiale_conducta: {
+    itemLabel: "material",
+    columns: MATERIAL_COLUMNS,
+    rows: [
+      "Material tubular PE",
+      "Mufe EF",
+      "Dopuri EF",
+      "Coturi EF",
+      "Teu egal EF",
+      "Răsuflători",
+      "Capace GN",
+      "Fir trasor",
+      "Bandă avertizare „pericol explozie”",
+      "Nisip",
+    ],
+  },
   materiale_srm: {
     itemLabel: "material",
     columns: MATERIAL_COLUMNS,
@@ -97,6 +115,71 @@ export const DOSSIER_TABLES: Record<string, DossierTable> = {
       { key: "nr_suduri", label: "Sudurile pe el (ex. S3, S4)" },
     ],
     rows: ["Teu branșament OL", "Piesă de tranziție OL-PE", "Mufă EF", "Țeavă PE", "Cap de branșament", "Robinet cu bilă"],
+  },
+  tronsoane: {
+    itemLabel: "tronson",
+    columns: [
+      { key: "comuna", label: "Localitatea / comuna" },
+      { key: "strada", label: "Strada" },
+      { key: "de_la", label: "De la (ex. nr. 25C)" },
+      { key: "pana_la", label: "Până la (ex. conducta existentă)" },
+      { key: "dn", label: "Diametru (mm; la OL în ″)" },
+      { key: "material", label: "Material (ex. PE100 SDR11)" },
+      { key: "lungime", label: "Lungime (m)" },
+      { key: "data", label: "Data execuției (etapa)" },
+    ],
+  },
+  schita_materiale: {
+    itemLabel: "material",
+    columns: [
+      { key: "descriere", label: "Descriere (ex. Țeavă, Mufă EF)" },
+      { key: "dimensiune", label: "Dimensiune (ex. Dn 63mm)" },
+      { key: "material", label: "Material (ex. PE 100)" },
+      { key: "cantitate", label: "Cantitate (buc / ml)" },
+    ],
+    rows: ["Țeavă", "Mufă EF", "Dop", "Șa EF", "Vană", "Capac carosabil", "Tub de protecție"],
+  },
+  fitinguri_pe: {
+    itemLabel: "fiting PE",
+    columns: [
+      { key: "tip", label: "Fitingul", options: [] as string[] },
+      { key: "dn", label: "Dn (mm sau Dn-Dn)" },
+      { key: "buc", label: "Bucăți" },
+    ],
+  },
+  fitinguri_ol: {
+    itemLabel: "material OL",
+    columns: [
+      { key: "tip", label: "Materialul", options: [] as string[] },
+      { key: "dn", label: "Dn / dimensiune" },
+      { key: "cantitate", label: "Cantitate (buc / ml)" },
+    ],
+  },
+  terasamente: {
+    itemLabel: "operațiune",
+    columns: [
+      { key: "operatiune", label: "Operațiunea" },
+      { key: "lungime", label: "Șanț L (m)" },
+      { key: "latime", label: "Șanț l (m)" },
+      { key: "spatiu_verde", label: "Spațiu verde" },
+      { key: "pietris", label: "Pietriș" },
+      { key: "macadam", label: "Piatră spartă / macadam" },
+      { key: "pavele", label: "Pavele / dale" },
+      { key: "asfalt_carosabil", label: "Asfalt carosabil" },
+      { key: "asfalt_trotuar", label: "Asfalt trotuar" },
+      { key: "beton", label: "Beton" },
+    ],
+    rows: ["Săpătură șanț conductă", "Așternere nisip (ml)", "Tăiere (ml)", "Desfacere (mp)", "Refacere (mp)"],
+  },
+  subtraversari: {
+    itemLabel: "subtraversare",
+    columns: [
+      { key: "descriere", label: "Ce se subtraversează (ex. Str. Unirii)" },
+      { key: "material", label: "Tubul de protecție (ex. PE100 SDR26)" },
+      { key: "dn", label: "Diametru (mm)" },
+      { key: "lungime", label: "Lungime (m)" },
+      { key: "adancime", label: "Adâncime (ex. -1,40 m)" },
+    ],
   },
   suduri_tabel: {
     itemLabel: "sudură",
@@ -126,7 +209,133 @@ export const PV_DATES: { key: string; label: string }[] = [
   { key: "pv_etanseitate_data", label: "PV probă de etanșeitate" },
   { key: "pv_lucrari_ascunse_data", label: "PV de lucrări ascunse" },
   { key: "pv_control_calitate_data", label: "PV de control al calității" },
+  { key: "pv_proba_casa_data", label: "PV probă de casă" },
+  { key: "pv_tub_protectie_data", label: "PV de lucrări ascunse — tub de protecție" },
+  { key: "pv_receptie_calitativa_data", label: "PV de recepție calitativă a montării" },
 ];
+
+/** Tipurile din Anexa 25 MegaConstruct (coloanele formularului), în ordinea lor. */
+export const FITINGURI_PE = ["Vană PEHD", "Mufă EF", "Reducție injectat", "Reducție electrofuziune", "Cot injectat", "Cot electrofuziune", "Teu egal injectat", "Teu egal electrofuziune", "Teu redus injectat", "Teu redus electrofuziune", "Șa branșament", "Capac EF"];
+export const FITINGURI_OL = ["Vană OL", "Curbă sudură", "Reducție OL", "Fiting tranziție OL-PE", "Bandă izolație Kebulen", "Răsuflător spațiu verde", "Răsuflător carosabil", "Capac GN", "Capac GN mare", "Fir trasor", "Bandă avertizare"];
+DOSSIER_TABLES.fitinguri_pe.columns[0].options = FITINGURI_PE;
+DOSSIER_TABLES.fitinguri_ol.columns[0].options = FITINGURI_OL;
+
+/** „Șa branșament” → „sa_bransament” (cheia variabilelor din Anexa 25). */
+export const slugOf = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+
+/** Fitingurile pe tip: la PE câte două rânduri pe tip (`fpe_<tip>_<1|2>_dn/_buc`), la OL unul (`fol_<tip>_dn/_q`). */
+function fitinguriVars(meta: Meta): Record<string, string> {
+  const out: Record<string, string> = {};
+  const pe = parseDossierTable(DOSSIER_TABLES.fitinguri_pe, meta.fitinguri_pe);
+  for (const tip of FITINGURI_PE) {
+    const rows = pe.filter((r) => slugOf(r.tip) === slugOf(tip));
+    for (const i of [1, 2]) {
+      out[`fpe_${slugOf(tip)}_${i}_dn`] = rows[i - 1]?.dn ?? "";
+      out[`fpe_${slugOf(tip)}_${i}_buc`] = rows[i - 1]?.buc ?? "";
+    }
+  }
+  const ol = parseDossierTable(DOSSIER_TABLES.fitinguri_ol, meta.fitinguri_ol);
+  for (const tip of FITINGURI_OL) {
+    const r = ol.find((x) => slugOf(x.tip) === slugOf(tip));
+    out[`fol_${slugOf(tip)}_dn`] = r?.dn ?? "";
+    out[`fol_${slugOf(tip)}_q`] = r?.cantitate ?? "";
+  }
+  return out;
+}
+
+/** Diametrele PE tipărite ca coloane în anexele cu tronsoane (ex. Ø90 / Ø63 / Ø32). */
+const STANDARD_DN = ["20", "25", "32", "40", "50", "63", "75", "90", "110", "125", "160", "180", "200", "225", "250", "315"];
+const dnKey = (dn: string) => {
+  const t = dn.trim().replace(",", ".");
+  const ol = /["″”]|toli|^(\d+(?:\.\d+)?)\s*(?:in|inch)$/i.test(t);
+  const n = /\d+(?:\.\d+)?/.exec(t)?.[0];
+  return n ? (ol ? `ol_${n.replace(".", "_")}` : n.replace(".", "_")) : null;
+};
+
+/** Suma unor lungimi, cu zecimalele celui mai precis termen („60.30” + „18.50” → „78.80”). */
+function sumLengths(values: unknown[]): string | null {
+  const nums = values.map(num);
+  if (!nums.length || nums.some((n) => n === null)) return null;
+  const d = Math.max(...values.map(decimals));
+  return (nums as number[]).reduce((a, b) => a + b, 0).toFixed(d);
+}
+
+/**
+ * Tronsoanele conductei: rândurile (cu `ldn_<Ø>` = lungimea în coloana diametrului lui),
+ * lungimea totală, lungimile pe diametre (`lungimi_dn[]`, `lungime_dn_63`, `lungime_dn_ol_2`).
+ * Fără tronsoane, un singur tronson din datele lucrării (strada, Dn, lungimea).
+ */
+function tronsoaneVars(meta: Meta): Record<string, unknown> {
+  let rows = parseDossierTable(DOSSIER_TABLES.tronsoane, meta.tronsoane);
+  if (!filled(meta.tronsoane) && filled(meta.project_length)) {
+    rows = [{
+      nr_crt: "1",
+      comuna: str(meta.project_city),
+      strada: str(meta.project_street) || str(meta.lucrare_strada),
+      de_la: "",
+      pana_la: "",
+      dn: str(meta.project_dn),
+      material: str(meta.project_material),
+      lungime: str(meta.project_length),
+      data: "",
+    }];
+  }
+  if (!rows.length) return {};
+  const out: Record<string, unknown> = {};
+  const byDn = new Map<string, unknown[]>();
+  for (const r of rows) {
+    const k = dnKey(r.dn);
+    for (const d of STANDARD_DN) r[`ldn_${d}`] = k === d ? r.lungime : "";
+    if (k) byDn.set(r.dn.trim(), [...(byDn.get(r.dn.trim()) ?? []), r.lungime]);
+  }
+  out.tronsoane = rows;
+  // „Tronson Dn 63 mm, L=60.30 ml, între Str. Unirii nr. 25C și conducta existentă; …”
+  out.tronsoane_text = rows
+    .map((r) => {
+      const ends = [r.de_la ? `${r.strada} ${r.de_la}`.trim() : "", r.pana_la].filter(Boolean);
+      const where = ends.length === 2 ? `între ${ends[0]} și ${ends[1]}` : ends[0] || r.strada;
+      return [`Tronson Dn ${r.dn} mm, L=${r.lungime} ml`, where].filter(Boolean).join(", ");
+    })
+    .join("; ");
+  const lungimi = [...byDn].map(([dn, ls]) => ({ dn, lungime: sumLengths(ls) ?? "" }));
+  out.lungimi_dn = lungimi;
+  for (const d of STANDARD_DN) out[`lungime_dn_${d}`] = "";
+  for (const l of lungimi) {
+    const k = dnKey(l.dn);
+    if (k) out[`lungime_dn_${k}`] = l.lungime;
+  }
+  out.conducta_dn_lungimi_text = lungimi.map((l) => `Dn ${l.dn} mm = ${l.lungime} m`).join(", ");
+  // „Dn 63/90 mm” — toate diametrele, acolo unde formularul are un singur Dn.
+  out.conducta_dn_text = lungimi.map((l) => l.dn).join("/");
+  // Fișa tehnică Distrigaz are două coloane de tronson (diametru / lungime); a doua „-” dacă nu există.
+  for (const i of [1, 2]) {
+    out[`dn_${i}`] = lungimi[i - 1]?.dn ?? "-";
+    out[`lungime_${i}`] = lungimi[i - 1]?.lungime ?? "-";
+  }
+  const total = sumLengths(rows.map((r) => r.lungime));
+  if (total !== null) out.conducta_lungime_totala = total;
+  const isOl = (r: Record<string, string>) => (dnKey(r.dn) ?? "").startsWith("ol_");
+  out.lungime_total_pe = sumLengths(rows.filter((r) => !isOl(r)).map((r) => r.lungime)) ?? "";
+  out.lungime_total_ol = sumLengths(rows.filter(isOl).map((r) => r.lungime)) ?? "";
+  // Etapele (MegaConstruct): tronsoanele grupate pe data execuției; PV-urile de șantier se repetă pe etapă.
+  const groups = new Map<string, Record<string, string>[]>();
+  for (const r of rows) groups.set(r.data.trim(), [...(groups.get(r.data.trim()) ?? []), r]);
+  const many = groups.size > 1;
+  out.etape = [...groups].map(([data, rs], i) => {
+    const e: Record<string, string> = {
+      nr_etapa: String(i + 1),
+      sufix: many ? `-${i + 1}` : "",
+      data,
+      lungime_etapa: sumLengths(rs.map((r) => r.lungime)) ?? "",
+      tronsoane_etapa_text: rs.map((r) => `Tronson Dn ${r.dn} mm, L=${r.lungime} ml${r.strada ? `, ${r.strada}` : ""}`).join("; "),
+    };
+    // În buclă, datele PV-urilor de șantier sunt data etapei (dacă tronsoanele au dată).
+    for (const { key } of PV_DATES) e[key] = data || str(meta[key]) || str(meta.pv_data);
+    return e;
+  });
+  return out;
+}
 
 /** Text de tabel → rânduri `{nr_crt, coloană: valoare}`; gol → rândurile implicite. */
 export function parseDossierTable(table: DossierTable, value: unknown): Record<string, string>[] {
@@ -188,7 +397,7 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
   if (total !== null) out.project_length_km = (total / 1000).toFixed(3).replace(".", ",");
 
   for (const [key, table] of Object.entries(DOSSIER_TABLES)) {
-    if (key !== "suduri_tabel") out[key] = parseDossierTable(table, meta[key]);
+    if (!["suduri_tabel", "tronsoane", "subtraversari", "fitinguri_pe", "fitinguri_ol"].includes(key)) out[key] = parseDossierTable(table, meta[key]);
   }
   if (filled(meta.suduri_tabel)) {
     out.suduri = parseDossierTable(DOSSIER_TABLES.suduri_tabel, meta.suduri_tabel).map((r) => ({ ...r, rezultat: "ADMIS" }));
@@ -200,7 +409,26 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
     out.suduri = codes.map((cod, i) => ({ nr_crt: String(i + 1), cod, rezultat: "ADMIS" }));
   }
   const n = (out.suduri as unknown[]).length;
+  out.suduri_coduri_text = (out.suduri as { cod: string }[]).map((r) => r.cod).filter(Boolean).join(", ");
+  if (!filled(meta.lucrare_tip)) out.lucrare_tip = "Extindere conductă";
   out.total_suduri = n ? String(n) : "";
+  Object.assign(out, tronsoaneVars({ ...meta, ...out }));
+  out.documente_materiale_linii = str(meta.documente_materiale)
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((text) => ({ text }));
+  out.subtraversari = parseDossierTable(DOSSIER_TABLES.subtraversari, meta.subtraversari);
+  Object.assign(out, fitinguriVars(meta));
+  // Proba de casă: implicit presiunea și durata probei de rezistență.
+  if (!filled(meta.proba_casa_presiune) && !filled(meta.proba_casa_timp)) {
+    if (filled(meta.proba_rezistenta_presiune)) out.proba_casa_presiune = str(String(meta.proba_rezistenta_presiune));
+    const t = durationText(meta.proba_rezistenta_timp);
+    if (t) out.proba_casa_durata_text = t;
+  } else {
+    const t = durationText(meta.proba_casa_timp);
+    if (t) out.proba_casa_durata_text = t;
+  }
   // Fără suduri: câteva rânduri goale, ca tabelele (execuția sudurilor, buletinul) să se poată completa de mână.
   if (!n) out.suduri = blankRows(4, ["cod", "sudor", "autorizatie", "procedeu", "omologare", "rezultat"]);
 

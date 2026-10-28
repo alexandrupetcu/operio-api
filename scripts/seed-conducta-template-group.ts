@@ -17,7 +17,8 @@ const prisma = new PrismaClient();
 
 const CATEGORY_CODE = "CARTE_CONDUCTA";
 const GROUP_NAME = "Dosar Conducta Distrigaz";
-const FOLDER = join(process.cwd(), "..", "documente", "Carte Conducta Distrigaz");
+// TEMPLATES_DIR: folderul cu șabloanele refăcute din originalele clientului (scripts/templatize-v2.py).
+const FOLDER = process.env.TEMPLATES_DIR ?? join(process.cwd(), "..", "documente", "Carte Conducta Distrigaz");
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function cleanName(file: string): string {
@@ -68,7 +69,7 @@ async function main() {
   // Backup folders / hidden files are skipped. Sort numerically so "10." comes
   // after "2.", "6.1." sits right after "6.", etc.
   const files = readdirSync(FOLDER)
-    .filter((f) => f.toLowerCase().endsWith(".docx") && !f.startsWith("~$") && !f.startsWith("_"))
+    .filter((f) => f.toLowerCase().endsWith(".docx") && !f.startsWith("~$") && !f.startsWith(".") && !f.startsWith("_"))
     .sort((a, b) => {
       const numOf = (s: string) => {
         const m = s.match(/^(\d+)(?:\.(\d+))?/);

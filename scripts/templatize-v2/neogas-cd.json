@@ -1,0 +1,1150 @@
+{
+ "distributor": "NEOGAS GRID — conductă",
+ "sourceDir": "documente/Conducta/Carte Conducta Neogas Grid/_backup-20260622-233701",
+ "outDir": "documente/Conducta/Neogas-v2",
+ "workDir": "documente/Conducta/Neogas-v2/_src",
+ "roles": {},
+ "denyList": [
+  "GENERAL MIH",
+  "CENUSA",
+  "RAUTA",
+  "COMAN",
+  "ENE MARIANA",
+  "OPRESCU",
+  "NICULESCU",
+  "IVAN",
+  "MIRITA",
+  "INDUSTRIILOR",
+  "BRANESTI",
+  "Branesti",
+  "ILFOV",
+  "24A",
+  "408",
+  "27/06/2025",
+  "27.06.2025",
+  "22973",
+  "22974",
+  "177/28",
+  "V140900130",
+  "569830",
+  "569831",
+  "501201598",
+  "00030523",
+  "00002635",
+  "209200742",
+  "ELEKTRA",
+  "25374337",
+  "25088646",
+  "4242",
+  "17.01.2025",
+  "Premier",
+  "BRANSAMENT:",
+  "BRANSAMENTULUI",
+  "73622",
+  "73621"
+ ],
+ "global": [],
+ "members": [
+  {
+   "id": "00",
+   "out": "Carte tehnica Conducta GN Neogas Grid SA.docx",
+   "src": "Carte tehnica Conducta GN Neogas Grid SA.docx",
+   "preOps": [
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 3,
+     "cell": 2,
+     "text": "{pv_predare_nr} / {pv_predare_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 4,
+     "cell": 2,
+     "text": "{pv_trasare_nr} / {pv_trasare_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 5,
+     "cell": 2,
+     "text": "{pv_sapatura_nr} / {pv_sapatura_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 6,
+     "cell": 2,
+     "text": "{pv_asternere_nr} / {pv_asternere_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 7,
+     "cell": 2,
+     "text": "{pv_montare_nr} / {pv_montare_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 9,
+     "cell": 2,
+     "text": "{pv_tub_protectie_nr} / {pv_tub_protectie_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 10,
+     "cell": 2,
+     "text": "{pv_proba_casa_nr} / {pv_proba_casa_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 11,
+     "cell": 2,
+     "text": "{pv_lansare_nr} / {pv_lansare_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 12,
+     "cell": 2,
+     "text": "{pv_rezistenta_nr} / {pv_rezistenta_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 13,
+     "cell": 2,
+     "text": "{pv_etanseitate_nr} / {pv_etanseitate_data}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 3,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 3,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 4,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 4,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 5,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 5,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 6,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 6,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 7,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 7,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 8,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 8,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 9,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 9,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 10,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 10,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 11,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 11,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 12,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 12,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 13,
+     "cell": 5,
+     "text": "{tronsoane_text}"
+    },
+    {
+     "op": "set_cell",
+     "table": 10,
+     "row": 13,
+     "cell": 4,
+     "text": "{lucrare_tip}"
+    },
+    {
+     "op": "table_row_loop",
+     "table": 6,
+     "row": 3,
+     "cells": [
+      "{#materiale_conducta}{denumire}",
+      "{diametru}",
+      "{cantitate}",
+      "{furnizor}",
+      "{certificat}",
+      "{declaratie}{/materiale_conducta}"
+     ],
+     "deleteRows": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 24,
+     "row": 3,
+     "cells": [
+      "{#tronsoane}{nr_crt}",
+      "{comuna}",
+      "{strada}",
+      "{ldn_90}",
+      "{ldn_63}",
+      "{ldn_32}",
+      "{lungime}{/tronsoane}"
+     ],
+     "deleteRows": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 26,
+     "row": 2,
+     "cells": [
+      "{#suduri}{cod}",
+      "{sudor}",
+      "{autorizatie}",
+      "{procedeu}",
+      "{/suduri}"
+     ],
+     "deleteRows": [
+      3,
+      4,
+      5,
+      6
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 27,
+     "row": 2,
+     "cells": [
+      "{#suduri}{nr_crt}",
+      "{cod}",
+      "Fara defect",
+      "ADMIS{/suduri}"
+     ],
+     "deleteRows": [
+      3,
+      4,
+      5,
+      6
+     ]
+    },
+    {
+     "op": "table_row_loop",
+     "table": 30,
+     "row": 2,
+     "cells": [
+      "{#sudori_autorizatii}{nr_crt}",
+      "{nume}",
+      "{autorizatie}{/sudori_autorizatii}"
+     ],
+     "deleteRows": [
+      3
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 23,
+     "row": 3,
+     "cell": 3,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 25,
+     "row": 3,
+     "cell": 3,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "set_cell",
+     "table": 15,
+     "row": 24,
+     "cell": 4,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "2.2. Subtraversare drum",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "2.3. Subtraversare canalizatie",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "2.4. Subtraversare cablu electric",
+     "whole": false
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "2.5. Subtraversare drum",
+     "whole": false
+    },
+    {
+     "op": "paragraph_loop",
+     "match": "2.1. Subtraversare Str. INDUSTRIILOR",
+     "tag": "subtraversari",
+     "text": "   2.{nr_crt}. Subtraversare {descriere}      TP {material}   L={lungime}m, Dn{dn}mm               sapatura la cota: H= {adancime}"
+    },
+    {
+     "op": "paragraph_loop",
+     "match": "Ţeavă......................................Dn63mm",
+     "tag": "lungimi_dn",
+     "text": "Ţeavă......................................Dn{dn}mm............................................................ {lungime}m...."
+    }
+   ],
+   "rules": [
+    {
+     "find": "Nr\\. 408/1 Data27/06/2025",
+     "replace": "Nr. {pv_predare_nr} Data{pv_predare_data}",
+     "regex": true
+    },
+    {
+     "find": "nr\\. +408/1 din 27/06/2025",
+     "replace": "nr. {pv_predare_nr} din {pv_predare_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 408/2 Data27/06/2025",
+     "replace": "Nr. {pv_trasare_nr} Data{pv_trasare_data}",
+     "regex": true
+    },
+    {
+     "find": "nr\\. +408/2 din 27/06/2025",
+     "replace": "nr. {pv_trasare_nr} din {pv_trasare_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 408/5 Data27/06/2025",
+     "replace": "Nr. {pv_montare_nr} Data{pv_montare_data}",
+     "regex": true
+    },
+    {
+     "find": "nr\\. +408/5 din 27/06/2025",
+     "replace": "nr. {pv_montare_nr} din {pv_montare_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 408/6 Data27/06/2025",
+     "replace": "Nr. {pv_tub_protectie_nr} Data{pv_tub_protectie_data}",
+     "regex": true
+    },
+    {
+     "find": "nr\\. +408/6 din 27/06/2025",
+     "replace": "nr. {pv_tub_protectie_nr} din {pv_tub_protectie_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 408/7 Data27/06/2025",
+     "replace": "Nr. {pv_proba_casa_nr} Data{pv_proba_casa_data}",
+     "regex": true
+    },
+    {
+     "find": "nr\\. +408/7 din 27/06/2025",
+     "replace": "nr. {pv_proba_casa_nr} din {pv_proba_casa_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 408/8 Data27/06/2025",
+     "replace": "Nr. {pv_lansare_nr} Data{pv_lansare_data}",
+     "regex": true
+    },
+    {
+     "find": "nr\\. +408/8 din 27/06/2025",
+     "replace": "nr. {pv_lansare_nr} din {pv_lansare_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 408/9 Data27/06/2025",
+     "replace": "Nr. {pv_rezistenta_nr} Data{pv_rezistenta_data}",
+     "regex": true
+    },
+    {
+     "find": "nr\\. +408/9 din 27/06/2025",
+     "replace": "nr. {pv_rezistenta_nr} din {pv_rezistenta_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 408/10 Data27/06/2025",
+     "replace": "Nr. {pv_etanseitate_nr} Data{pv_etanseitate_data}",
+     "regex": true
+    },
+    {
+     "find": "nr\\. +408/10 din 27/06/2025",
+     "replace": "nr. {pv_etanseitate_nr} din {pv_etanseitate_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 408/3,4 Data27/06/2025",
+     "replace": "Nr. {pv_sapatura_nr},{pv_asternere_nr} Data{pv_sapatura_data}",
+     "regex": true
+    },
+    {
+     "find": "nr\\. 408/3,4 din 27/06/2025",
+     "replace": "nr. {pv_sapatura_nr} din {pv_sapatura_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "nr\\. 408/3,4 din 27/06/2025",
+     "replace": "nr. {pv_asternere_nr} din {pv_asternere_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. 408/CND Data27/06/2025",
+     "replace": "Nr. {pv_rt_br_nr} Data{data_pv_rt}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Nr\\. 408/CND Data27/06/2025",
+     "replace": "Nr. {pv_pif_nr} Data{data_pif}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Nr\\. 408/CND Data27/06/2025",
+     "replace": "Nr. {fisa_racord_nr} Data{data_pif}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Nr\\. 408/CND Data27/06/2025",
+     "replace": "Nr. {pv_receptie_calitativa_nr} Data{pv_receptie_calitativa_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "receptie tehnica nr\\. 408/CND Data27/06/2025",
+     "replace": "receptie tehnica nr. {pv_rt_br_nr} Data{data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "PVRT nr\\. 408/CND din data27/06/2025",
+     "replace": "PVRT nr. {pv_rt_br_nr} din data{data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. /CND Data27/06/2025",
+     "replace": "Nr. {pv_lucrari_ascunse_nr} Data{pv_lucrari_ascunse_data}",
+     "regex": true
+    },
+    {
+     "find": "(?<=lucrări ascunse nr\\. )/CND data +\\.\\.\\. 27\\.06\\.2025",
+     "replace": "{pv_lucrari_ascunse_nr} data {pv_lucrari_ascunse_data}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Incheiat astăzi )27\\.06\\.2025",
+     "replace": "{pv_receptie_calitativa_data}",
+     "regex": true
+    },
+    {
+     "find": "Incheiat astazi, 27/06/2025",
+     "replace": "Incheiat astazi, {pv_proba_casa_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Incheiat astazi, 27/06/2025",
+     "replace": "Incheiat astazi, {pv_trasare_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Incheiat astazi, 27/06/2025",
+     "replace": "Incheiat astazi, {pv_sapatura_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Incheiat astazi, 27/06/2025",
+     "replace": "Incheiat astazi, {pv_montare_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Incheiat astazi, 27/06/2025",
+     "replace": "Incheiat astazi, {pv_lansare_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "Incheiat astazi, 27/06/2025",
+     "replace": "Incheiat astazi, {pv_tub_protectie_data}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Încheiat astăzi, )27/06/2025",
+     "replace": "{pv_control_calitate_data}",
+     "regex": true
+    },
+    {
+     "find": "Nr\\. …\\.  din …+\\.",
+     "replace": "Nr. {pv_receptie_nr} din {data_receptie_terminare}",
+     "regex": true
+    },
+    {
+     "find": "antet",
+     "replace": "{%tenant_logo}",
+     "whole": true
+    },
+    {
+     "find": "(?<=F\\.O\\.L )…+\\.",
+     "replace": "{osd_fol}",
+     "regex": true
+    },
+    {
+     "find": "constructiei nr\\. [….]+ \\.+, jud  \\.+",
+     "replace": "constructiei nr. {proiect_nr} – {project_city}, jud. {project_county}",
+     "regex": true
+    },
+    {
+     "find": "(?<=ATR\\. nr\\. )\\.+",
+     "replace": "{cod_atr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=AC nr)…+\\.",
+     "replace": " {autorizatie_construire_nr}.",
+     "regex": true
+    },
+    {
+     "find": "^ATR\\. nr\\. ?$",
+     "replace": "ATR. nr. {cod_atr}",
+     "regex": true
+    },
+    {
+     "find": "BRANSAMENT:",
+     "replace": "CONDUCTA:",
+     "whole": true
+    },
+    [
+     "MONTAREA BRANSAMENTULUI",
+     "MONTAREA CONDUCTEI"
+    ],
+    {
+     "find": "(?<=Denumirea instalatiei: )bransament gaze naturale",
+     "replace": "conductă de distribuție gaze naturale",
+     "regex": true
+    },
+    {
+     "find": "(?<=pentru )bransament gaze naturale(?= in loc)",
+     "replace": "conducta de gaze naturale",
+     "regex": true
+    },
+    {
+     "find": "(?<=autorizatie ISCIR)",
+     "replace": "",
+     "regex": true
+    },
+    {
+     "find": "SC +GENERAL MIH INSTAL GAZ SRL(?:\\.*S\\.R\\.L)?",
+     "replace": "{tenant_name}",
+     "regex": true
+    },
+    {
+     "find": "NeoGas Grid SA \\(fosta Premier Energy SRL\\)",
+     "replace": "{osd_denumire}",
+     "regex": true
+    },
+    {
+     "find": "NeoGas Grid SA",
+     "replace": "{osd_denumire}",
+     "regex": true
+    },
+    {
+     "find": "(?<=F\\.O\\.L\\. )Branesti|(?<=F\\.O\\.L )Branesti|(?<=FOL )Branesti",
+     "replace": "{osd_fol}",
+     "regex": true
+    },
+    {
+     "find": "MIRITA LAURENTIU-MIRCEA",
+     "replace": "{client_name}",
+     "regex": true
+    },
+    {
+     "find": "(?<=PDSB Nr\\. …)22973…\\./  27\\.09\\.2023",
+     "replace": "{tenant_autorizatie_proiectare_nr}…./  {tenant_autorizatie_proiectare_data}",
+     "regex": true
+    },
+    {
+     "find": "(?<=EDSB Nr\\.   )22974…\\./  27\\.09\\.2023",
+     "replace": "{tenant_autorizatie_anre}…./  {tenant_autorizatie_data}",
+     "regex": true
+    },
+    {
+     "find": "177/28\\.05\\.2025 ?",
+     "replace": "{autorizatie_construire_nr}/{autorizatie_construire_data} ",
+     "regex": true
+    },
+    {
+     "find": "Primaria +Branesti, ILFOV",
+     "replace": "{autorizatie_construire_emitent}",
+     "regex": true
+    },
+    {
+     "find": "(?<=eliberata de )Primaria Branesti",
+     "replace": "{autorizatie_construire_emitent}",
+     "regex": true
+    },
+    {
+     "find": "(?<=cu valabilitate pana la) *$",
+     "replace": " {autorizatie_construire_valabilitate}",
+     "regex": true
+    },
+    {
+     "find": "…\\[?4\\]?x105… bari, timp de ?1h",
+     "replace": "…{proba_rezistenta_presiune}… bari, timp de {proba_rezistenta_durata_text}",
+     "regex": true
+    },
+    {
+     "find": "…2x105…\\. bari, timp de ?2h\\.?",
+     "replace": "…{proba_etanseitate_presiune}…. bari, timp de {proba_etanseitate_durata_text}.",
+     "regex": true
+    },
+    {
+     "find": "(?<=Valoare presiune proba: )4x105 Pa",
+     "replace": "{proba_rezistenta_presiune} bari",
+     "regex": true
+    },
+    {
+     "find": "(?<=Valoare presiune proba: )2x105 Pa",
+     "replace": "{proba_etanseitate_presiune} bari",
+     "regex": true
+    },
+    {
+     "find": "(?<=____)60(?=____ min)",
+     "replace": "{proba_rezistenta_timp}",
+     "regex": true
+    },
+    {
+     "find": "(?<=____)\\.\\.\\.\\.(?=____ min)",
+     "replace": "{proba_etanseitate_timp}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Presiunea de proba )4(?= bari)",
+     "replace": "{proba_casa_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Timpul de mentinere a presiunii este de )1 ora",
+     "replace": "{proba_casa_durata_text}",
+     "regex": true
+    },
+    {
+     "find": "(?<=valoarea de \\(\\.\\.\\.\\.\\.)4(?=\\.\\.\\.\\))",
+     "replace": "{proba_rezistenta_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=valoarea de \\(\\.\\.\\.)2(?=\\.\\.\\.\\.\\.\\))",
+     "replace": "{proba_etanseitate_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Scala )0-10 bari",
+     "replace": "{manometru_scala}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Seria nr\\.  )4242",
+     "replace": "{manometru_serie}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Clasa de precizie )1,6",
+     "replace": "{manometru_clasa}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Ultima verificare metrologica )17\\.01\\.2025",
+     "replace": "{manometru_verif_metrologica}",
+     "regex": true
+    },
+    {
+     "find": "Tronson Dn 63 mm L=100 ml, intre str\\. INDUSTRIILOR  nr\\. 24A si imobil nr\\.35, PE 100 SDR11",
+     "replace": "{tronsoane_text}, {project_material}",
+     "regex": true
+    },
+    {
+     "find": "Conducta Dn 63mm=100 m;",
+     "replace": "{conducta_dn_lungimi_text};",
+     "regex": true
+    },
+    {
+     "find": "(?<=lungime totala de )100(?= m)",
+     "replace": "{conducta_lungime_totala}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Total general)$",
+     "replace": "",
+     "regex": true
+    },
+    {
+     "find": "100",
+     "replace": "{conducta_lungime_totala}",
+     "whole": true
+    },
+    {
+     "find": "(?<=[=.\\s])100(?=[\\s.]*m)",
+     "replace": "{conducta_lungime_totala}",
+     "regex": true
+    },
+    {
+     "find": "(D[Nn] *=? *)63",
+     "replace": "\\1{conducta_dn_text}",
+     "regex": true
+    },
+    {
+     "find": "25374337/13\\.06\\.2025",
+     "replace": "{teava_cc_nr}/{teava_cc_data}",
+     "regex": true
+    },
+    {
+     "find": "25088646/13\\.06\\.2025",
+     "replace": "{teava_dc_nr}/{teava_dc_data}",
+     "regex": true
+    },
+    {
+     "find": "ELEKTRA 315 serie 230605189",
+     "replace": "{aparat_sudura}",
+     "regex": true
+    },
+    {
+     "find": "(?<=procedeul de )ELECTROFUZIUNE|(?<=procedeu…)ELECTROFUZIUNE|(?<=realizate prin )ELECTROFUZIUNE",
+     "replace": "{procedeu_sudura}",
+     "regex": true
+    },
+    {
+     "find": "(?<=cu capac GN,buc….…)5",
+     "replace": "{rasuflatori_cu_capace}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Răsuflători\\.{20})\\.* 5buc",
+     "replace": "... {rasuflatori_cu_capace} buc",
+     "regex": true
+    },
+    {
+     "find": "autorizatia nr\\.569831 SRS-SS prin procedeu omologat nr\\. 73622, respectiv autorizatia nr\\.569830 SRM-SW, prin procedeu omologat nr\\. 73621\\.",
+     "replace": "autorizatiile nr. {sudor_pe_autorizatii}, prin procedeu omologat nr. {procedeu_omologare_pe}.",
+     "regex": true
+    },
+    {
+     "find": "(?<=din tuburi )…\\.\\.",
+     "replace": "{tub_protectie_material}",
+     "regex": true
+    },
+    {
+     "find": "- nu e cazul$",
+     "replace": "{^subtraversari}- nu e cazul{/subtraversari}",
+     "regex": true
+    },
+    {
+     "find": "(?<=de )0\\.9\\.? ?(?=ml?\\b)",
+     "replace": "{adancime_pozare} ",
+     "regex": true
+    },
+    {
+     "find": "(?<=pozare fiind )0\\.9(?= m)",
+     "replace": "{adancime_pozare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=reprezentat de Sef santier )CENUSA MARIUS",
+     "replace": "{sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=/)CENUSA MARIUS(?= in calitate de Executant)",
+     "replace": "{sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Reprezentant executant:                {tenant_name}       )CENUSA MARIUS",
+     "replace": "{sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Executant:   {tenant_name}            )CENUSA MARIUS",
+     "replace": "{sef_santier_nume}",
+     "regex": true
+    },
+    {
+     "find": "CENUSA MARIUS",
+     "replace": "{instalator_nume}",
+     "regex": true
+    },
+    {
+     "find": "501201598",
+     "replace": "{instalator_legitimatie}",
+     "regex": true
+    },
+    {
+     "find": "RAUTA DANIEL",
+     "replace": "{diriginte_nume}",
+     "regex": true,
+     "ci": true
+    },
+    {
+     "find": "00030523",
+     "replace": "{diriginte_legitimatie}",
+     "regex": true
+    },
+    {
+     "find": "(?<=domeniul/subdomeniul )9\\.4",
+     "replace": "{diriginte_domeniu}",
+     "regex": true
+    },
+    {
+     "find": "COMAN GABRIEL",
+     "replace": "{rte_nume}",
+     "regex": true,
+     "ci": true
+    },
+    {
+     "find": "00002635",
+     "replace": "{rte_atestat}",
+     "regex": true
+    },
+    {
+     "find": "(?<=domeniul )8\\.4D",
+     "replace": "{rte_domeniu}",
+     "regex": true
+    },
+    {
+     "find": "ENE MARIANA",
+     "replace": "{proiectant_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=PGD NR\\. )209200742",
+     "replace": "{proiectant_legitimatie}",
+     "regex": true
+    },
+    {
+     "find": "OPRESCU ION DANUT",
+     "replace": "{verificator_nume}",
+     "regex": true
+    },
+    {
+     "find": "V140900130",
+     "replace": "{verificator_legitimatie}",
+     "regex": true
+    },
+    {
+     "find": "VGd",
+     "replace": "{verificator_domeniu}",
+     "whole": true
+    },
+    {
+     "find": "NICULESCU DANUT-IONUT",
+     "replace": "{sudor_pe_nume}",
+     "regex": true
+    },
+    {
+     "find": "569831, 569830",
+     "replace": "{sudor_pe_autorizatii}",
+     "regex": true
+    },
+    {
+     "find": "IVAN FLORIN-MADALIN",
+     "replace": "{rts_nume}",
+     "regex": true
+    },
+    {
+     "find": "((?:CONDUCTA|Conducta) (?:GN|GAZE NATURALE|gaze naturale) )REDUSA PRESIUNE",
+     "replace": "\\1{bransament_presiune}",
+     "regex": true
+    },
+    {
+     "find": "REDUSA PRESIUNE",
+     "replace": "{bransament_presiune}",
+     "regex": true,
+     "ci": false
+    },
+    {
+     "find": "INDUSTRIILOR",
+     "replace": "{project_street}",
+     "regex": true,
+     "ci": true
+    },
+    {
+     "find": "24A",
+     "replace": "{project_street_number}",
+     "regex": true
+    },
+    {
+     "find": "BRANESTI",
+     "replace": "{project_city}",
+     "regex": true,
+     "ci": true
+    },
+    {
+     "find": "ILFOV",
+     "replace": "{project_county}",
+     "regex": true,
+     "ci": true
+    },
+    {
+     "find": "\\b408\\b",
+     "replace": "{proiect_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=planşelor nr\\. )1|(?<=plansa )1\\b|(?<=Plansa )1\\b|(?<=nr\\.)1(?= din proiect)",
+     "replace": "{planse_nr}",
+     "regex": true
+    },
+    {
+     "find": "(Capace GN \\.+ )5( buc)",
+     "replace": "\\1{rasuflatori_cu_capace}\\2",
+     "regex": true
+    },
+    {
+     "find": "este de …+\\.…+ lei ,conform adeverintei IJC…+\\.DO…+\\./2025",
+     "replace": "este de {valoare_lucrari} lei, conform adeverintei {adeverinta_ijc_nr}",
+     "regex": true
+    }
+   ],
+   "ops": [
+    {
+     "op": "page_break_before",
+     "targets": [
+      {
+       "match": "PROCES-VERBAL de RECEPTIE TEHNICA",
+       "nth": 1,
+       "whole": true
+      },
+      {
+       "match": "PROCES VERBAL",
+       "nth": 1,
+       "whole": true
+      },
+      {
+       "match": "FISA TEHNICA A CONDUCTEI",
+       "nth": 1,
+       "whole": true
+      },
+      {
+       "match": "{tenant_name}",
+       "nth": 2,
+       "whole": true
+      },
+      {
+       "match": "PROCES VERBAL",
+       "nth": 3,
+       "whole": true
+      },
+      {
+       "table": 11
+      },
+      {
+       "table": 13
+      },
+      {
+       "match": "APROB ADMITEREA",
+       "nth": 1,
+       "whole": true
+      },
+      {
+       "match": "4",
+       "nth": 6,
+       "whole": true
+      },
+      {
+       "match": "{osd_denumire}",
+       "nth": 4,
+       "whole": true
+      },
+      {
+       "match": "PROCES VERBAL",
+       "nth": 7,
+       "whole": true
+      },
+      {
+       "match": "PROCES VERBAL DE",
+       "nth": 1,
+       "whole": true
+      },
+      {
+       "match": "PROCES VERBAL DE",
+       "nth": 2,
+       "whole": true
+      },
+      {
+       "match": "PROCES VERBAL",
+       "nth": 8,
+       "whole": true
+      },
+      {
+       "match": "PROCES VERBAL DE LUCRĂRI ASCUNSE",
+       "nth": 1,
+       "whole": true
+      },
+      {
+       "match": "PROCES VERBAL",
+       "nth": 9,
+       "whole": true
+      },
+      {
+       "match": "PROCES-VERBAL DE CONTROL",
+       "nth": 1,
+       "whole": true
+      },
+      {
+       "match": "TABEL PRIVIND EXECUTIA SUDURILOR",
+       "nth": 1,
+       "whole": true
+      },
+      {
+       "match": "R E F E R A T U L    P R O I E C T A N T U L U I",
+       "nth": 1,
+       "whole": true
+      },
+      {
+       "match": "R E F E R A T U L    RESPONSABILULUI TEHNIC CU EXECUTIA",
+       "nth": 1,
+       "whole": true
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -12,7 +12,7 @@ const RESERVED_KEY_PATTERNS: RegExp[] = [
   /^tenant[._]/, // tenant_* (name, stamp, signature, logo…) + dot-notation tenant.*
   /_signature$/, // rte_signature, sudor_signature, tenant_signature…
   /^client_signature/, // client_signature + any suffix
-  /^project_drawing$/,
+  /^project_drawing(_mic)?$/,
   /^nr_inregistrare/, // nr_inregistrare, nr_inregistrare_data
   /^data_inregistrare/, // DOCX alias of the registry date
   /^os_/, // os_nr_inregistrare, os_data_inregistrare

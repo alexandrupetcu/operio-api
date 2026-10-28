@@ -61,6 +61,22 @@ describe("dossier fields", () => {
     expect(fieldForKey("suduri_tabel")!.itemLabel).toBe("sudură");
   });
 
+  it("conducta: tronsoanele și subtraversările sunt tabele; bucla tronsoane cere tabelul, coloanele Ø nu apar separat", () => {
+    expect(fieldForKey("tronsoane")!.type).toBe("table");
+    expect(fieldForKey("subtraversari")!.itemLabel).toBe("subtraversare");
+    const plan = fieldsForPlaceholders([{ name: "Anexa", placeholders: new Set(["#tronsoane", "comuna", "strada", "ldn_63", "ldn_90", "/tronsoane", "conducta_lungime_totala", "lungime_dn_63", "proba_casa_presiune", "proba_casa_durata_text"]) }]);
+    const keys = plan.fields.map((f) => f.field.key);
+    expect(keys).toEqual(expect.arrayContaining(["tronsoane", "proba_casa_presiune"]));
+    expect(keys).not.toContain("ldn_63");
+    expect(keys).not.toContain("lungime_dn_63");
+    expect(keys).not.toContain("conducta_lungime_totala");
+    expect(keys).not.toContain("proba_casa_durata_text");
+  });
+
+  it("schița în varianta mai joasă (conductă) cere tot desenul dosarului", () => {
+    expect(fieldsForPlaceholders([{ name: "Schița", placeholders: new Set(["%project_drawing_mic"]) }]).needsDrawing).toBe(true);
+  });
+
   it("NEOGAS e scris cu forma de pe documente", () => {
     expect(GAS_DISTRIBUTORS).toContain("Neogas Grid S.A.");
     expect(GAS_DISTRIBUTORS).not.toContain("Neogas Grid S.R.L.");

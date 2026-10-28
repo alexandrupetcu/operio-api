@@ -71,7 +71,12 @@ rts_atestat_data proba_rezistenta_durata_text proba_etanseitate_durata_text
 year osd_director project_length_km teava_cc_an teava_dc_an bransament_presiune_abr conducta_stradala_dn adresa_detalii_text
 pv_predare_data pv_trasare_data pv_sapatura_data pv_asternere_data pv_montare_data pv_lansare_data pv_fir_trasor_data
 pv_rezistenta_data pv_etanseitate_data pv_lucrari_ascunse_data pv_control_calitate_data
-materiale materiale_srm schema_materiale denumire diametru cantitate furnizor certificat declaratie nr_suduri
+etape nr_etapa sufix lungime_etapa tronsoane_etapa_text lungime_total_pe lungime_total_ol tip buc operatiune spatiu_verde pietris macadam pavele asfalt_carosabil asfalt_trotuar beton latime cantitate
+documente_materiale_linii text tronsoane_text project_drawing_mic dn_1 lungime_1 dn_2 lungime_2 suduri_coduri_text dimensiune schita_materiale nr_inregistrare
+pv_proba_casa_data pv_tub_protectie_data pv_receptie_calitativa_data proba_casa_durata_text
+conducta_lungime_totala conducta_dn_lungimi_text conducta_dn_text lungimi_dn tronsoane subtraversari comuna strada de_la pana_la dn material lungime data descriere adancime
+ldn_20 lungime_dn_20 ldn_25 lungime_dn_25 ldn_32 lungime_dn_32 ldn_40 lungime_dn_40 ldn_50 lungime_dn_50 ldn_63 lungime_dn_63 ldn_75 lungime_dn_75 ldn_90 lungime_dn_90 ldn_110 lungime_dn_110 ldn_125 lungime_dn_125 ldn_160 lungime_dn_160 ldn_180 lungime_dn_180 ldn_200 lungime_dn_200 ldn_225 lungime_dn_225 ldn_250 lungime_dn_250 ldn_315 lungime_dn_315
+materiale materiale_srm materiale_conducta schema_materiale denumire diametru cantitate furnizor certificat declaratie nr_suduri
 sudor autorizatie procedeu omologare sudori_autorizatii nume
 """.split()
 
@@ -83,6 +88,15 @@ def known_names() -> set[str]:
         names.add(m.group(1))
         if m.group(2):
             names.update(re.findall(r'"([a-z_0-9]+)"', m.group(2)))
+    import itertools
+    sys.path.insert(0, str(API))
+    for slug in ["vana_pehd","mufa_ef","reductie_injectat","reductie_electrofuziune","cot_injectat","cot_electrofuziune","teu_egal_injectat","teu_egal_electrofuziune","teu_redus_injectat","teu_redus_electrofuziune","sa_bransament","capac_ef"]:
+        for i, k in itertools.product((1, 2), ("dn", "buc")):
+            names.add(f"fpe_{slug}_{i}_{k}")
+    for slug in ["vana_ol","curba_sudura","reductie_ol","fiting_tranzitie_ol_pe","banda_izolatie_kebulen","rasuflator_spatiu_verde","rasuflator_carosabil","capac_gn","capac_gn_mare","fir_trasor","banda_avertizare"]:
+        names.update({f"fol_{slug}_dn", f"fol_{slug}_q"})
+    for d in ["2", "3", "4", "6", "8", "10", "12", "14"]:
+        names.add(f"lungime_dn_ol_{d}")
     for r in ROLES:
         for f in ROLE_FIELDS:
             names.add(f"{r}_{f}")
