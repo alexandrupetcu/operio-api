@@ -32,3 +32,17 @@ describe("renderDocx — câmpuri necompletate", () => {
     expect(textOf(renderDocx(docx("[{cod_sap}]"), { cod_sap: "" }))).toBe("[]");
   });
 });
+
+describe("renderDocx — spațiile de nume pentru imagini", () => {
+  it("un șablon fără xmlns:r / xmlns:wp pe rădăcină primește declarațiile (altfel Word refuză documentul cu imagine)", () => {
+    const zip = new PizZip(docx("{%semnatura}"));
+    zip.file("word/_rels/document.xml.rels", '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>');
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+    const out = renderDocx(zip.generate({ type: "nodebuffer" }), { semnatura: "sig" }, { sig: png });
+    const xml = new PizZip(out).file("word/document.xml")!.asText();
+    expect(xml).toContain("r:embed");
+    const root = xml.slice(xml.indexOf("<w:document"), xml.indexOf(">", xml.indexOf("<w:document")));
+    expect(root).toContain('xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"');
+    expect(root).toContain('xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"');
+  });
+});

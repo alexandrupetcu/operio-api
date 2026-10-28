@@ -57,6 +57,31 @@ function applyFloatInFront(xml: string, floatExtents: Set<string>): string {
   });
 }
 
+/** Prefixele folosite de imaginile inserate (modulul de imagini scrie `r:embed`, `wp:inline`). */
+const IMAGE_NAMESPACES: [string, string][] = [
+  ["r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"],
+  ["wp", "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"],
+  ["a", "http://schemas.openxmlformats.org/drawingml/2006/main"],
+  ["pic", "http://schemas.openxmlformats.org/drawingml/2006/picture"],
+];
+
+/**
+ * Unele șabloane (curățate de scripturi vechi) au pierdut declarațiile de pe rădăcină;
+ * cu o imagine inserată, `r:embed` rămâne nedeclarat și Word refuză documentul.
+ */
+function ensureImageNamespaces(zip: PizZip): void {
+  for (const name of Object.keys(zip.files)) {
+    if (!/^word\/(document|header\d*|footer\d*)\.xml$/.test(name)) continue;
+    const xml = zip.file(name)!.asText();
+    const m = /<(w:document|w:hdr|w:ftr)\b[^>]*>/.exec(xml);
+    if (!m) continue;
+    const missing = IMAGE_NAMESPACES.filter(([p]) => !new RegExp(`\\sxmlns:${p}=`).test(m[0]));
+    if (!missing.length) continue;
+    const root = m[0].replace(/>$/, missing.map(([p, uri]) => ` xmlns:${p}="${uri}"`).join("") + ">");
+    zip.file(name, xml.slice(0, m.index) + root + xml.slice(m.index + m[0].length));
+  }
+}
+
 export function renderDocx(
   templateBuffer: Buffer,
   data: Record<string, unknown>,
@@ -64,6 +89,7 @@ export function renderDocx(
   imageOpts?: ImageRenderOptions
 ): Buffer {
   const zip = new PizZip(templateBuffer);
+  ensureImageNamespaces(zip);
 
   const modules: any[] = [];
   if (images && Object.keys(images).length > 0) {
