@@ -71,6 +71,9 @@ describe("dossier fields", () => {
     expect(keys).not.toContain("lungime_dn_63");
     expect(keys).not.toContain("conducta_lungime_totala");
     expect(keys).not.toContain("proba_casa_durata_text");
+    // Durata probelor („1 oră”) se calculează din minute; editorul nu o mai cere separat.
+    const probe = fieldsForPlaceholders([{ name: "PV", placeholders: new Set(["proba_rezistenta_durata_text", "proba_etanseitate_durata_text"]) }]);
+    expect(probe.fields.map((f) => f.field.key)).not.toContain("proba_rezistenta_durata_text");
   });
 
   it("schița în varianta mai joasă (conductă) cere tot desenul dosarului", () => {

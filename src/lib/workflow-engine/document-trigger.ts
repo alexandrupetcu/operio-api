@@ -87,6 +87,18 @@ export async function triggerDocumentGeneration(
     },
   });
 
+  // Un șablon șters / dezactivat: pasul ar aștepta la nesfârșit documente care nu se mai fac.
+  const missing = templateIds.filter((id) => !templates.some((t) => t.id === id));
+  if (missing.length > 0) {
+    fastify.log.warn({ stepInstanceId, missing }, "document_generation step: templates not found or inactive");
+    await markStepFailed(fastify, tenantId, stepInstanceId, {
+      message: "Șablonul de documente al acestui pas nu mai există sau a fost dezactivat. Alegeți alt șablon în configurarea workflow-ului.",
+      code: "TEMPLATE_NOT_FOUND",
+      missing,
+    });
+    return false;
+  }
+
   const documents = await Promise.all(
     templates.map((template) =>
       fastify.prisma.document.create({

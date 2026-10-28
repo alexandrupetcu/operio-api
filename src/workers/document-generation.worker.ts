@@ -18,6 +18,7 @@ import { resolveStampSlots, stampVarName } from "../lib/stamps.js";
 import { stampWithSignatureHtml } from "../lib/stamp-html.js";
 import { withAliases } from "../lib/dossier-fields.js";
 import { derivedDossierVars, distributorDocVars, teamDocVars } from "../lib/dossier-data.js";
+import { mergeStepOutputs, STEP_OUTPUT_INSTANCE_STATUSES } from "../lib/project-step-outputs.js";
 import { archiveEntryNames } from "../lib/archive-names.js";
 import { companyDocVars, withoutBlankTenantFields } from "../lib/company-doc-vars.js";
 import { osBoxData } from "../lib/os-box.js";
@@ -1305,7 +1306,24 @@ async function processJob(job: Job<DocumentJobData>) {
       Object.assign(data, buildClientData(project.client));
       // User JSON: reserved keys (tenant_*, *_signature, registry nr…) and
       // `{s3Key}` image refs are stripped before it reaches the template data.
-      const meta = withAliases(sanitizeTemplateInput(project.metadata)) as ReturnType<typeof sanitizeTemplateInput>;
+      // Datele din pașii workflow-ului completează metadatele ÎNAINTE de derivări
+      // (lungimi, etape, datele PV-urilor), ca să intre și în valorile calculate.
+      const workflowInstance = await prisma.workflowInstance.findFirst({
+        where: { entityId: projectId, tenantId, status: { in: STEP_OUTPUT_INSTANCE_STATUSES } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          stepInstances: {
+            where: { status: "completed", outputJson: { not: undefined } },
+            orderBy: { completedAt: "asc" },
+            include: { stepDefinition: { select: { code: true } } },
+          },
+        },
+      });
+      const steps = mergeStepOutputs(
+        withAliases(sanitizeTemplateInput(project.metadata)),
+        (workflowInstance?.stepInstances ?? []).map((s) => ({ code: s.stepDefinition?.code, output: s.outputJson })),
+      );
+      const meta = steps.meta as ReturnType<typeof sanitizeTemplateInput>;
       Object.assign(data, {
         project_name: project.name,
         // FD 029 (Dosar ISCIR) folosește `{PROJECT_NAME}` cu majuscule.
@@ -1379,33 +1397,8 @@ async function processJob(job: Job<DocumentJobData>) {
       }
       Object.assign(data, distributorDocVars(distributor, meta), derivedDossierVars(data));
 
-      // Load workflow step outputs
-      const workflowInstance = await prisma.workflowInstance.findFirst({
-        where: { entityId: projectId, tenantId, status: { in: ["running", "completed"] } },
-        orderBy: { createdAt: "desc" },
-        include: {
-          stepInstances: {
-            where: { status: "completed", outputJson: { not: undefined } },
-            include: { stepDefinition: { select: { code: true } } },
-          },
-        },
-      });
-
-      if (workflowInstance) {
-        for (const step of workflowInstance.stepInstances) {
-          if (!step.outputJson) continue;
-          // Step outputs are user-submitted JSON → same sanitizing as metadata.
-          const output = sanitizeTemplateInput(step.outputJson);
-          for (const [key, value] of Object.entries(output)) {
-            if (step.stepDefinition) {
-              data[`${step.stepDefinition.code}.${key}`] = value;
-            }
-            if (!(key in data)) {
-              data[key] = value;
-            }
-          }
-        }
-      }
+      // `{cod_pas.cheie}` — valorile fiecărui pas, și când alt pas a completat aceeași cheie.
+      for (const [key, value] of Object.entries(steps.prefixed)) if (!(key in data)) data[key] = value;
 
       const ext = isHtmlTemplate ? "pdf" : isGroup ? "zip" : "docx";
       s3Key = `${tenantId}/projects/${projectId}/documents/${documentId}.${ext}`;

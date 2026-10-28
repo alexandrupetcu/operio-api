@@ -206,8 +206,13 @@ async function present(fastify: FastifyInstance, tenantId: string, d: DossierRow
   };
 }
 
+/**
+ * Un dosar — sau orice proiect al firmei, deschis din pagina lui („Completează dosarul”):
+ * editorul completează aceleași metadate pe care le citește generarea de la finalul
+ * workflow-ului. Lista și ștergerea rămân doar pentru dosare.
+ */
 async function findDossier(fastify: FastifyInstance, tenantId: string, id: string) {
-  const d = await fastify.prisma.project.findFirst({ where: { id, tenantId, kind: KIND }, include: dossierInclude });
+  const d = await fastify.prisma.project.findFirst({ where: { id, tenantId }, include: dossierInclude });
   if (!d) throw fastify.httpErrors.notFound("Dosarul nu a fost găsit");
   return d;
 }
@@ -375,17 +380,27 @@ async function syncTeam(tx: Prisma.TransactionClient, projectId: string, wanted:
 }
 
 export async function update(fastify: FastifyInstance, tenantId: string, id: string, input: UpdateDossierInput) {
-  const d = await fastify.prisma.project.findFirst({ where: { id, tenantId, kind: KIND }, select: { id: true, metadata: true } });
+  const d = await fastify.prisma.project.findFirst({
+    where: { id, tenantId },
+    select: { id: true, kind: true, metadata: true, distributorId: true },
+  });
   if (!d) throw fastify.httpErrors.notFound("Dosarul nu a fost găsit");
 
-  let groupPatch: { templateGroupId: string; distributorId: string | null; projectTypeId: string } | null = null;
+  let groupPatch: { templateGroupId: string; distributorId?: string | null; projectTypeId?: string } | null = null;
+  let groupDefaults: Record<string, string> = {};
   if (input.templateGroupId) {
     const group = await findGroup(fastify, tenantId, input.templateGroupId);
     const ptCode = CATEGORY_TO_PROJECT_TYPE_CODE[group.categoryCode];
     if (!ptCode) throw fastify.httpErrors.badRequest("Grupul ales nu e un dosar");
-    const pt = await projectTypeFor(fastify, tenantId, ptCode);
     const distributor = await resolveDistributor(fastify, tenantId, group.distributorCode);
-    groupPatch = { templateGroupId: group.id, distributorId: distributor?.id ?? null, projectTypeId: pt.id };
+    groupDefaults = await initialMetadata(fastify, tenantId, distributor);
+    if (d.kind === KIND) {
+      const pt = await projectTypeFor(fastify, tenantId, ptCode);
+      groupPatch = { templateGroupId: group.id, distributorId: distributor?.id ?? null, projectTypeId: pt.id };
+    } else {
+      // Un proiect cu workflow își păstrează tipul (după el se potrivește workflow-ul) și distribuitorul ales.
+      groupPatch = { templateGroupId: group.id, ...(!d.distributorId && distributor && { distributorId: distributor.id }) };
+    }
   }
   if (input.clientId) {
     const c = await fastify.prisma.client.findFirst({ where: { id: input.clientId, tenantId }, select: { id: true } });
@@ -398,10 +413,12 @@ export async function update(fastify: FastifyInstance, tenantId: string, id: str
   }
 
   let metadata: Record<string, unknown> | undefined;
-  if (input.metadata) {
+  if (input.metadata || Object.keys(groupDefaults).length) {
     const current = d.metadata && typeof d.metadata === "object" && !Array.isArray(d.metadata) ? (d.metadata as Record<string, unknown>) : {};
     metadata = { ...current };
-    for (const [k, v] of Object.entries(input.metadata)) {
+    // Implicitele grupului nou (registru + OSD) doar pentru câmpurile încă goale.
+    for (const [k, v] of Object.entries(groupDefaults)) if (metadata[k] === undefined || metadata[k] === "") metadata[k] = v;
+    for (const [k, v] of Object.entries(input.metadata ?? {})) {
       if (v === null) delete metadata[k];
       else metadata[k] = v;
     }
@@ -426,7 +443,7 @@ export async function update(fastify: FastifyInstance, tenantId: string, id: str
 }
 
 export async function generate(fastify: FastifyInstance, tenantId: string, userId: string, id: string) {
-  const d = await fastify.prisma.project.findFirst({ where: { id, tenantId, kind: KIND }, select: { id: true, templateGroupId: true } });
+  const d = await fastify.prisma.project.findFirst({ where: { id, tenantId }, select: { id: true, templateGroupId: true } });
   if (!d) throw fastify.httpErrors.notFound("Dosarul nu a fost găsit");
   if (!d.templateGroupId) throw fastify.httpErrors.badRequest("Dosarul nu are ales un grup de documente");
   // Grupul se generează ca un singur ZIP; worker-ul îl desface pe membri.

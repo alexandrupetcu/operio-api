@@ -214,3 +214,38 @@ describe("dosare — izolarea între firme", () => {
     expect((await expectReject(() => dossiers.update(app, f.a.id, d.id, { templateGroupId: own.id }))).status).toBe(404);
   });
 });
+
+describe("dosare — un proiect obișnuit deschis în editorul de dosar („Completează dosarul”)", () => {
+  async function workflowProject() {
+    const type = await prisma.projectType.findFirstOrThrow({ where: { tenantId: f.a.id, code: "bransament" } });
+    return prisma.project.create({
+      data: { tenantId: f.a.id, clientId: f.a.clientId, projectTypeId: type.id, name: "Proiect cu workflow", address: "Str. Y 2", city: "Jilava", county: "Ilfov", metadata: { cod_atr: "ATR 9" } },
+    });
+  }
+
+  it("se deschide, primește grupul și implicitele lipsă, fără să-și schimbe tipul sau felul", async () => {
+    const p = await workflowProject();
+    const before = await dossiers.get(app, f.a.id, p.id);
+    expect(before.templateGroupId).toBeNull();
+    expect(before.kind).toBe("project");
+    const after = await dossiers.update(app, f.a.id, p.id, updateDossierSchema.parse({ templateGroupId: groupId }));
+    expect(after.templateGroupId).toBe(groupId);
+    const row = await prisma.project.findUniqueOrThrow({ where: { id: p.id } });
+    expect(row.kind).toBe("project");
+    expect(row.projectTypeId).toBe(p.projectTypeId);
+    expect((row.metadata as Record<string, string>).cod_atr).toBe("ATR 9");
+    // Distribuitorul grupului (OSD) completează câmpurile goale.
+    expect((row.metadata as Record<string, string>).osd_denumire).toBe("Distrigaz Sud Rețele");
+  });
+
+  it("ștergerea din Dosare nu atinge un proiect obișnuit", async () => {
+    const p = await workflowProject();
+    expect((await expectReject(() => dossiers.remove(app, f.a.id, p.id))).status).toBe(404);
+    expect(await prisma.project.count({ where: { id: p.id } })).toBe(1);
+  });
+
+  it("lista din Dosare rămâne doar cu dosarele", async () => {
+    await workflowProject();
+    expect(await dossiers.list(app, f.a.id)).toHaveLength(0);
+  });
+});
