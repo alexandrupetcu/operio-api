@@ -111,6 +111,33 @@ def strip_red(root) -> int:
     return n
 
 
+def strip_white_paragraph_shading(root) -> int:
+    """Paragraphs shaded white (left by a .doc → .docx conversion) paint over the bottom border of
+    the table right above them in Word — the table looks open. White on white paper: drop it."""
+    n = 0
+    for shd in list(root.iter(w("shd"))):
+        if shd.getparent().tag == w("pPr") and (shd.get(w("fill")) or "").upper() in ("FFFFFF",) and shd.get(w("val")) in (None, "clear"):
+            shd.getparent().remove(shd)
+            n += 1
+    return n
+
+
+def relax_condensed_spaces(root) -> int:
+    """Whitespace-only runs squeezed with negative character spacing (PDF → Word conversions use
+    them to fake line breaks): with other values the line breaks elsewhere and the neighbouring
+    words fuse („GIURGIURACORD”). Plain spaces again."""
+    n = 0
+    for r in root.iter(w("r")):
+        t = "".join(x.text or "" for x in r.findall(w("t")))
+        if not t or t.strip():
+            continue
+        sp = r.find(f"{w('rPr')}/{w('spacing')}")
+        if sp is not None and int(sp.get(w("val"), "0")) <= -10:
+            sp.getparent().remove(sp)
+            n += 1
+    return n
+
+
 def strip_yellow_highlight(root) -> int:
     n = 0
     for h in list(root.iter(w("highlight"))):
@@ -474,8 +501,14 @@ def fix_page(doc: Docx, log: list[str]) -> list[int]:
                     mar.set(w(k), str(val))
             if mar.get(w(key)) is None and mar.get(w({"left": "start", "right": "end"}[key])) is None:
                 mar.set(w(key), str(val))
+        has_header = sp.find(w("headerReference")) is not None
+        header_dist = twips(mar.get(w("header"), 720))
         for key in ("top", "bottom"):
             v = twips(mar.get(w(key), 1440))
+            # A page with a header (logo band) sitting ≥ 10 mm from the edge: the body starts below
+            # the header whatever the top margin says — keep the client's value.
+            if key == "top" and has_header and header_dist >= MIN_MARGIN and v >= 0:
+                continue
             if abs(v) < MIN_MARGIN:
                 mar.set(w(key), str(MIN_MARGIN if v >= 0 else -MIN_MARGIN))
         # header/footer distances are left as the client set them: the Distrigaz letterhead
@@ -521,7 +554,12 @@ def scale_tables(doc: Docx, sections: list, log: list[str]) -> None:
         ind = 0
         if tpr is not None and tpr.find(w("tblInd")) is not None and tpr.find(w("tblInd")).get(w("type"), "dxa") == "dxa":
             ind = twips(tpr.find(w("tblInd")).get(w("w"), 0))
-        left = left_margin + ind
+        # Word draws the left border one cell margin left of tblInd (default 108 twips).
+        cm = tpr.find(f"{w('tblCellMar')}/{w('left')}") if tpr is not None else None
+        if cm is None and tpr is not None:
+            cm = tpr.find(f"{w('tblCellMar')}/{w('start')}")
+        cell_left = twips(cm.get(w("w"), 108)) if cm is not None else 108
+        left = left_margin + ind - cell_left
         fp = tpr.find(w("tblpPr")) if tpr is not None else None
         if fp is not None:  # floating table: horizontal position from its own anchor
             spec, x = fp.get(w("tblpXSpec")), twips(fp.get(w("tblpX"), 0))
@@ -535,7 +573,8 @@ def scale_tables(doc: Docx, sections: list, log: list[str]) -> None:
         if left + tw <= limit + 20 and left >= MIN_MARGIN - 20:
             continue
         if fp is None and left < MIN_MARGIN - 20:  # table pulled into the left margin: keep 10 mm
-            el = tpr.find(w("tblInd"))
+            el = child_in_order(tpr, "tblInd", TBLPR_ORDER)
+            el.set(w("type"), "dxa")
             el.set(w("w"), str(ind + MIN_MARGIN - left))
             log.append(f"table indent {ind} → {ind + MIN_MARGIN - left} (left edge {left} → {MIN_MARGIN})")
             left = MIN_MARGIN
@@ -653,6 +692,17 @@ def op_page_break_before(doc: Docx, op, log):
     paragraph gets pageBreakBefore; {"table": n} → a 1 pt paragraph with pageBreakBefore goes before it."""
     root = doc.part("word/document.xml")
     tables = list(root.iter(w("tbl")))
+
+    def drop_spacers_before(el):
+        # empty paragraphs between the previous form and the new page would spill onto a page of their own
+        prev = el.getprevious()
+        while prev is not None and prev.tag == w("p") and not visible_text(prev).strip() \
+                and prev.find(f".//{w('sectPr')}") is None and prev.find(f".//{w('drawing')}") is None \
+                and prev.find(f".//{w('pict')}") is None and prev.find(f".//{w('br')}") is None:
+            nxt = prev.getprevious()
+            prev.getparent().remove(prev)
+            prev = nxt
+
     for t in op["targets"]:
         if "table" in t:
             tbl = tables[t["table"] - 1]
@@ -662,10 +712,13 @@ def op_page_break_before(doc: Docx, op, log):
             sp = etree.SubElement(ppr, w("spacing"))
             for k, v in (("before", "0"), ("after", "0"), ("line", "20"), ("lineRule", "exact")):
                 sp.set(w(k), v)
+            drop_spacers_before(tbl)
             tbl.addprevious(p)
             log.append(f"page break before table {t['table']}")
         else:
             p = find_para(doc, t["match"], whole=t.get("whole", True), nth=t.get("nth", 1))
+            if p.getparent().tag == w("body"):
+                drop_spacers_before(p)
             ppr = p.find(w("pPr"))
             if ppr is None:
                 ppr = etree.Element(w("pPr"))
@@ -826,6 +879,29 @@ def op_tab_signature(doc: Docx, op, log):
     log.append(f"signature block on a {op.get('align', 'right')} tab at {op['pos']}")
 
 
+def op_row_borders(doc: Docx, op, log):
+    """Single borders all round on every cell of the given rows (1-based) — for a repeated block
+    whose cells inherited the client's patchwork of nil/single borders around one sample value."""
+    tbl = list(doc.part("word/document.xml").iter(w("tbl")))[op["table"] - 1]
+    rows = tbl.findall(w("tr"))
+    for i in op["rows"]:
+        for tc in rows[i - 1].findall(w("tc")):
+            pr = tc.find(w("tcPr"))
+            if pr is None:
+                pr = etree.Element(w("tcPr"))
+                tc.insert(0, pr)
+            b = child_in_order(pr, "tcBorders", TCPR_ORDER)
+            for k in list(b):
+                b.remove(k)
+            for side in ("top", "left", "bottom", "right"):
+                e = etree.SubElement(b, w(side))
+                e.set(w("val"), "single")
+                e.set(w("sz"), str(op.get("sz", 4)))
+                e.set(w("space"), "0")
+                e.set(w("color"), "auto")
+    log.append(f"uniform borders on table {op['table']} rows {op['rows']}")
+
+
 def op_table_float_y(doc: Docx, op, log):
     """Move a floating table down (tblpY, twips from its anchor) — e.g. to leave room above it for
     the generated sketch, which is larger than the client's picture."""
@@ -885,11 +961,31 @@ def op_table_row_loop(doc: Docx, op, log):
     cells = tr.findall(w("tc"))
     texts = op["cells"]
     assert len(cells) == len(texts), f"row has {len(cells)} cells, mapping gives {len(texts)}"
+    # a cell's text goes into its first paragraph that has text in the client's row (the others —
+    # spacers around the sample value — are removed, so the repeated row isn't taller than one line)
     for tc, txt in zip(cells, texts):
         ps = tc.findall(w("p"))
-        put_paragraph_text(ps[0], txt)
-        for p in ps[1:]:
-            put_paragraph_text(p, "")
+        keep = next((p for p in ps if visible_text(p).strip()), ps[0])
+        put_paragraph_text(keep, txt)
+        for p in ps:
+            if p is not keep:
+                tc.remove(p)
+    for target, source in op.get("formatFrom", []):  # 1-based cells: copy paragraph + run formatting
+        src_p = cells[source - 1].find(w("p"))
+        dst_p = cells[target - 1].find(w("p"))
+        for tag in ("pPr",):
+            old = dst_p.find(w(tag))
+            if old is not None:
+                dst_p.remove(old)
+            if src_p.find(w(tag)) is not None:
+                dst_p.insert(0, copy.deepcopy(src_p.find(w(tag))))
+        src_r = src_p.find(f"{w('r')}/{w('rPr')}")
+        for r in dst_p.findall(w("r")):
+            old = r.find(w("rPr"))
+            if old is not None:
+                r.remove(old)
+            if src_r is not None:
+                r.insert(0, copy.deepcopy(src_r))
     # The repeated row must close the table: when the original last row goes, its bottom
     # border moves to the loop row (cells that only drew a top border would leave the
     # last repetition open).
@@ -1150,6 +1246,7 @@ OPS = {
     "unfloat_table": op_unfloat_table,
     "columns_line": op_columns_line,
     "table_float_y": op_table_float_y,
+    "row_borders": op_row_borders,
     "image_placeholder": op_image_placeholder,
     "remove_drawings": op_remove_drawings,
     "tab_signature": op_tab_signature,
@@ -1260,6 +1357,10 @@ def build_member(member: dict, cfg: dict, global_rules: list, roles: dict, work:
     reds = 0
     for name, _ in doc.text_parts():
         reds += strip_red(doc.part(name))
+        shd = strip_white_paragraph_shading(doc.part(name))
+        cond = relax_condensed_spaces(doc.part(name))
+        if shd or cond:
+            log.append(f"{name}: white paragraph shading removed ×{shd}, condensed spaces relaxed ×{cond}")
         if not member.get("keepYellow"):
             strip_yellow_highlight(doc.part(name))
     if "word/styles.xml" in doc.names:

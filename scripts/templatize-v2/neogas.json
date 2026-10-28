@@ -496,7 +496,7 @@
       "out": "6. PV RT BR.docx",
       "src": "6. PV RT BR.docx",
       "preOps": [
-        {"op": "table_row_loop", "table": 1, "row": 2, "cells": ["{#materiale}{denumire}", "{diametru}", "{cantitate}", "{furnizor}", "{certificat}", "{declaratie}{/materiale}"], "deleteRows": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}
+        {"op": "table_row_loop", "table": 1, "row": 4, "cells": ["{#materiale}{denumire}", "{diametru}", "{cantitate}", "{furnizor}", "{certificat}", "{declaratie}{/materiale}"], "deleteRows": [2, 3, 5, 6, 7, 8, 9, 10, 11, 12]}
       ],
       "rules": [
         {"find": "(?<=Nr\\. )3(?= / 16\\.09\\.2025)", "replace": "{pv_rt_br_nr}", "regex": true},
@@ -510,12 +510,11 @@
     },
     {
       "id": "06",
-      "expectedPages": 3,
-      "notes": "Ca la 05: pe A4 dispar paginile cu un singur rând (fraza finală, rândul FOL).",
+      "notes": "Marginea de sus a clientului se păstrează (antetul NEOGAS ocupă zona) — 4 pagini ca originalul.",
       "out": "7. PV RT SRM.docx",
       "src": "7. PV RT SRM.docx",
       "preOps": [
-        {"op": "table_row_loop", "table": 1, "row": 2, "cells": ["{#materiale_srm}{denumire}", "{diametru}", "{cantitate}", "{furnizor}", "{certificat}", "{declaratie}{/materiale_srm}"], "deleteRows": [3, 4, 5, 6]}
+        {"op": "table_row_loop", "table": 1, "row": 5, "cells": ["{#materiale_srm}{denumire}", "{diametru}", "{cantitate}", "{furnizor}", "{certificat}", "{declaratie}{/materiale_srm}"], "deleteRows": [2, 3, 4, 6]}
       ],
       "rules": [
         {"find": "(?<=Nr\\. )4(?= / 16\\.09\\.2025)", "replace": "{pv_rt_srm_nr}", "regex": true},
@@ -536,7 +535,7 @@
       "out": "8. PC Punere in functiune.docx",
       "src": "8. PC Punere in functiune.docx",
       "preOps": [
-        {"op": "table_row_loop", "table": 1, "row": 2, "cells": ["{#materiale}{denumire}", "{diametru}", "{cantitate}", "{furnizor}", "{certificat}", "{declaratie}{/materiale}"], "deleteRows": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}
+        {"op": "table_row_loop", "table": 1, "row": 4, "cells": ["{#materiale}{denumire}", "{diametru}", "{cantitate}", "{furnizor}", "{certificat}", "{declaratie}{/materiale}"], "deleteRows": [2, 3, 5, 6, 7, 8, 9, 10, 11, 12]}
       ],
       "rules": [
         {"find": "(?<=Nr)\\. 4/2025", "replace": ". {pv_pif_nr}", "regex": true},
@@ -554,7 +553,7 @@
       "out": "9. PV Punere in functiune SRM.docx",
       "src": "9. PV Punere in functiune SRM.docx",
       "preOps": [
-        {"op": "table_row_loop", "table": 1, "row": 2, "cells": ["{#materiale_srm}{denumire}", "{diametru}", "{cantitate}", "{furnizor}", "{certificat}", "{declaratie}{/materiale_srm}"], "deleteRows": [3, 4, 5, 6]}
+        {"op": "table_row_loop", "table": 1, "row": 5, "cells": ["{#materiale_srm}{denumire}", "{diametru}", "{cantitate}", "{furnizor}", "{certificat}", "{declaratie}{/materiale_srm}"], "deleteRows": [2, 3, 4, 6]}
       ],
       "rules": [
         {"find": "(?<=Nr\\. )6(?=\\s*$)", "replace": "{pv_pif_srm_nr}", "regex": true},
@@ -713,7 +712,7 @@
       "out": "22. Tabel privind executia sudurilor.docx",
       "src": "22. Tabel privind executia sudurilor.docx",
       "preOps": [
-        {"op": "table_row_loop", "table": 1, "row": 2, "cells": ["{#suduri}{cod}", "{sudor}", "{autorizatie}", "{procedeu}", "", "{omologare}{/suduri}"], "deleteRows": [3, 4, 5]}
+        {"op": "table_row_loop", "table": 1, "row": 4, "cells": ["{#suduri}{cod}", "{sudor}", "{autorizatie}", "{procedeu}", "", "{omologare}{/suduri}"], "deleteRows": [2, 3, 5]}
       ],
       "rules": [
         {"find": "(?<=Ing\\. )Ivan Florin Madalin", "replace": "{rts_nume}", "regex": true}

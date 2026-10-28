@@ -24,3 +24,17 @@ export function companyDocVars(settingsJson: unknown): Record<string, string> {
     tenant_autorizatie_proiectare_tip: c.proiectareTip,
   };
 }
+
+/**
+ * Datele firmei necompletate în Setări (adresă, telefon, CUI…) ies din datele DOCX, ca
+ * generatorul să tipărească „..........” (de completat de mână) în loc de un gol care lasă
+ * pe document „, , județul ,”. Imaginile și celelalte variabile rămân neatinse.
+ */
+export function withoutBlankTenantFields(data: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (k.startsWith("tenant_") && typeof v === "string" && !v.trim()) continue;
+    out[k] = v;
+  }
+  return out;
+}

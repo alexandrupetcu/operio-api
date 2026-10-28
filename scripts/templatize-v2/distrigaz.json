@@ -266,15 +266,21 @@
       "preOps": [
         {"op": "table_row_loop", "table": 1, "row": 21, "cells": [
           "{#project_sudori}{#sudor_ol_nume}{nr_crt}{/sudor_ol_nume}", "{sudor_ol_nume}", "{sudor_ol_aut_intern}", "{sudor_ol_aut_iscir}", "{sudor_ol_poanson}",
-          "{#sudor_pe_nume}{nr_crt}{/sudor_pe_nume}", "{sudor_pe_nume}", "{sudor_pe_aut_intern}", "{sudor_pe_aut_iscir}", "{sudor_pe_poanson}", ""]},
-        {"op": "table_row_loop", "table": 1, "row": 22, "cells": ["", "", "", "", "", "", "", "", "", "{/project_sudori}", ""]}
+          "{#sudor_pe_nume}{nr_crt}{/sudor_pe_nume}", "{sudor_pe_nume}", "{sudor_pe_aut_intern}", "{sudor_pe_aut_iscir}", "{sudor_pe_poanson}", ""],
+          "formatFrom": [[1, 6], [2, 7], [3, 8], [4, 9], [5, 10]]},
+        {"op": "table_row_loop", "table": 1, "row": 22, "cells": ["", "", "", "", "", "", "", "", "", "{/project_sudori}", ""]},
+        {"op": "vmerge", "table": 1, "col": 1, "rows": [21, 22], "vAlign": "center"},
+        {"op": "vmerge", "table": 1, "col": 2, "rows": [21, 22], "vAlign": "center"},
+        {"op": "vmerge", "table": 1, "col": 6, "rows": [21, 22], "vAlign": "center"},
+        {"op": "vmerge", "table": 1, "col": 7, "rows": [21, 22], "vAlign": "center"},
+        {"op": "row_borders", "table": 1, "rows": [21, 22]}
       ],
       "ops": [
         {"op": "drop_grid_col", "table": 1, "col": 10},
         {"op": "drop_trailing_empty_rows", "table": 1},
         {"op": "shrink_trailing_empty"}
       ],
-      "notes": "Un sudor = blocul de 2 rânduri al formularului (r21–r22); bucla le repetă pe amândouă. Numărul de ordine apare doar în jumătatea (OL/PE) în care sudorul are nume. Rândurile libere de dedesubt rămân."
+      "notes": "Un sudor = blocul de 2 rânduri al formularului (r21–r22); bucla le repetă pe amândouă (nume și autorizație unite pe verticală, margini uniforme, jumătatea OL formatată ca PE — în exemplu era goală). Numărul de ordine apare doar în jumătatea (OL/PE) în care sudorul are nume. Rândurile libere de dedesubt rămân."
     },
     {
       "id": "20", "out": "19.) FD-691-327 Tabel examinare vizuală suduri.docx", "src": "19.) FD-691-327 Tabel examinare vizuală suduri.xls", "expectedPages": 1,

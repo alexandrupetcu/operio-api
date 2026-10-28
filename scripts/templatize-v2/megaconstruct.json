@@ -947,7 +947,7 @@
     },
     {
      "op": "columns_line",
-     "match": "{instalator_nume}\t\t\t",
+     "match": "{instalator_nume}\t\t\t             Ing. {rts_nume}",
      "cells": [
       "{instalator_nume}",
       "Ing. {rts_nume}"
@@ -984,9 +984,62 @@
       5100,
       8500
      ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Intocmit,",
+     "cells": [
+      "Intocmit,",
+      "Verificat,"
+     ],
+     "positions": [
+      2550,
+      7650
+     ],
+     "nth": 1
+    },
+    {
+     "op": "columns_line",
+     "match": "Intocmit,",
+     "cells": [
+      "Intocmit,",
+      "Verificat,"
+     ],
+     "positions": [
+      2550,
+      7650
+     ],
+     "nth": 2
+    },
+    {
+     "op": "columns_line",
+     "match": "Ing. {instalator_nume}\t\t\t\t",
+     "cells": [
+      "Ing. {instalator_nume}",
+      "Ing."
+     ],
+     "positions": [
+      2550,
+      7650
+     ],
+     "nth": 1
+    },
+    {
+     "op": "columns_line",
+     "match": "Ing. {instalator_nume}\t\t\t\t",
+     "cells": [
+      "Ing. {instalator_nume}",
+      "Ing."
+     ],
+     "positions": [
+      2550,
+      7650
+     ],
+     "nth": 1
     }
    ],
-   "notes": "Fișierul clientului n-are salturi de pagină: fiecare formular începea pe pagină nouă doar pentru că precedentul umplea pagina Letter. Pe A4 le pun explicit (page_break_before). Tabelul sudurilor rămâne cu 14 rânduri goale după cele completate (originalul: 20 de rânduri), ca să încapă pe o pagină. Înainte de tabelul sudurilor există deja un salt de secțiune. Semnăturile de sub schema izometrică / tabelul sudurilor / buletin: nume pe tab-uri centrate sub rol (originalul le alinia cu spații, după lungimea numelor-exemplu). Subsolul secțiunii a doua avea textul fix „Page 21 of 21” — golit."
+   "notes": "Fișierul clientului n-are salturi de pagină: fiecare formular începea pe pagină nouă doar pentru că precedentul umplea pagina Letter. Pe A4 le pun explicit (page_break_before). Tabelul sudurilor rămâne cu 14 rânduri goale după cele completate (originalul: 20 de rânduri), ca să încapă pe o pagină. Înainte de tabelul sudurilor există deja un salt de secțiune. Semnăturile de sub schema izometrică / tabelul sudurilor / buletin: nume pe tab-uri centrate sub rol (originalul le alinia cu spații, după lungimea numelor-exemplu). Subsolul secțiunii a doua avea textul fix „Page 21 of 21” — golit. 21 de pagini (în Word, ca originalul): fiecare formular pe pagina lui, fără paginile goale dinaintea salturilor.",
+   "expectedPages": 21
   }
  ]
 }

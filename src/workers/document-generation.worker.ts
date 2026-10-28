@@ -19,7 +19,7 @@ import { stampWithSignatureHtml } from "../lib/stamp-html.js";
 import { withAliases } from "../lib/dossier-fields.js";
 import { derivedDossierVars, distributorDocVars, teamDocVars } from "../lib/dossier-data.js";
 import { archiveEntryNames } from "../lib/archive-names.js";
-import { companyDocVars } from "../lib/company-doc-vars.js";
+import { companyDocVars, withoutBlankTenantFields } from "../lib/company-doc-vars.js";
 import { osBoxData } from "../lib/os-box.js";
 import { resolveSignatory, type ResolvedSignatory } from "../modules/tenant/signatories.js";
 import { certType } from "../lib/certifications.js";
@@ -1252,7 +1252,8 @@ async function processJob(job: Job<DocumentJobData>) {
 
     // Underscore-keyed data for DOCX, dot-keyed for HTML
     const data: Record<string, unknown> = {
-      ...buildTenantData(tenant),
+      // Câmpurile firmei necompletate → „..........” pe document, nu „, , județul ,”.
+      ...withoutBlankTenantFields(buildTenantData(tenant)),
       date: new Date().toLocaleDateString("ro-RO"),
       current_date: new Date().toLocaleDateString("ro-RO"), // alias for {date}
       year: new Date().getFullYear().toString(),

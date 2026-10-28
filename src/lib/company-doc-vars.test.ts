@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { companyDocVars } from "./company-doc-vars.js";
+import { companyDocVars, withoutBlankTenantFields } from "./company-doc-vars.js";
 
 describe("companyDocVars — datele firmei din Setări → variabilele documentelor", () => {
   it("autorizația ANRE apare și sub numele folosite de dosarele DOCX (tenant_autorizatie_*)", () => {
@@ -21,5 +21,12 @@ describe("companyDocVars — datele firmei din Setări → variabilele documente
     expect(v.tenant_autorizatie_proiectare_nr).toBe("19830");
     expect(v.tenant_autorizatie_proiectare_data).toBe("08.12.2025");
     expect(v.tenant_autorizatie_proiectare_tip).toBe("PDSB");
+  });
+});
+
+describe("datele firmei necompletate în dosarele DOCX", () => {
+  it("un câmp al firmei gol nu se tipărește gol (lasă „, , județul ,”) — rămâne nedefinit, ca generatorul să pună „..........”", () => {
+    const data: Record<string, unknown> = { tenant_name: "Operio", tenant_address: "", tenant_phone: "  ", tenant_city: "Măgurele", client_name: "", tenant_logo: { s3Key: "x" } };
+    expect(withoutBlankTenantFields(data)).toEqual({ tenant_name: "Operio", tenant_city: "Măgurele", client_name: "", tenant_logo: { s3Key: "x" } });
   });
 });
