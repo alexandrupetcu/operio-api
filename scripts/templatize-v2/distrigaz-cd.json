@@ -416,6 +416,13 @@
    ],
    "ops": [
     {
+     "op": "set_paragraph",
+     "match": "",
+     "whole": true,
+     "nth": 6,
+     "text": "Nr. {nr_inregistrare} / {data_inregistrare}"
+    },
+    {
      "op": "image_placeholder",
      "part": "word/header1.xml",
      "tag": "tenant_logo",
@@ -468,6 +475,56 @@
      "find": "78\\.80m$",
      "replace": "{lungime}m",
      "regex": true
+    },
+    {
+     "find": "(?<=^Directia Regionala )(?=\\t)",
+     "replace": "{osd_regiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Nr\\. )\\.+/\\.+$",
+     "replace": "{pv_pif_nr} / {data_pif}",
+     "regex": true
+    },
+    {
+     "find": "ziua \\.+, luna \\.+, anul \\.+(?=, $)",
+     "replace": "{data_pif}",
+     "regex": true
+    },
+    {
+     "find": "(?<=delegat al operatorului de distribuţie )\\.+",
+     "replace": "{osd_delegat_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=receptie tehnica nr\\. )\\.+, din \\.+",
+     "replace": "{pv_rt_br_nr}, din {data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Tub protecţie)\\.+$",
+     "replace": "........................................ {tub_protectie_diametru}.............{tub_protectie_material}                  {tub_protectie_lungime}m",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Armătură închidere)\\.+$",
+     "replace": "................................... {robinet_diametru}.............{robinet_tip}   {robinet_bucati} buc",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Regulatoare de presiune)\\.+  $",
+     "replace": "............ {regulator_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<= buc)\\.+$",
+     "replace": "... {rasuflatori_cu_capace}",
+     "regex": true
+    },
+    {
+     "find": "(?<=tip  )EGD$|(?<=^tip )EGD$",
+     "replace": "{instalator_tip}",
+     "regex": true
     }
    ]
   },
@@ -485,9 +542,32 @@
      "find": "(?<=planşelor nr\\. )1",
      "replace": "{planse_nr}",
      "regex": true
+    },
+    {
+     "find": "…../...../…..",
+     "replace": "{pv_predare_data}",
+     "whole": true
+    },
+    {
+     "find": "NU ESTE CAZUL",
+     "replace": "{#abateri_constatate}{abateri_constatate}{/abateri_constatate}{^abateri_constatate}NU ESTE CAZUL{/abateri_constatate}",
+     "whole": true
     }
    ],
-   "noTableScale": true
+   "noTableScale": true,
+   "ops": [
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 40,
+     "cell": 4,
+     "text": "ING. {osd_delegat_nume}",
+     "formatFrom": [
+      40,
+      2
+     ]
+    }
+   ]
   },
   {
    "id": "03",
@@ -497,6 +577,11 @@
     {
      "find": "(?<=Ing\\. )Ivan Florin Madalin",
      "replace": "{@constructor_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Incheiat  astazi )[….]+",
+     "replace": "{data_pif}",
      "regex": true
     }
    ]
@@ -509,6 +594,11 @@
     {
      "find": "(?<=Ing\\. )Ivan Florin Madalin",
      "replace": "{@constructor_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Incheiat  astazi )[….]+",
+     "replace": "{data_pif}",
      "regex": true
     }
    ]
@@ -541,6 +631,16 @@
     {
      "find": "(?<=^Ing\\. )Ivan Florin Madalin$",
      "replace": "{@constructor_nume}",
+     "regex": true
+    },
+    {
+     "find": "...../…../…...",
+     "replace": "{pv_trasare_data}",
+     "whole": true
+    },
+    {
+     "find": "(?<=Y  = )0,60 m",
+     "replace": "{distanta_limita}",
      "regex": true
     }
    ],
@@ -634,6 +734,11 @@
     {
      "find": "(?<=Ing\\. )Ivan Florin Madalin",
      "replace": "{@constructor_nume}",
+     "regex": true
+    },
+    {
+     "find": "(?<=PRIN Sudura )ELECTROFUZIUNE",
+     "replace": "{procedeu_sudura}",
      "regex": true
     }
    ],
@@ -760,6 +865,17 @@
    ],
    "ops": [
     {
+     "op": "set_cell",
+     "table": 1,
+     "row": 31,
+     "cell": 3,
+     "text": "{cq_nume}",
+     "formatFrom": [
+      30,
+      4
+     ]
+    },
+    {
      "op": "drop_grid_col",
      "table": 1,
      "col": 10
@@ -807,7 +923,19 @@
      "op": "shrink_trailing_empty"
     }
    ],
-   "noTableScale": true
+   "noTableScale": true,
+   "rules": [
+    {
+     "find": "…../…../.....",
+     "replace": "{pv_montare_data}",
+     "whole": true
+    },
+    {
+     "find": "(?<=schemă izometrică )1(?= ?$)",
+     "replace": "{nr_schema_izometrica}",
+     "regex": true
+    }
+   ]
   },
   {
    "id": "11",
@@ -946,8 +1074,8 @@
      "whole": true
     },
     {
-     "find": "(?<=Rasuflatori carosabil - )NU",
-     "replace": "{rasuflatori_cu_capace}",
+     "find": "(?<=Rasuflatori carosabil) - NU",
+     "replace": "",
      "regex": true
     },
     {
@@ -1003,6 +1131,24 @@
      "find": "^\\s*2\\s*$",
      "replace": "{total_suduri}",
      "regex": true
+    },
+    {
+     "find": "(?<=Desfacere pavaj – )carosabil",
+     "replace": "{zona_afectata}",
+     "regex": true
+    }
+   ],
+   "ops": [
+    {
+     "op": "set_cell",
+     "table": 1,
+     "row": 6,
+     "cell": 6,
+     "text": "{rasuflatori_cu_capace}",
+     "formatFrom": [
+      5,
+      6
+     ]
     }
    ]
   },
@@ -1050,6 +1196,16 @@
      "find": "DISTRIGAZ SUD",
      "replace": "{osd_denumire}",
      "whole": true
+    },
+    {
+     "find": "(?<=Adresa  )B-DUL MARASESTI , NR\\.4-6, SECTOR 4",
+     "replace": "{osd_adresa}",
+     "regex": true
+    },
+    {
+     "find": "(?<=racordului de )presiune redusa",
+     "replace": "{bransament_presiune}",
+     "regex": true
     }
    ]
   },
@@ -1089,6 +1245,16 @@
      "find": "(?<=Montajul )conductei ",
      "replace": "conductei ",
      "regex": true
+    },
+    {
+     "find": "DS1 referitor la [….]+, DS2 referitor +la[….]+",
+     "replace": "{#dispozitie_santier}{dispozitie_santier}{/dispozitie_santier}{^dispozitie_santier}nu este cazul{/dispozitie_santier}",
+     "regex": true
+    },
+    {
+     "find": "(?<=admiterea lucrării de )modernizare rețele",
+     "replace": "{lucrare_tip}",
+     "regex": true
     }
    ]
   },
@@ -1115,6 +1281,11 @@
     {
      "find": "(?<=CONDUCTA NOUA )Dn 90 = 78\\.80m",
      "replace": "{conducta_dn_lungimi_text}",
+     "regex": true
+    },
+    {
+     "find": "(?<=in regim de )redusa presiune",
+     "replace": "{bransament_presiune}",
      "regex": true
     }
    ]
@@ -1168,13 +1339,30 @@
      "find": "(?<=Pl\\. )01",
      "replace": "{planse_nr}",
      "regex": true
+    },
+    {
+     "find": "(?<=^Incheiat astazi )\\.+",
+     "replace": "{pv_control_calitate_data}",
+     "regex": true
+    },
+    {
+     "find": "(?<=gaze naturale )redusa presiune(?= PE100)",
+     "replace": "{bransament_presiune}",
+     "regex": true
     }
    ]
   },
   {
    "id": "18",
    "out": "3. FD-697-327 Opis carte tehnică.docx",
-   "src": "3. FD-697-327 Opis carte tehnică.doc"
+   "src": "3. FD-697-327 Opis carte tehnică.doc",
+   "rules": [
+    {
+     "find": "(?<=^Denumire lucrare:)$",
+     "replace": " {lucrare_tip} gaze naturale – {project_address}, loc. {project_city}, jud. {project_county}",
+     "regex": true
+    }
+   ]
   },
   {
    "id": "19",
@@ -1182,7 +1370,49 @@
    "src": "4. FD-704-327 Minuta pregătire cuplare.doc",
    "ops": [
     {
+     "op": "set_paragraph",
+     "match": "",
+     "whole": true,
+     "nth": 7,
+     "text": "{sef_santier_nume}"
+    },
+    {
+     "op": "columns_line",
+     "match": "{sef_santier_nume}",
+     "whole": true,
+     "cells": [
+      "{sef_santier_nume}"
+     ],
+     "positions": [
+      4599
+     ]
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "..........................................................................................................................................................................",
+     "whole": true,
+     "nth": 1
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "..........................................................................................................................................................................",
+     "whole": true,
+     "nth": 1
+    },
+    {
      "op": "shrink_trailing_empty"
+    }
+   ],
+   "rules": [
+    {
+     "find": "(?<=^Referitor lucrare de investitii:)\\.+$",
+     "replace": " {lucrare_tip} PE g.n. – {project_address}, loc. {project_city}, jud. {project_county}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Stabilire data cuplare: )\\.+",
+     "replace": "{data_pif}",
+     "regex": true
     }
    ]
   },
@@ -1192,16 +1422,58 @@
    "src": "5.  Comunicare finalizare lucrări în vederea programării cuplării.doc",
    "ops": [
     {
+     "op": "set_paragraph",
+     "match": "",
+     "whole": true,
+     "nth": 11,
+     "text": "{diriginte_nume}"
+    },
+    {
      "op": "delete_paragraph",
      "text": "................................................................................................................................................................",
      "whole": true,
-     "nth": 4
+     "nth": 1
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "................................................................................................................................................................",
+     "whole": true,
+     "nth": 1
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "................................................................................................................................................................",
+     "whole": true,
+     "nth": 1
+    },
+    {
+     "op": "delete_paragraph",
+     "text": "................................................................................................................................................................",
+     "whole": true,
+     "nth": 1
     },
     {
      "op": "shrink_trailing_empty"
     }
    ],
-   "noTableScale": true
+   "noTableScale": true,
+   "rules": [
+    {
+     "find": "(?<=^Agentia Operationala Lucrari )\\.+$",
+     "replace": "{osd_regiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Referitor lucrare de investitii:)\\.+$",
+     "replace": " {lucrare_tip} PE g.n. – {project_address}, loc. {project_city}, jud. {project_county}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Sef Agentie Operationala Lucrari)\\.+$",
+     "replace": " {osd_sef_aol}",
+     "regex": true
+    }
+   ]
   },
   {
    "id": "21",
@@ -1216,6 +1488,16 @@
     {
      "find": "(?<=C-da CM Conducta: )\\.+",
      "replace": "{comanda_cm}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Telefon: )\\.+ ?$",
+     "replace": "{osd_telefon}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Fax: )[….]+$",
+     "replace": "{osd_fax}",
      "regex": true
     }
    ]
@@ -1338,6 +1620,16 @@
      "find": "IVAN FLORIN MADALIN",
      "replace": "{@constructor_nume}",
      "whole": true
+    },
+    {
+     "find": "(?<=^Telefon:)\\.+ ?$",
+     "replace": " {osd_telefon}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Data:)(?= *$)",
+     "replace": " {data_pif}",
+     "regex": true
     }
    ]
   },
@@ -1379,6 +1671,36 @@
     {
      "find": "(?<=\\.\\.\\.\\.\\.\\.\\. )2 buc(?= \\.)",
      "replace": "{rasuflatori_cu_capace} buc",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Nr\\. )\\.+/\\.+$",
+     "replace": "{pv_rt_br_nr} / {data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "ziua \\.+, luna \\.+, anul \\.+(?=, comisia)",
+     "replace": "{data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Tub protecţie\\t\\t)\\.+$",
+     "replace": "{tub_protectie_lungime}m                        {tub_protectie_diametru}                   {tub_protectie_material}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Regulator\\t\\t\\t)\\.+$",
+     "replace": "{regulator_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^Armătură închidere\\t)[.… ]+$",
+     "replace": "{robinet_bucati} buc                        {robinet_diametru}                   {robinet_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procesul verbal de lucrări ascunse nr\\. )\\.+/\\.+$",
+     "replace": "{pv_lucrari_ascunse_nr} / {pv_lucrari_ascunse_data}",
      "regex": true
     }
    ],
@@ -1425,6 +1747,71 @@
      "find": "(?<=fara capac GN, buc\\. )\\.{6}",
      "replace": "...{rasuflatori_fara_capace}...",
      "regex": true
+    },
+    {
+     "find": "(?<=recepţionata cu PVRTL )nr\\. \\.+  din ziua \\.+ luna \\.+ anul \\.+$",
+     "replace": "nr. {pv_rt_br_nr} din {data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "(?<=pusa in funcţiune la data de:              )ziua [….]+ luna [….]+ anul [….]+",
+     "replace": "{data_pif}",
+     "regex": true
+    },
+    {
+     "find": "(?<=diametru) +(?=\\t)",
+     "replace": "      {tub_protectie_diametru}",
+     "regex": true
+    },
+    {
+     "find": "(?<=^material) +(?=\\t)",
+     "replace": "      {tub_protectie_material}",
+     "regex": true
+    },
+    {
+     "find": "(?<=tip )[….]+(?= diametru )",
+     "replace": "{robinet_tip} ……………",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=diametru )[….]+(?= buc\\. )",
+     "replace": "{robinet_diametru} ………",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<= buc\\. )[….]+$",
+     "replace": "{robinet_bucati}",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=^-   aparat )\\.+(?=\\t)",
+     "replace": "{aparat_sudura_ol}",
+     "regex": true
+    }
+   ],
+   "ops": [
+    {
+     "op": "set_paragraph",
+     "match": "",
+     "whole": true,
+     "nth": 3,
+     "text": "{instalator_nume} {diriginte_nume}"
+    },
+    {
+     "op": "columns_line",
+     "match": "{instalator_nume} {diriginte_nume}",
+     "whole": true,
+     "cells": [
+      "{instalator_nume}",
+      "{diriginte_nume}"
+     ],
+     "positions": [
+      1818,
+      8100
+     ]
     }
    ]
   }

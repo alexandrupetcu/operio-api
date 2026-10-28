@@ -1176,7 +1176,7 @@
     },
     {
      "find": "(?<=… )nu s-au constatat",
-     "replace": "{abateri_constatate}{^abateri_constatate}nu s-au constatat{/abateri_constatate}",
+     "replace": "{#abateri_constatate}{abateri_constatate}{/abateri_constatate}{^abateri_constatate}nu s-au constatat{/abateri_constatate}",
      "regex": true
     },
     {

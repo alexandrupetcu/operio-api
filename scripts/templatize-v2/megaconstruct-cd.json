@@ -1455,7 +1455,7 @@
     },
     {
      "find": "s-a constatat  modificare punct de cuplare",
-     "replace": "{abateri_constatate}{^abateri_constatate}nu s-au constatat{/abateri_constatate}",
+     "replace": "{#abateri_constatate}{abateri_constatate}{/abateri_constatate}{^abateri_constatate}nu s-au constatat{/abateri_constatate}",
      "regex": true
     },
     {
@@ -1899,9 +1899,145 @@
      "find": "(?<=laboratorul autorizat \\.{6})ADMIS(?=\\.\\.\\.)",
      "replace": "",
      "regex": true
+    },
+    {
+     "find": "(?<=până la data de )[….]+(?=,)",
+     "replace": "{data_receptie_terminare}",
+     "regex": true
+    },
+    {
+     "find": "(?<=investitiei” )Extindere conducta(?= de distributie)",
+     "replace": "{lucrare_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=prin procedeul )cap la cap/electrofuziune",
+     "replace": "{procedeu_sudura}",
+     "regex": true
+    },
+    {
+     "find": "(?<=: )[….]+(?=ºC)",
+     "replace": "{proba_rezistenta_temperatura} ",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=: )[….]+(?=ºC)",
+     "replace": "{proba_rezistenta_temperatura} ",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=: )[….]+(?=ºC)",
+     "replace": "{proba_etanseitate_temperatura} ",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=: )[….]+(?=ºC)",
+     "replace": "{proba_etanseitate_temperatura} ",
+     "regex": true,
+     "nth": 1
+    },
+    {
+     "find": "(?<=Desen montaj nr\\. )dosar preliminar  pozitie montaj PE",
+     "replace": "{nr_schema_izometrica}",
+     "regex": true
+    },
+    {
+     "find": "(?<=de )presiune redusa/medie",
+     "replace": "{bransament_presiune}",
+     "regex": true
+    },
+    {
+     "find": "(?<=recepţionata cu PVRTL )nr\\.+  din ziua \\.+ luna \\.+ anul \\.+$",
+     "replace": "nr. {pv_rt_br_nr} din {data_pv_rt}",
+     "regex": true
+    },
+    {
+     "find": "(?<=pusa in funcţiune la data de:              )ziua [….]+ luna [….]+ anul [….]+",
+     "replace": "{data_pif}",
+     "regex": true
+    },
+    {
+     "find": "(?<=fara capac GN,buc)[….]+(?=\\t)",
+     "replace": "….…{rasuflatori_fara_capace}  ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Încheiat astăzi, )ziua \\.+ luna \\.+, anul \\.+(?=, $)",
+     "replace": "{data_pif}",
+     "regex": true
     }
    ],
    "ops": [
+    {
+     "op": "set_cell",
+     "table": 11,
+     "row": 1,
+     "cell": 2,
+     "text": "{instalator_nume}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 11,
+     "row": 1,
+     "cell": 3,
+     "text": "{instalator_legitimatie}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 11,
+     "row": 2,
+     "cell": 3,
+     "text": "{sudor_pe_autorizatii}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 11,
+     "row": 3,
+     "cell": 3,
+     "text": "{rts_atestat}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "set_cell",
+     "table": 11,
+     "row": 4,
+     "cell": 3,
+     "text": "{diriginte_legitimatie}",
+     "formatFrom": [
+      2,
+      2
+     ]
+    },
+    {
+     "op": "columns_line",
+     "match": "Întocmit,",
+     "cells": [
+      "Întocmit, {instalator_nume}",
+      "Verificat, {diriginte_nume}"
+     ],
+     "positions": [
+      1922,
+      8186
+     ]
+    },
     {
      "op": "break_before",
      "match": "DIRECTOR {tenant_admin_name}",
@@ -2196,7 +2332,78 @@
    "id": "02",
    "out": "2. Anexa 16 Centralizator carte tehnica.docx",
    "src": "Anexa 16 (1).docx",
-   "rules": [],
+   "rules": [
+    {
+     "find": "(?<=planşa )[….]+",
+     "replace": "{planse_nr} ……………",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procese verbale nr )1 (– ?predare\\ primire\\ amplasament)[ ….]*$",
+     "replace": "{pv_predare_nr} \\1 ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procese verbale nr )2 (– ?trasare\\ ax\\ conductă)[ ….]*$",
+     "replace": "{#etape}{pv_trasare_nr}{sufix} {/etape}\\1 ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procese verbale nr )3 (– ?săpătura\\ la\\ cotă)[ ….]*$",
+     "replace": "{#etape}{pv_sapatura_nr}{sufix} {/etape}\\1 ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procese verbale nr )4 (– ?aşternerea\\ patului\\ de\\ nisip)[ ….]*$",
+     "replace": "{#etape}{pv_asternere_nr}{sufix} {/etape}\\1 ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procese verbale nr )5 (– ?montarea\\ conductei)[ ….]*$",
+     "replace": "{#etape}{pv_montare_nr}{sufix} {/etape}\\1 ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procese verbale nr )6 (– ?lansarea\\ în\\ şanţ\\ şi\\ astuparea\\ la\\ cotă)[ ….]*$",
+     "replace": "{#etape}{pv_lansare_nr}{sufix} {/etape}\\1 ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procese verbale nr )7 (– ?proba\\ de\\ presiune\\ de\\ casă)[ ….]*$",
+     "replace": "{pv_proba_casa_nr} \\1 ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procese verbale nr )8 (– ?proba\\ de\\ presiune\\ de\\ rezistenţă)[ ….]*$",
+     "replace": "{pv_rezistenta_nr} \\1 ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Procese verbale nr )9 (– ?proba\\ de\\ presiune\\ de\\ etanşeitate)[ ….]*$",
+     "replace": "{pv_etanseitate_nr} \\1 ……",
+     "regex": true
+    },
+    {
+     "find": "(?<=Declaraţie de conformitate nr)[….]+(?= )",
+     "replace": " {teava_dc_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Certificatul de calitate nr)[….]+(?= )",
+     "replace": " {teava_cc_nr}",
+     "regex": true
+    },
+    {
+     "find": "(?<=Proces verbal de lucrări ascunse nr\\. )[….]+",
+     "replace": "{#etape}{pv_lucrari_ascunse_nr}{sufix} {/etape}……………",
+     "regex": true
+    },
+    {
+     "find": "(?<=recepţie tehnică conductă nr\\. )[….]+(?= )",
+     "replace": "{pv_rt_br_nr}",
+     "regex": true
+    }
+   ],
    "notes": "Centralizatorul cărții tehnice — formular gol pe antetul MegaConstruct, păstrat ca atare (doar A4 / fără roșu)."
   },
   {
@@ -3273,7 +3480,7 @@
      "leadingTab": false,
      "align": "left",
      "cells": [
-      "Nume prenume__________________________________",
+      "Nume prenume: {osd_delegat_nume}",
       "Nume prenume: {sef_santier_nume}",
       "Nume prenume: {client_name}"
      ],
