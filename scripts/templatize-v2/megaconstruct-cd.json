@@ -670,12 +670,12 @@
      "table": 25,
      "row": 3,
      "cells": [
-      "{#materiale}{denumire}",
+      "{#materiale_conducta}{denumire}",
       "{diametru}",
       "{cantitate}",
       "{furnizor}",
       "{certificat}",
-      "{declaratie}{/materiale}"
+      "{declaratie}{/materiale_conducta}"
      ],
      "deleteRows": [
       4,
@@ -799,7 +799,7 @@
     {
      "op": "paragraph_loop",
      "match": "Ţeavă......",
-     "tag": "materiale",
+     "tag": "materiale_conducta",
      "text": "{denumire} .................... {diametru} .................... {furnizor} .................... {cantitate}"
     },
     {
@@ -1035,6 +1035,48 @@
     {
      "op": "numbering_to_text",
      "tag": "etape"
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 4,
+     "cell": 4,
+     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 5,
+     "cell": 4,
+     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 6,
+     "cell": 4,
+     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 7,
+     "cell": 4,
+     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 8,
+     "cell": 4,
+     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
+    },
+    {
+     "op": "set_cell",
+     "table": 3,
+     "row": 9,
+     "cell": 4,
+     "text": " Extindere conducta stradala, L={lungime_etapa} ml "
     }
    ],
    "rules": [
@@ -1344,37 +1386,43 @@
      "find": "(?<=L=)67(?= ml )",
      "replace": "{lungime_etapa}",
      "regex": true,
-     "nth": 2
+     "nth": 2,
+     "required": false
     },
     {
      "find": "(?<=L=)67(?= ml )",
      "replace": "{lungime_etapa}",
      "regex": true,
-     "nth": 2
+     "nth": 2,
+     "required": false
     },
     {
      "find": "(?<=L=)67(?= ml )",
      "replace": "{lungime_etapa}",
      "regex": true,
-     "nth": 2
+     "nth": 2,
+     "required": false
     },
     {
      "find": "(?<=L=)67(?= ml )",
      "replace": "{lungime_etapa}",
      "regex": true,
-     "nth": 2
+     "nth": 2,
+     "required": false
     },
     {
      "find": "(?<=L=)67(?= ml )",
      "replace": "{lungime_etapa}",
      "regex": true,
-     "nth": 2
+     "nth": 2,
+     "required": false
     },
     {
      "find": "(?<=L=)67(?= ml )",
      "replace": "{lungime_etapa}",
      "regex": true,
-     "nth": 2
+     "nth": 2,
+     "required": false
     },
     {
      "find": "diametrul Dn =63 mm şi Lungimea totala  =60\\.\\.m\\.l,",
@@ -1834,7 +1882,7 @@
     },
     {
      "find": "(D[Nn] *=? *)63",
-     "replace": "\\1{project_dn}",
+     "replace": "\\1{conducta_dn_text}",
      "regex": true
     },
     {
@@ -1846,6 +1894,11 @@
      "find": "67",
      "replace": "{conducta_lungime_totala}",
      "whole": true
+    },
+    {
+     "find": "(?<=laboratorul autorizat \\.{6})ADMIS(?=\\.\\.\\.)",
+     "replace": "",
+     "regex": true
     }
    ],
    "ops": [

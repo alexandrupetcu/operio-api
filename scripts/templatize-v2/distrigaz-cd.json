@@ -220,12 +220,12 @@
   },
   {
    "find": "(?<=Produsul  )PE 90 SDR11",
-   "replace": "{project_material} Dn {project_dn}",
+   "replace": "{project_material} Dn {conducta_dn_text}",
    "regex": true
   },
   {
    "find": "PE100 SDR11 Dn 90mm",
-   "replace": "{project_material} Dn {project_dn}mm",
+   "replace": "{project_material} Dn {conducta_dn_text}mm",
    "regex": true
   },
   {
@@ -241,17 +241,17 @@
   },
   {
    "find": "(?<![\\d/])63( ?)(mm|MM)",
-   "replace": "{project_dn}\\1\\2",
+   "replace": "{conducta_dn_text}\\1\\2",
    "regex": true
   },
   {
    "find": "(D[Nn] ?)63\\b",
-   "replace": "\\1{project_dn}",
+   "replace": "\\1{conducta_dn_text}",
    "regex": true
   },
   {
    "find": "(?<=PE )63(?= mm)",
-   "replace": "{project_dn}",
+   "replace": "{conducta_dn_text}",
    "regex": true
   },
   {
@@ -393,7 +393,7 @@
     },
     {
      "find": "(?<=Dn )63(?= mm)",
-     "replace": "{project_dn}",
+     "replace": "{conducta_dn_text}",
      "regex": true
     },
     [
@@ -520,7 +520,7 @@
    "rules": [
     {
      "find": "Extindere conducta gaze naturale R\\.P\\. Dn 63 mm L = 78\\.80m",
-     "replace": "{lucrare_tip} gaze naturale R.P. Dn {project_dn} mm L = {conducta_lungime_totala}m",
+     "replace": "{lucrare_tip} gaze naturale R.P. Dn {conducta_dn_text} mm L = {conducta_lungime_totala}m",
      "regex": true
     },
     {
@@ -826,7 +826,7 @@
     },
     {
      "find": "(?<=Dn )63(?= mm)",
-     "replace": "{project_dn}",
+     "replace": "{conducta_dn_text}",
      "regex": true
     },
     {
@@ -912,7 +912,7 @@
     },
     {
      "find": "(?<=cu dn )63(?= mm)",
-     "replace": "{project_dn}",
+     "replace": "{conducta_dn_text}",
      "regex": true
     },
     {
@@ -1033,7 +1033,7 @@
     },
     {
      "find": "(?<=diametrul )63(?= +mm)",
-     "replace": "{project_dn}",
+     "replace": "{conducta_dn_text}",
      "regex": true
     },
     {
@@ -1045,6 +1045,11 @@
      "find": "(?<=adâncimea de pozare fiind \\.\\.\\.)-0\\.9(?=\\.\\.\\. m)",
      "replace": "{adancime_pozare}",
      "regex": true
+    },
+    {
+     "find": "DISTRIGAZ SUD",
+     "replace": "{osd_denumire}",
+     "whole": true
     }
    ]
   },
@@ -1151,7 +1156,7 @@
     },
     {
      "find": "(?<=Dn )63(?= mm)",
-     "replace": "{project_dn}",
+     "replace": "{conducta_dn_text}",
      "regex": true
     },
     {
@@ -1304,7 +1309,7 @@
     ],
     {
      "find": "conducta gaze naturale R\\.P\\. PE100 SDR11 Dn 90mm",
-     "replace": "conducta gaze naturale R.P. {project_material} Dn {project_dn}mm",
+     "replace": "conducta gaze naturale R.P. {project_material} Dn {conducta_dn_text}mm",
      "regex": true
     }
    ],
@@ -1321,7 +1326,7 @@
    "rules": [
     {
      "find": "CONDUCTA PE g\\.n\\. R\\.P\\. dn 63mm",
-     "replace": "CONDUCTĂ PE g.n. R.P. dn {project_dn}mm",
+     "replace": "CONDUCTĂ PE g.n. R.P. dn {conducta_dn_text}mm",
      "regex": true
     },
     {
@@ -1409,6 +1414,16 @@
     {
      "find": "Ing\\. Ivan Florin Madalin, +EGD",
      "replace": "Ing. {instalator_nume},  {instalator_tip}",
+     "regex": true
+    },
+    {
+     "find": "(?<=cu capac GN, buc\\. \\.\\.\\.)1(?=\\.\\.\\.)",
+     "replace": "{rasuflatori_cu_capace}",
+     "regex": true
+    },
+    {
+     "find": "(?<=fara capac GN, buc\\. )\\.{6}",
+     "replace": "...{rasuflatori_fara_capace}...",
      "regex": true
     }
    ]

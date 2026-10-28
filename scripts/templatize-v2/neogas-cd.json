@@ -1040,6 +1040,16 @@
      "find": "este de …+\\.…+ lei ,conform adeverintei IJC…+\\.DO…+\\./2025",
      "replace": "este de {valoare_lucrari} lei, conform adeverintei {adeverinta_ijc_nr}",
      "regex": true
+    },
+    {
+     "find": "(?<=laboratorul autorizat \\.{6})ADMIS(?=\\.\\.\\.)",
+     "replace": "",
+     "regex": true
+    },
+    {
+     "find": "^cana(?=Nu s-au)",
+     "replace": "",
+     "regex": true
     }
    ],
    "ops": [

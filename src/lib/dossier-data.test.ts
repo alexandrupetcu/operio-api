@@ -323,6 +323,9 @@ describe("derivedDossierVars — MegaConstruct conductă (etape, Anexa 25)", () 
     expect(etape).toHaveLength(2);
     expect(etape[0]).toMatchObject({ nr_etapa: "1", sufix: "-1", data: "24.06.2026", lungime_etapa: "60", pv_trasare_data: "24.06.2026" });
     expect(etape[1]).toMatchObject({ sufix: "-2", lungime_etapa: "10" });
+    // Dn-ul etapei (registrul PV MegaConstruct), nu toate diametrele lucrării.
+    expect(etape[0].dn_etapa).toBe("63");
+    expect(etape[1].dn_etapa).toBe("63/2\"");
     const one = derivedDossierVars({ tronsoane: "X | Y | | | 63 | PE | 40 |", pv_trasare_data: "01.06.2026" }).etape as Record<string, string>[];
     expect(one).toEqual([expect.objectContaining({ sufix: "", lungime_etapa: "40", pv_trasare_data: "01.06.2026" })]);
   });

@@ -328,6 +328,7 @@ function tronsoaneVars(meta: Meta): Record<string, unknown> {
       sufix: many ? `-${i + 1}` : "",
       data,
       lungime_etapa: sumLengths(rs.map((r) => r.lungime)) ?? "",
+      dn_etapa: [...new Set(rs.map((r) => r.dn.trim()).filter(Boolean))].join("/"),
       tronsoane_etapa_text: rs.map((r) => `Tronson Dn ${r.dn} mm, L=${r.lungime} ml${r.strada ? `, ${r.strada}` : ""}`).join("; "),
     };
     // În buclă, datele PV-urilor de șantier sunt data etapei (dacă tronsoanele au dată).
