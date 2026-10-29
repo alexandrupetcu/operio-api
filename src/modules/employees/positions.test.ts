@@ -16,6 +16,6 @@ describe("withPositions — un angajat cu mai multe funcții", () => {
   });
 
   it("fără niciuna nu atinge funcțiile (editare parțială)", () => {
-    expect(withPositions({ phone: "1" })).toEqual({ phone: "1" });
+    expect(withPositions({ phone: "1", position: undefined })).toEqual({ phone: "1", position: undefined });
   });
 });

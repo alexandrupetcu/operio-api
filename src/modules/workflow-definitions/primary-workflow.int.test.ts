@@ -57,8 +57,8 @@ describe("clone — un workflow general copiat într-o firmă", () => {
   it("primește tipul de proiect și distribuitorul firmei după cod", async () => {
     const wf = await general("clone", "bransament", "DISTRIGAZ");
     const copy = await clone(app, f.b.id, wf.id, f.b.admin.id);
-    expect(copy.tenantId).toBe(f.b.id);
-    expect(copy.projectTypeId).toBe(ids[f.b.id].bransament);
-    expect(copy.distributorId).toBe(ids[f.b.id].distrigaz);
+    expect(copy?.tenantId).toBe(f.b.id);
+    expect(copy?.projectTypeId).toBe(ids[f.b.id].bransament);
+    expect(copy?.distributorId).toBe(ids[f.b.id].distrigaz);
   });
 });
