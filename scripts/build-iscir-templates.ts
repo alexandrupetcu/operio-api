@@ -70,7 +70,8 @@ const COMMON: Rule[] = [
 const SEF = (): Rule => ({ re: flex("IVAN FLORIN MADALIN"), to: "{sef_santier_nume}" });
 const PROIECTANT = (): Rule => ({ re: flex("IVAN CALIOPA GICA"), to: "{proiectant_nume}" });
 const ADMIN = (): Rule => ({ re: /IVAN\s+CALI[O]?PA\s+GICA/gi, to: "{tenant_admin_name}" }); // matches "CALIOPA" and the "CALIPA" typo
-const PV_DATE = (): Rule => ({ re: /21\.10\.2025/g, to: "{pv_data}" });
+// Fiecare PV are data lui (`pv_trasare_data`…); fără bifa „date diferite” generatorul pune data comună.
+const PV_DATE = (key = "pv_data"): Rule => ({ re: /21\.10\.2025/g, to: `{${key}}` });
 const MANOMETRU: Rule[] = [
   { re: /0-31\s*bari/gi, to: "{manometru_scala} bari" },
   { re: /303040\.0203/g, to: "{manometru_serie}" },
@@ -80,22 +81,22 @@ const MANOMETRU: Rule[] = [
 
 const PER_FILE: Record<string, Rule[]> = {
   "01 PV TRASARE AX CONDUCTA.docx": [
-    { re: /\bNr\.\s*1\b/g, to: "Nr. {pv_trasare_nr}" }, PV_DATE(), SEF(), PROIECTANT(),
+    { re: /\bNr\.\s*1\b/g, to: "Nr. {pv_trasare_nr}" }, PV_DATE("pv_trasare_data"), SEF(), PROIECTANT(),
   ],
   "02 PV SAPATURA LA COTA.docx": [
-    { re: /\bNr\.\s*2\b/g, to: "Nr. {pv_sapatura_nr}" }, PV_DATE(), SEF(),
+    { re: /\bNr\.\s*2\b/g, to: "Nr. {pv_sapatura_nr}" }, PV_DATE("pv_sapatura_data"), SEF(),
     { re: /[–-]\s*1[,.]10\s*m/gi, to: "- {sapatura_adancime} m" },
     { re: /0\.40\s*m\b/gi, to: "{sapatura_latime} m" },
     { re: /79\.70\s*m\b/gi, to: "{project_length} m" },
   ],
   "03 PV ASTERNERE PAT DE NISIP FUNDUL  SANTULUI.docx": [
-    { re: /\bNr\.\s*3\b/g, to: "Nr. {pv_asternere_nr}" }, PV_DATE(), SEF(),
+    { re: /\bNr\.\s*3\b/g, to: "Nr. {pv_asternere_nr}" }, PV_DATE("pv_asternere_data"), SEF(),
     { re: /0\.40\s*m\b/gi, to: "{sapatura_latime} m" },
     { re: /79\.70\s*ml/gi, to: "{project_length} ml" },
   ],
   "04 PV MONTARE CONDUCTA.docx": [
     { re: /\bNr\.\s*4\b/g, to: "Nr. {pv_montare_nr}" },
-    { re: /21\.05\.2025/g, to: "{pv_data}" }, SEF(),
+    { re: /21\.05\.2025/g, to: "{pv_montare_data}" }, SEF(),
     { re: /PE\s*100\s*SDR\s*11|PE100\s*SDR11/gi, to: "{project_material}" },
     { re: /DN\s*90\s*mm/gi, to: "DN {project_dn} mm" },
     { re: /ELECTROFUZIUNE/gi, to: "{procedeu_sudura}" },
@@ -103,10 +104,10 @@ const PER_FILE: Record<string, Rule[]> = {
     { re: /schema izometrica nr\.\s*03/gi, to: "schema izometrica nr. {schema_izometrica_nr}" },
   ],
   "05 PV LANSARE IN SANT SI ASTUPARE.docx": [
-    { re: /\bNr\.\s*5\b/g, to: "Nr. {pv_lansare_nr}" }, PV_DATE(), SEF(),
+    { re: /\bNr\.\s*5\b/g, to: "Nr. {pv_lansare_nr}" }, PV_DATE("pv_lansare_data"), SEF(),
   ],
   "06 PV PROBE DE PRESIUNE DE  REZISTENTA.docx": [
-    { re: /\bNr\.\s*6\b/g, to: "Nr. {pv_rezistenta_nr}" }, PV_DATE(), SEF(), PROIECTANT(),
+    { re: /\bNr\.\s*6\b/g, to: "Nr. {pv_rezistenta_nr}" }, PV_DATE("pv_rezistenta_data"), SEF(), PROIECTANT(),
     { re: /Dn\s*90\s*mm/gi, to: "Dn {project_dn} mm" },
     { re: /79\.70\s*ml/gi, to: "{project_length} ml" },
     { re: /PE\s*100\s*SDR11/gi, to: "{project_material}" },
@@ -116,7 +117,7 @@ const PER_FILE: Record<string, Rule[]> = {
     ...MANOMETRU,
   ],
   "07 PV PROBE DE PRESIUNE DE  ETANSEITATE.docx": [
-    { re: /\bNr\.\s*7\b/g, to: "Nr. {pv_etanseitate_nr}" }, PV_DATE(), SEF(), PROIECTANT(),
+    { re: /\bNr\.\s*7\b/g, to: "Nr. {pv_etanseitate_nr}" }, PV_DATE("pv_etanseitate_data"), SEF(), PROIECTANT(),
     { re: /Dn\s*90\s*mm/gi, to: "Dn {project_dn} mm" },
     { re: /79\.7\s*ml/gi, to: "{project_length} ml" },
     { re: /PE\s*100\s*SDR11/gi, to: "{project_material}" },
