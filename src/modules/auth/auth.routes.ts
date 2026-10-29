@@ -10,12 +10,14 @@ import {
   twoFactorTicketSchema,
   twoFactorSetupSchema,
   twoFactorConfirmSchema,
+  verifyEmailSchema,
 } from "./auth.schema.js";
 import { z } from "zod";
 import { env } from "../../config/env.js";
 import { exchangeHandoff, startHandoff } from "./handoff.service.js";
 import * as authService from "./auth.service.js";
 import * as twoFactor from "./two-factor.service.js";
+import { resendEmailVerification, verifyEmail } from "./email-verification.service.js";
 
 export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post(
@@ -155,6 +157,27 @@ export default async function authRoutes(fastify: FastifyInstance) {
     async (request) => {
       const body = z.object({ code: z.string().regex(/^[a-f0-9]{64}$/) }).parse(request.body);
       return exchangeHandoff(fastify, body.code, request.headers.origin);
+    },
+  );
+
+  // ── Confirmarea adresei de e-mail (conturile din înregistrarea publică) ──
+  // Publică: linkul din e-mail poate fi deschis și fără sesiune (alt browser, telefon).
+  fastify.post(
+    "/verify-email",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request) => {
+      const { token } = verifyEmailSchema.parse(request.body);
+      return verifyEmail(fastify, token);
+    },
+  );
+
+  // „Retrimite e-mailul” din bannerul aplicației; fiecare cerere trimite un e-mail.
+  fastify.post(
+    "/verify-email/resend",
+    { onRequest: [fastify.authenticate], config: { rateLimit: { max: 3, timeWindow: "1 hour" } } },
+    async (request) => {
+      if (request.user.imp) throw fastify.httpErrors.badRequest("Indisponibil în vizualizarea unei firme");
+      return resendEmailVerification(fastify, request.user.sub);
     },
   );
 

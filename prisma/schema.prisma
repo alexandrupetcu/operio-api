@@ -111,6 +111,9 @@ model User {
   twoFactorEnabledAt  DateTime?
   // Ultimul pas TOTP acceptat — același cod nu poate fi folosit de două ori.
   twoFactorLastStep   Int?
+  // Adresa de e-mail confirmată (link din e-mail, invitație sau resetare de parolă).
+  // null = cont creat prin înregistrare publică, încă neconfirmat.
+  emailVerifiedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -120,6 +123,7 @@ model User {
   trustedDevices          TrustedDevice[]
   passwordResetTokens     PasswordResetToken[]
   sessionHandoffs         SessionHandoff[]
+  emailVerificationTokens EmailVerificationToken[]
   documents               Document[]
   createdWorkflows        WorkflowDefinition[]     @relation("WorkflowCreatedBy")
   assignedStepInstances   WorkflowStepInstance[]   @relation("StepAssignedUser")
@@ -168,6 +172,20 @@ model RefreshToken {
 // reset link can't be replayed.
 /// Mutarea sesiunii web pe adresa firmei (`picinstall.operio.ro`): cod de unică folosință,
 /// 60 s, păstrat ca SHA-256. Sesiunea se ține separat pe fiecare adresă (localStorage).
+// Linkul de confirmare a adresei de e-mail (cont nou din înregistrare): token aleator,
+// stocat ca SHA-256, de unică folosință, valabil 48 h.
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
 model SessionHandoff {
   id         String    @id @default(cuid())
   userId     String

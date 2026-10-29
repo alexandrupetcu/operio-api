@@ -19,6 +19,7 @@ import {
 import { isEmailConfigured, sendTwoFactorChangedEmail, sendTwoFactorCodeEmail } from "../../lib/email.js";
 import { logAudit } from "../../lib/audit.js";
 import { hashRefreshToken, issueTokens, loginResponse } from "./auth.service.js";
+import { EMAIL_NOT_VERIFIED_2FA } from "./email-verification.service.js";
 
 /**
  * Autentificarea în doi pași — opțională, pe cont, doar pe web (login-ul din aplicația
@@ -316,6 +317,8 @@ export async function setup(fastify: FastifyInstance, userId: string, method: Tw
     return { method: "totp" as const, secret, otpauthUrl, qrDataUrl: await totpQrDataUrl(otpauthUrl) };
   }
 
+  // Codurile pe e-mail cer o adresă dovedită (contul din înregistrare o confirmă din link).
+  if (!user.emailVerifiedAt) throw fastify.httpErrors.badRequest(EMAIL_NOT_VERIFIED_2FA);
   if (!isEmailConfigured() && env.NODE_ENV === "production") {
     throw fastify.httpErrors.serviceUnavailable("Trimiterea e-mailurilor nu este configurată pe server. Folosește aplicația de autentificare.");
   }

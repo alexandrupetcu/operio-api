@@ -154,7 +154,7 @@ async function processJob(job: Job<SigningCompleteJobData>) {
       document: true,
       signatories: { orderBy: { signOrder: "asc" } },
       events: { orderBy: { createdAt: "asc" } },
-      createdBy: { select: { email: true, firstName: true, lastName: true } },
+      createdBy: { select: { email: true, firstName: true, lastName: true, emailVerifiedAt: true } },
     },
   });
 
@@ -375,7 +375,8 @@ async function processJob(job: Job<SigningCompleteJobData>) {
     }).catch((err) => console.error(`[signing-worker] Email to ${signatory.email} failed:`, err));
   }
 
-  if (session.createdBy.email) {
+  // Copia pentru utilizatorul care a cerut semnarea e o notificare de-a noastră: doar spre adrese confirmate.
+  if (session.createdBy.email && session.createdBy.emailVerifiedAt) {
     await sendSigningComplete({
       to: session.createdBy.email,
       signatoryName: `${session.createdBy.firstName} ${session.createdBy.lastName}`,

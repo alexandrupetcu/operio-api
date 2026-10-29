@@ -88,6 +88,11 @@ export const resetPasswordSchema = z.object({
   newPassword: passwordPolicySchema,
 });
 
+// Tokenul din linkul de confirmare a e-mailului: 32 de octeți aleatori, hex.
+export const verifyEmailSchema = z.object({
+  token: z.string().regex(/^[a-f0-9]{64}$/, "Linkul de confirmare nu este valid"),
+});
+
 // ─── Autentificarea în doi pași ─────────────────────────────────────────────
 const twoFactorCode = z.string().trim().min(6).max(20);
 

@@ -342,6 +342,55 @@ export async function sendPasswordResetEmail(opts: {
 }
 
 /**
+ * Linkul de confirmare a adresei de e-mail pentru un cont nou (înregistrare publică).
+ * Până la confirmare contul merge, dar nu poate invita colegi și nu primește notificări pe e-mail.
+ */
+export async function sendEmailVerificationEmail(opts: {
+  to: string;
+  firstName: string;
+  verifyUrl: string;
+}): Promise<void> {
+  const t = getTransporter();
+  if (!t) {
+    console.warn("[email] SMTP not configured — skipping e-mail verification to", mailDomain(opts.to));
+    return;
+  }
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:16px">Confirmă adresa de e-mail</h2>
+      <p>Bună, <strong>${escapeHtml(opts.firstName)}</strong>,</p>
+      <p>Mulțumim că ți-ai creat cont în Operio. Apasă butonul de mai jos ca să confirmi că această adresă îți aparține:</p>
+      <p>
+        <a href="${opts.verifyUrl}"
+           style="display:inline-block;background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+          Confirmă adresa
+        </a>
+      </p>
+      <p style="color:#555">Link-ul expiră în <strong>48 de ore</strong> și poate fi folosit o singură dată. Dacă expiră, poți cere unul nou din aplicație.</p>
+      <p style="color:#888;font-size:12px;margin-top:24px">
+        Dacă nu ți-ai creat tu un cont Operio, ignoră acest e-mail.<br>
+        Link direct: <a href="${opts.verifyUrl}">${opts.verifyUrl}</a>
+      </p>
+    </div>
+  `;
+
+  try {
+    const info = await t.sendMail({
+      from: env.SMTP_FROM,
+      ...replyTo(),
+      to: opts.to,
+      subject: "Confirmă adresa de e-mail — Operio",
+      html,
+    });
+    console.log(`[email] Verification link sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);
+  } catch (err) {
+    console.error(`[email] Failed to send verification email to ${mailDomain(opts.to)}:`, err);
+    throw err;
+  }
+}
+
+/**
  * Codul de 6 cifre pentru autentificarea în doi pași (login, activare sau gestionare).
  * Fără SMTP, în dezvoltare codul apare în consolă (altfel n-ar exista cum să-l folosești
  * local); în producție nu se loghează niciodată.

@@ -48,6 +48,8 @@ async function seedTenant(key: string, name: string): Promise<TenantFixture> {
       firstName: "Admin",
       lastName: key.toUpperCase(),
       role: "ADMIN",
+      // Conturile existente sunt confirmate (vezi migrarea email_verification).
+      emailVerifiedAt: new Date(),
     },
   });
   const operator = await prisma.user.create({
@@ -58,6 +60,7 @@ async function seedTenant(key: string, name: string): Promise<TenantFixture> {
       firstName: "Operator",
       lastName: key.toUpperCase(),
       role: "OPERATOR",
+      emailVerifiedAt: new Date(),
     },
   });
 

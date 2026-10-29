@@ -12,6 +12,7 @@ import type { CreateUserInput, UpdateUserInput } from "./users.schema.js";
 import { clearMobileDeviceRevoked, markMobileDeviceRevoked, markUserRevoked } from "../../lib/mobile-devices.js";
 import { appUrlFor } from "../../lib/tenant-subdomain.js";
 import { lockTenant } from "../../lib/tenant-lock.js";
+import { assertActorEmailVerified } from "../auth/email-verification.service.js";
 
 /** Columns the user list may be sorted by (allowlist for `sortBy`). */
 export const USERS_SORTABLE = [
@@ -35,6 +36,8 @@ const userSelect = {
   invitedAt: true,
   // Autentificarea în doi pași: null | "email" | "totp" (fără secret — doar metoda).
   twoFactorMethod: true,
+  // null = adresa încă neconfirmată (cont din înregistrare / invitație nefolosită).
+  emailVerifiedAt: true,
   createdAt: true,
   updatedAt: true,
   employee: { select: { id: true, firstName: true, lastName: true } },
@@ -54,6 +57,9 @@ export async function sendInvite(
   userId: string,
   invitedByUserId: string,
 ): Promise<boolean> {
+  // Un cont cu adresa neconfirmată nu trimite invitații (altfel înregistrarea publică
+  // ar deveni o poartă de trimis e-mailuri în numele nostru).
+  if (invitedByUserId !== userId) await assertActorEmailVerified(fastify, invitedByUserId);
   const [user, tenant, inviter] = await Promise.all([
     fastify.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, email: true, firstName: true, mobileAccess: true, isActive: true } }),
     fastify.prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, subdomain: true } }),
@@ -186,6 +192,7 @@ export async function create(
   input: CreateUserInput,
   createdByUserId?: string,
 ) {
+  if (createdByUserId) await assertActorEmailVerified(fastify, createdByUserId);
   // `User.email` is globally unique (not per tenant), and compared without case
   // so "Ion@x.ro" can't become a second account for "ion@x.ro". The message tells
   // the admin what to do; it says the address has an account, never which firm.

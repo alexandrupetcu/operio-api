@@ -20,6 +20,7 @@ import type { ClientKind } from "../../plugins/auth.js";
 import { appUrlFor } from "../../lib/tenant-subdomain.js";
 import { isMobileDeviceRevoked } from "../../lib/mobile-devices.js";
 import { consumeTrustedDevice, startLoginChallenge } from "./two-factor.service.js";
+import { issueEmailVerification } from "./email-verification.service.js";
 
 interface SessionUser {
   id: string;
@@ -237,6 +238,14 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
     { client: "web" },
   );
 
+  // Contul se folosește imediat; adresa se confirmă din linkul trimis pe e-mail.
+  // O eroare aici nu strică înregistrarea — linkul se poate cere din nou din aplicație.
+  try {
+    await issueEmailVerification(fastify, result.user.id);
+  } catch (err) {
+    fastify.log.error({ err, userId: result.user.id }, "Failed to issue e-mail verification");
+  }
+
   return {
     accessToken,
     refreshToken,
@@ -246,6 +255,7 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
       firstName: result.user.firstName,
       lastName: result.user.lastName,
       role: result.user.role,
+      emailVerified: !!result.user.emailVerifiedAt,
     },
     tenant: {
       id: result.tenant.id,
@@ -311,6 +321,7 @@ export function loginResponse(
     lastName: string;
     role: SessionUser["role"];
     mobileAccess: boolean;
+    emailVerifiedAt: Date | null;
     tenant: {
       id: string;
       name: string;
@@ -333,6 +344,7 @@ export function loginResponse(
       lastName: user.lastName,
       role: user.role,
       mobileAccess: user.mobileAccess,
+      emailVerified: !!user.emailVerifiedAt,
     },
     tenant: tenant
       ? {
@@ -471,7 +483,7 @@ export async function resetPassword(
   const tokenHash = createHash("sha256").update(input.token).digest("hex");
   const stored = await fastify.prisma.passwordResetToken.findUnique({
     where: { tokenHash },
-    include: { user: { select: { isActive: true } } },
+    include: { user: { select: { isActive: true, emailVerifiedAt: true } } },
   });
   if (!stored || stored.usedAt || stored.expiresAt < new Date()) {
     throw fastify.httpErrors.badRequest("Link-ul de resetare e invalid sau a expirat");
@@ -494,7 +506,8 @@ export async function resetPassword(
     }
     await tx.user.update({
       where: { id: stored.userId },
-      data: { passwordHash: newHash, invitePending: false },
+      // Linkul a ajuns în căsuța de e-mail (invitație sau resetare) → adresa e confirmată.
+      data: { passwordHash: newHash, invitePending: false, emailVerifiedAt: stored.user.emailVerifiedAt ?? new Date() },
     });
     await tx.refreshToken.deleteMany({ where: { userId: stored.userId } });
   });
@@ -556,6 +569,8 @@ export async function impersonatedMe(
       role: "ADMIN" as const,
       tenantId: tenant.id,
       mobileAccess: false,
+      // Vizualizarea unei firme nu arată bannerul de confirmare.
+      emailVerified: true,
     },
     employee: null,
     scheduling: readSchedulingSettings(tenant.settingsJson),
@@ -599,6 +614,7 @@ export async function me(fastify: FastifyInstance, userId: string) {
       lastName: user.lastName,
       role: user.role,
       mobileAccess: user.mobileAccess,
+      emailVerified: !!user.emailVerifiedAt,
     },
     employee: user.employee,
     // Modul de programare al firmei — clienții decid pe baza lui ce afișează.

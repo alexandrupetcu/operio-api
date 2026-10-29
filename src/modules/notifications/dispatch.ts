@@ -59,6 +59,12 @@ export async function dispatch(
   }
 
   const channels = await enabledChannels(prisma, tenantId, ev.userId, ev.category);
+  // Notificările pe e-mail pleacă doar spre adrese confirmate (contul din înregistrare
+  // publică le primește după ce dă clic pe linkul de confirmare). Restul canalelor rămân.
+  if (channels.has("email")) {
+    const recipient = await prisma.user.findUnique({ where: { id: ev.userId }, select: { emailVerifiedAt: true } });
+    if (!recipient?.emailVerifiedAt) channels.delete("email");
+  }
   if (channels.size === 0) return { skipped: false };
 
   const relations = {

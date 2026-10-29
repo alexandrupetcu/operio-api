@@ -52,7 +52,7 @@ export async function exchangeHandoff(fastify: FastifyInstance, code: string, or
   const t = user.tenant;
   return {
     ...tokens,
-    user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, mobileAccess: user.mobileAccess },
+    user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, mobileAccess: user.mobileAccess, emailVerified: !!user.emailVerifiedAt },
     tenant: t ? { id: t.id, name: t.name, slug: t.slug, subdomain: t.subdomain, countryId: t.countryId, country: t.country } : null,
   };
 }
