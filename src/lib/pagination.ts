@@ -13,7 +13,8 @@ export function paginationSchemaFor(sortable: readonly string[] = DEFAULT_SORTAB
   const allowed = new Set(sortable);
   return z.object({
     page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
+    // Peste 100 se reduce la 100 (nu 400): un ecran care cere mai mult primește prima pagină plină.
+    limit: z.coerce.number().int().min(1).default(20).transform((n) => Math.min(n, 100)),
     search: z.string().optional(),
     sortBy: z
       .string()
