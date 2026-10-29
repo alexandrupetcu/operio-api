@@ -180,11 +180,12 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
     return getReadiness(fastify, request.tenantId);
   });
 
-  // Date de exemplu: client fictiv + instalație + o revizie finalizată (cu documente).
+  // Date de exemplu: client fictiv + instalație + o revizie finalizată (cu documente),
+  // echipă de exemplu (certificări, semnături, ștampile „EXEMPLU”) și un dosar de branșament.
   fastify.post("/sample-data", {
     onRequest: [requireRole("ADMIN", "MANAGER")],
     handler: async (request, reply) => {
-      const result = await createSampleData(fastify, request.tenantId);
+      const result = await createSampleData(fastify, request.tenantId, request.user.sub);
       return reply.status(result.documentsQueued ? 201 : 200).send(result);
     },
   });

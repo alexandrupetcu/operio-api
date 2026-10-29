@@ -9,6 +9,7 @@ import {
   stampOf,
   type SignatoryRole,
 } from "../../lib/certifications.js";
+import { sampleEmployeeIds } from "./sample-settings.js";
 
 /**
  * Semnatarii impliciți ai firmei: pentru fiecare rol (instalator, RVT, RSL-IP),
@@ -129,6 +130,9 @@ export interface ResolvedSignatory {
  * Cine semnează un document pentru `role`: persoana aleasă în raport, altfel
  * semnatarul implicit al firmei, altfel tehnicianul vizitei — prima care e
  * activă și are certificarea rolului. `null` dacă nimeni nu se califică.
+ * Un semnatar implicit din echipa de exemplu (sample-data.ts) vine abia după
+ * tehnician: pe o vizită reală semnează omul real, iar ștampila „EXEMPLU” apare
+ * doar când nu se califică nimeni altcineva.
  */
 export async function resolveSignatory(
   db: Db,
@@ -137,10 +141,13 @@ export async function resolveSignatory(
   opts: { overrideEmployeeId?: string | null; technicianEmployeeId?: string | null } = {},
 ): Promise<ResolvedSignatory | null> {
   const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { settingsJson: true } });
+  const def = readSignatories(tenant?.settingsJson)[role];
+  const sampleDefault = !!def && sampleEmployeeIds(tenant?.settingsJson).includes(def);
   const order: [string | null | undefined, ResolvedSignatory["source"]][] = [
     [opts.overrideEmployeeId, "override"],
-    [readSignatories(tenant?.settingsJson)[role], "default"],
+    [sampleDefault ? null : def, "default"],
     [opts.technicianEmployeeId, "technician"],
+    [sampleDefault ? def : null, "default"],
   ];
   for (const [employeeId, source] of order) {
     if (!employeeId) continue;

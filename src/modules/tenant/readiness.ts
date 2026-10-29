@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { readCompanySettings } from "./company-settings.js";
 import { readSampleSettings, excludeSampleAppointments } from "./sample-settings.js";
+import type { Prisma } from "@prisma/client";
 import { SIGNATORY_ROLES, certForRole, stampOf, type SignatoryRole } from "../../lib/certifications.js";
 
 /**
@@ -40,7 +41,7 @@ export interface ReadinessResponse {
   complete: boolean;
   items: ReadinessItem[];
   warnings: ReadinessWarning[];
-  sample: { present: boolean; clientId?: string; appointmentId?: string };
+  sample: { present: boolean; clientId?: string; appointmentId?: string; dossierId?: string };
   createdAt: string;
 }
 
@@ -71,10 +72,12 @@ async function computeReadiness(fastify: FastifyInstance, tenantId: string): Pro
   const company = readCompanySettings(tenant.settingsJson);
   const sample = readSampleSettings(tenant.settingsJson);
   const sampleClientId = sample?.clientId ?? null;
+  // Echipa de exemplu nu bifează „primul tehnician” și nu acoperă un rol de semnatar.
+  const realEmployee: Prisma.EmployeeWhereInput = sample?.employeeIds.length ? { id: { notIn: sample.employeeIds } } : {};
 
   const [activeEmployees, mobileEmployees, clients, completedVisits, sampleClientExists] = await Promise.all([
-    prisma.employee.count({ where: { tenantId, isActive: true } }),
-    prisma.employee.count({ where: { tenantId, isActive: true, user: { is: { mobileAccess: true, isActive: true } } } }),
+    prisma.employee.count({ where: { tenantId, isActive: true, ...realEmployee } }),
+    prisma.employee.count({ where: { tenantId, isActive: true, ...realEmployee, user: { is: { mobileAccess: true, isActive: true } } } }),
     prisma.client.count({ where: { tenantId, ...(sampleClientId && { id: { not: sampleClientId } }) } }),
     prisma.appointment.count({
       where: { tenantId, deletedAt: null, status: "completed", ...excludeSampleAppointments(sampleClientId) },
@@ -126,12 +129,19 @@ async function computeReadiness(fastify: FastifyInstance, tenantId: string): Pro
     percent: Math.round((done / items.length) * 100),
     complete: done === items.length,
     items,
-    warnings: await signatoryWarnings(fastify, tenantId, {
-      anre: !!company.anreNr.trim(),
-      iscir: !!tenant.iscirNumber?.trim(),
-    }),
+    warnings: await signatoryWarnings(
+      fastify,
+      tenantId,
+      { anre: !!company.anreNr.trim(), iscir: !!tenant.iscirNumber?.trim() },
+      realEmployee,
+    ),
     sample: sampleClientExists && sample
-      ? { present: true, clientId: sample.clientId, ...(sample.appointmentId && { appointmentId: sample.appointmentId }) }
+      ? {
+          present: true,
+          clientId: sample.clientId,
+          ...(sample.appointmentId && { appointmentId: sample.appointmentId }),
+          ...(sample.dossierId && { dossierId: sample.dossierId }),
+        }
       : { present: false },
     createdAt: tenant.createdAt.toISOString(),
   };
@@ -154,11 +164,12 @@ async function signatoryWarnings(
   fastify: FastifyInstance,
   tenantId: string,
   has: { anre: boolean; iscir: boolean },
+  realEmployee: Prisma.EmployeeWhereInput,
 ): Promise<ReadinessWarning[]> {
   const relevant = SIGNATORY_ROLES.filter((r) => (!has.anre && !has.iscir) || has[ROLE_DOCS[r.key].needs]);
   if (relevant.length === 0) return [];
   const employees = await fastify.prisma.employee.findMany({
-    where: { tenantId, isActive: true },
+    where: { tenantId, isActive: true, ...realEmployee },
     select: { certifications: { select: { type: true, expiresAt: true, stamp: { select: { s3Key: true } } } } },
   });
   const today = new Date();

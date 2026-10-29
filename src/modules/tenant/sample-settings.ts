@@ -9,6 +9,12 @@ export interface SampleSettings {
   clientId: string;
   appointmentId: string | null;
   createdAt: string;
+  /** Echipa de exemplu („Exemplu — …”); lipsă la exemplele create înainte de echipă. */
+  employeeIds: string[];
+  /** Rolurile de semnatar implicit pe care le-a completat exemplul (de golit la ștergere). */
+  signatoryRolesSet: string[];
+  /** Dosarul de exemplu (Carte branșament), dacă s-a putut crea. */
+  dossierId: string | null;
 }
 
 type SettingsJson = { sample?: Partial<SampleSettings> | null; [k: string]: unknown };
@@ -22,7 +28,17 @@ export function readSampleSettings(settingsJson: unknown): SampleSettings | null
     clientId: sample.clientId,
     appointmentId: typeof sample.appointmentId === "string" ? sample.appointmentId : null,
     createdAt: typeof sample.createdAt === "string" ? sample.createdAt : "",
+    employeeIds: strings(sample.employeeIds),
+    signatoryRolesSet: strings(sample.signatoryRolesSet),
+    dossierId: typeof sample.dossierId === "string" ? sample.dossierId : null,
   };
+}
+
+const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+
+/** Id-urile angajaților de exemplu ai firmei (listă goală dacă nu există). */
+export function sampleEmployeeIds(settingsJson: unknown): string[] {
+  return readSampleSettings(settingsJson)?.employeeIds ?? [];
 }
 
 /**
