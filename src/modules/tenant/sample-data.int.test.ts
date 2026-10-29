@@ -519,7 +519,7 @@ describe("datele de exemplu — ștergere", () => {
     expect(readSampleSettings(settings)).toBeNull();
   });
 
-  it("un angajat de exemplu pus în echipa unui proiect real blochează ștergerea (409)", async () => {
+  it("un angajat de exemplu pus în echipa unui proiect real: iese din echipă, proiectul real rămâne", async () => {
     const created = await createSampleData(app, f.a.id, f.a.admin.id);
     await finishGeneration(f.a.id);
     const projectType = await prisma.projectType.findFirstOrThrow({ where: { tenantId: f.a.id, code: "bransament" } });
@@ -527,10 +527,10 @@ describe("datele de exemplu — ștergere", () => {
       data: { tenantId: f.a.id, clientId: f.a.clientId, projectTypeId: projectType.id, name: "Proiect real", address: "X", city: "Y", county: "Z" },
     });
     await prisma.projectTeamMember.create({ data: { projectId: real.id, role: "rte", name: "", employeeId: created.employeeIds[2] } });
-    const err = await expectReject(() => deleteSampleData(app, f.a.id, f.a.admin.id));
-    expect(err.status).toBe(409);
-    expect(err.message).toMatch(/echipa unui proiect/);
-    expect(await prisma.employee.count({ where: { id: { in: created.employeeIds } } })).toBe(3);
+    await deleteSampleData(app, f.a.id, f.a.admin.id);
+    expect(await prisma.employee.count({ where: { id: { in: created.employeeIds } } })).toBe(0);
+    expect(await prisma.project.count({ where: { id: real.id } })).toBe(1);
+    expect(await prisma.projectTeamMember.count({ where: { projectId: real.id } })).toBe(0);
   });
 
   it("fără date de exemplu → `deleted: false`, fără excepție", async () => {
@@ -546,12 +546,13 @@ describe("datele de exemplu — ștergere", () => {
     });
   });
 
-  it("un proiect legat de clientul de exemplu blochează ștergerea (409)", async () => {
+  it("proiectele făcute pe clientul de exemplu (cu workflow, sarcini, documente) se șterg în cascadă", async () => {
     const created = await createSampleData(app, f.a.id, f.a.admin.id);
+    await finishGeneration(f.a.id);
     const projectType = await prisma.projectType.create({
       data: { tenantId: f.a.id, name: "Tip test", code: `test-${Date.now()}` },
     });
-    await prisma.project.create({
+    const project = await prisma.project.create({
       data: {
         tenantId: f.a.id,
         clientId: created.clientId,
@@ -562,11 +563,26 @@ describe("datele de exemplu — ștergere", () => {
         county: "București",
       },
     });
+    const def = await prisma.workflowDefinition.create({ data: { tenantId: f.a.id, code: `wf-${Date.now()}`, name: "WF" } });
+    const step = await prisma.workflowStep.create({ data: { workflowDefinitionId: def.id, code: "s1", name: "Pas" } });
+    const wi = await prisma.workflowInstance.create({
+      data: { tenantId: f.a.id, workflowDefinitionId: def.id, entityId: project.id, entityType: "project", status: "active" },
+    });
+    await prisma.workflowStepInstance.create({ data: { tenantId: f.a.id, workflowInstanceId: wi.id, stepDefinitionId: step.id, status: "active" } });
+    await prisma.task.create({ data: { tenantId: f.a.id, title: "Sarcină pe proiect", projectId: project.id, clientId: created.clientId } });
+    const doc = await prisma.document.create({
+      data: { tenantId: f.a.id, name: "Doc proiect", status: "COMPLETED", projects: { create: { projectId: project.id } } },
+    });
 
-    const err = await expectReject(() => deleteSampleData(app, f.a.id, f.a.admin.id));
-    expect(err.status).toBe(409);
-    expect(err.message).toMatch(/are proiecte asociate/);
-    expect(await prisma.client.count({ where: { id: created.clientId } })).toBe(1);
+    const res = await deleteSampleData(app, f.a.id, f.a.admin.id);
+    expect(res.deleted).toBe(true);
+    expect(await prisma.client.count({ where: { id: created.clientId } })).toBe(0);
+    expect(await prisma.project.count({ where: { id: project.id } })).toBe(0);
+    expect(await prisma.workflowInstance.count({ where: { id: wi.id } })).toBe(0);
+    expect(await prisma.task.count({ where: { projectId: project.id } })).toBe(0);
+    expect(await prisma.document.count({ where: { id: doc.id } })).toBe(0);
+    // Definiția workflow-ului (a firmei) nu e „de exemplu” — rămâne.
+    expect(await prisma.workflowDefinition.count({ where: { id: def.id } })).toBe(1);
   });
 
   it("ștergerea nu atinge clienții reali ai firmei", async () => {

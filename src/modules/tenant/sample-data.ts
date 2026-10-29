@@ -674,6 +674,7 @@ const NOTHING: Omit<DeleteSampleResult, "clientId"> = {
  * se șterg explicit. Intrările din registratură NU se șterg — se anulează
  * (numerele alocate rămân vizibile ca anulate), de către utilizatorul care cere ștergerea.
  *
+ * Proiectele făcute pe clientul de exemplu pleacă și ele, cu workflow-uri și sarcini.
  * Echipa de exemplu pleacă cu certificările și ștampilele ei (cascadă) și cu
  * fișierele din S3; dosarul de exemplu, cu documentele lui. Semnatarii impliciți
  * puși de exemplu se golesc doar dacă încă indică un angajat de exemplu (firma
@@ -703,49 +704,49 @@ export async function deleteSampleData(
   ]);
   const employeeIds = employees.map((e) => e.id);
 
-  // Un proiect real legat de clientul de exemplu blochează ștergerea (FK RESTRICT) —
-  // mai bine un mesaj clar decât „Referință invalidă”. Dosarul de exemplu nu contează.
-  if (client) {
-    const projects = await prisma.project.count({
-      where: { tenantId, clientId: client.id, ...(dossier && { id: { not: dossier.id } }) },
-    });
-    if (projects > 0) {
-      throw fastify.httpErrors.conflict("Clientul de exemplu are proiecte asociate — ștergeți-le mai întâi");
-    }
-  }
-  // La fel, un om de exemplu pus în echipa unui proiect real: ștergerea l-ar scoate în tăcere.
-  if (employeeIds.length) {
-    const foreign = await prisma.projectTeamMember.count({
-      where: { employeeId: { in: employeeIds }, ...(dossier && { projectId: { not: dossier.id } }) },
-    });
-    if (foreign > 0) {
-      throw fastify.httpErrors.conflict(
-        "Un angajat de exemplu e în echipa unui proiect sau dosar — scoateți-l de acolo mai întâi",
-      );
-    }
-  }
+  // Tot ce ține de exemplu pleacă în cascadă (cerința lui Alex, 30.10): dosarul de exemplu
+  // și orice proiect făcut între timp pe clientul de exemplu, cu workflow-uri, sarcini și
+  // documente. Un om de exemplu pus în echipa unui proiect real doar iese din echipă.
+  const projectIds = [
+    ...new Set([
+      ...(dossier ? [dossier.id] : []),
+      ...(client
+        ? (await prisma.project.findMany({ where: { tenantId, clientId: client.id }, select: { id: true } })).map((p) => p.id)
+        : []),
+    ]),
+  ];
 
-  const appointmentIds = client
-    ? (await prisma.appointment.findMany({ where: { tenantId, clientId: client.id }, select: { id: true } })).map((a) => a.id)
-    : [];
+  const appointmentIds =
+    client || projectIds.length
+      ? (
+          await prisma.appointment.findMany({
+            where: {
+              tenantId,
+              OR: [...(client ? [{ clientId: client.id }] : []), ...(projectIds.length ? [{ projectId: { in: projectIds } }] : [])],
+            },
+            select: { id: true },
+          })
+        ).map((a) => a.id)
+      : [];
 
   // Documente generate pentru exemplu: cele legate DOAR de client (și de niciun alt
   // proiect decât dosarul de exemplu), produse de programările lui sau de dosar.
   const docs =
-    client || dossier
+    client || projectIds.length
       ? await prisma.document.findMany({
           where: {
             tenantId,
             OR: [
               ...(client ? [{ clients: { some: { clientId: client.id } } }] : []),
               ...(appointmentIds.length ? [{ appointmentId: { in: appointmentIds } }] : []),
-              ...(dossier ? [{ projects: { some: { projectId: dossier.id } } }] : []),
+              ...(projectIds.length ? [{ projects: { some: { projectId: { in: projectIds } } } }] : []),
             ],
           },
           select: { id: true, s3Key: true, status: true, projects: { select: { projectId: true } }, _count: { select: { clients: true } } },
         })
       : [];
-  const docsToDelete = docs.filter((d) => d.projects.every((p) => p.projectId === dossier?.id) && d._count.clients <= 1);
+  // Doar documentele care nu țin și de un proiect sau client real.
+  const docsToDelete = docs.filter((d) => d.projects.every((p) => projectIds.includes(p.projectId)) && d._count.clients <= 1);
   const docIds = docsToDelete.map((d) => d.id);
 
   // Worker-ul alocă numărul de registratură și randează PDF-ul la câteva secunde
@@ -759,7 +760,7 @@ export async function deleteSampleData(
     const registryScope = [
       ...(client ? [{ clientId: client.id }] : []),
       ...(docIds.length ? [{ documentId: { in: docIds } }] : []),
-      ...(dossier ? [{ projectId: dossier.id }] : []),
+      ...(projectIds.length ? [{ projectId: { in: projectIds } }] : []),
     ];
     const voided = registryScope.length
       ? await tx.registryEntry.updateMany({
@@ -778,8 +779,15 @@ export async function deleteSampleData(
     const deletedAppts = appointmentIds.length
       ? await tx.appointment.deleteMany({ where: { id: { in: appointmentIds }, tenantId } })
       : { count: 0 };
-    // Dosarul: echipa și legăturile ProjectDocument cad în cascadă.
-    if (dossier) await tx.project.delete({ where: { id: dossier.id } });
+    // Proiectele de exemplu: workflow-urile (pașii și jurnalul cad în cascadă) și sarcinile
+    // întâi; echipa, legăturile ProjectDocument și programările proiectului cad cu proiectul.
+    if (projectIds.length) {
+      await tx.task.deleteMany({ where: { tenantId, projectId: { in: projectIds } } });
+      await tx.workflowInstance.deleteMany({ where: { tenantId, entityId: { in: projectIds } } });
+      await tx.project.deleteMany({ where: { tenantId, id: { in: projectIds } } });
+    }
+    // Un om de exemplu din echipa unui proiect real iese din echipă (rândul ar rămâne gol).
+    if (employeeIds.length) await tx.projectTeamMember.deleteMany({ where: { employeeId: { in: employeeIds } } });
     if (client) {
       await tx.task.deleteMany({ where: { tenantId, clientId: client.id } });
       await tx.client.delete({ where: { id: client.id } });
