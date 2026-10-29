@@ -7,7 +7,7 @@ import { osFeedState } from "./os-feed-state.js";
 export { osFeedState };
 import { getTenantEventMap } from "../notifications/tenant-settings.js";
 import { dispatch } from "../notifications/dispatch.js";
-import { regenerateFisaForOsRegistration, regenerateIscirForOsRegistration } from "./appointments.service.js";
+import { NO_REPORT_OUTCOMES, isNoReportOutcome, regenerateFisaForOsRegistration, regenerateIscirForOsRegistration } from "./appointments.service.js";
 import { invalidateDashboardCache } from "../../lib/dashboard-cache.js";
 import type { OsRegistrationInput, OsSubmissionInput } from "./appointments.schema.js";
 import { getSampleClientId, excludeSampleAppointments } from "../tenant/sample-settings.js";
@@ -26,6 +26,13 @@ export const WORK_LABEL: Record<string, string> = {
   revizie_instalatie: "revizie tehnică",
   verificare_instalatie: "verificare tehnică",
 };
+
+/** Doar vizitele cu raport se depun la OS („revenire” / „programare nouă” n-au ce depune). */
+export const HAS_REPORT_WHERE = {
+  OR: [{ completionOutcome: null }, { completionOutcome: { notIn: [...NO_REPORT_OUTCOMES] } }],
+} satisfies Prisma.AppointmentWhereInput;
+
+const NO_REPORT_MESSAGE = "Vizita a fost închisă fără raport (revenire / programare nouă) — completează întâi raportul";
 
 export function clientDisplayName(c: { companyName: string | null; firstName: string | null; lastName: string | null } | null): string {
   if (!c) return "—";
@@ -56,6 +63,7 @@ export async function setOsRegistration(
   if (appt.status !== "completed") {
     throw fastify.httpErrors.badRequest("Fișa se înregistrează după finalizarea vizitei");
   }
+  if (isNoReportOutcome(appt.completionOutcome)) throw fastify.httpErrors.badRequest(NO_REPORT_MESSAGE);
 
   // Ștergere (număr introdus greșit) — păstrăm istoricul notificării, nu-l mai retrimitem.
   if (!input.number) {
@@ -105,13 +113,14 @@ export async function setOsSubmission(
 ) {
   const appt = await fastify.prisma.appointment.findFirst({
     where: { id: appointmentId, tenantId, deletedAt: null },
-    select: { id: true, type: true, status: true, osRegistrationNumber: true },
+    select: { id: true, type: true, status: true, completionOutcome: true, osRegistrationNumber: true },
   });
   if (!appt) throw fastify.httpErrors.notFound("Programarea nu există");
   if (!(OS_REGISTRATION_TYPES as readonly string[]).includes(appt.type)) {
     throw fastify.httpErrors.badRequest("Doar reviziile de centrală și reviziile / verificările de instalație se depun la OS");
   }
   if (appt.status !== "completed") throw fastify.httpErrors.badRequest("Se depune după finalizarea vizitei");
+  if (isNoReportOutcome(appt.completionOutcome)) throw fastify.httpErrors.badRequest(NO_REPORT_MESSAGE);
   if (input.submittedAt === null && appt.osRegistrationNumber) {
     throw fastify.httpErrors.badRequest("Are deja număr de la OS — șterge întâi numărul");
   }
@@ -156,7 +165,7 @@ export async function listPendingOsRegistrations(
       status: "completed",
       type: { in: [...OS_REGISTRATION_TYPES] },
       osRegistrationNumber: null,
-      ...(includeSample ? {} : excludeSampleAppointments(sampleClientId)),
+      AND: [HAS_REPORT_WHERE, includeSample ? {} : excludeSampleAppointments(sampleClientId)],
     },
     select: {
       id: true,

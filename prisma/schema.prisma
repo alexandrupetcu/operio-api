@@ -1611,6 +1611,9 @@ model Appointment {
   cancelledAt          DateTime?
   completionDataJson   Json?
   completedAt          DateTime?
+  // Rezultatul finalizării: raport_complet | revenire | programare_noua. Fără raport
+  // (revenire / programare nouă) nu se depune nimic la OS; raportul se poate completa ulterior.
+  completionOutcome    String?
   // Înregistrarea Fișei de evidență la operatorul de sistem (Ord. ANRE 179/2015,
   // art. 9 alin. 6–7): nr. primit de la OS, data, și când a plecat către client
   // exemplarul cu numărul de înregistrare. Revizie centrală (ISCIR) + revizie/verificare instalație.

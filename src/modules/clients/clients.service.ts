@@ -37,6 +37,7 @@ const installationAppointmentSelect = {
   status: true,
   completionDataJson: true,
   completedAt: true,
+  completionOutcome: true,
   // Depunerea / înregistrarea fișei la operatorul de sistem (OsStatus în fișa clientului).
   osSubmittedAt: true,
   osRegistrationNumber: true,

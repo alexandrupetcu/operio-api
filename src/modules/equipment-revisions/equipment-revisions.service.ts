@@ -136,6 +136,7 @@ const revisionListSelect = {
       date: true,
       status: true,
       completedAt: true,
+      completionOutcome: true,
       osSubmittedAt: true,
       osRegistrationNumber: true,
       osRegisteredAt: true,

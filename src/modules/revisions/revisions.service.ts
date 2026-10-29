@@ -32,6 +32,7 @@ export interface RevisionRow {
     date: Date;
     status: string;
     completedAt: Date | null;
+    completionOutcome: string | null;
     osSubmittedAt: Date | null;
     osRegistrationNumber: string | null;
     osRegisteredAt: Date | null;
@@ -121,6 +122,7 @@ export async function list(fastify: FastifyInstance, tenantId: string, q: ListRe
       date: true,
       status: true,
       completedAt: true,
+      completionOutcome: true,
       completionDataJson: true,
       osSubmittedAt: true,
       osRegistrationNumber: true,
@@ -156,6 +158,7 @@ export async function list(fastify: FastifyInstance, tenantId: string, q: ListRe
       date: a.date,
       status: a.status,
       completedAt: a.completedAt,
+      completionOutcome: a.completionOutcome,
       osSubmittedAt: a.osSubmittedAt,
       osRegistrationNumber: a.osRegistrationNumber,
       osRegisteredAt: a.osRegisteredAt,

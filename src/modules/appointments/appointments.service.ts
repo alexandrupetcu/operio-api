@@ -566,6 +566,7 @@ async function finalizeInstalatie(
       data: {
         status: "completed",
         completedAt: new Date(),
+        completionOutcome: "raport_complet",
         completionDataJson: reportToStore as unknown as Prisma.InputJsonValue,
         installationId,
       },
@@ -826,6 +827,7 @@ const calendarSelect = {
   equipmentId: true,
   equipmentRevisionId: true,
   completedAt: true,
+  completionOutcome: true,
   osSubmittedAt: true,
   osRegistrationNumber: true,
   osRegisteredAt: true,
@@ -1166,6 +1168,10 @@ export async function history(fastify: FastifyInstance, tenantId: string, id: st
   };
 }
 
+/** Vizita a fost închisă fără raport — nu se depune nimic la OS până nu se completează raportul. */
+export const NO_REPORT_OUTCOMES = ["revenire", "programare_noua"] as const;
+export const isNoReportOutcome = (o: string | null | undefined) => !!o && (NO_REPORT_OUTCOMES as readonly string[]).includes(o);
+
 export async function finalize(
   fastify: FastifyInstance,
   tenantId: string,
@@ -1179,11 +1185,13 @@ export async function finalize(
 ) {
   const before = await fastify.prisma.appointment.findFirst({
     where: { id, tenantId, deletedAt: null, ...apptVisibilityWhere(scope) },
-    select: { status: true },
+    select: { status: true, completionOutcome: true },
   });
   const result = await finalizeInner(fastify, tenantId, id, input, scope, idempotencyKey);
-  // Retrimiterea idempotentă a unei finalizări nu e o a doua finalizare.
-  if (before && before.status !== "completed") {
+  // Retrimiterea idempotentă a unei finalizări nu e o a doua finalizare; raportul completat
+  // ulterior pe o vizită închisă fără raport, da.
+  const lateReport = before?.status === "completed" && isNoReportOutcome(before.completionOutcome) && input.outcome === "raport_complet";
+  if (before && (before.status !== "completed" || lateReport)) {
     await logAudit(fastify, tenantId, actorUserId, "appointment", id, "finalize", { status: before.status }, { status: "completed", outcome: input.outcome });
   }
   return result;
@@ -1211,7 +1219,10 @@ async function finalizeInner(
     if (idempotencyKey && stored && stored === idempotencyKey) {
       return fastify.prisma.appointment.findUniqueOrThrow({ where: { id }, include: listInclude });
     }
-    throw fastify.httpErrors.conflict("Programarea este deja finalizată");
+    // Închisă cu „revenire” / „programare nouă” (sau ales greșit): raportul se mai poate completa.
+    if (!(isNoReportOutcome(appointment.completionOutcome) && input.outcome === "raport_complet")) {
+      throw fastify.httpErrors.conflict("Programarea este deja finalizată");
+    }
   }
 
   if (input.outcome === "raport_complet") {
@@ -1355,6 +1366,7 @@ async function finalizeInner(
         data: {
           status: "completed",
           completedAt: new Date(),
+          completionOutcome: "raport_complet",
           completionDataJson: reportToStore as unknown as Prisma.InputJsonValue,
           equipmentId,
           equipmentRevisionId: revisionId,
@@ -1452,7 +1464,7 @@ async function finalizeInner(
       }),
       fastify.prisma.appointment.update({
         where: { id },
-        data: { status: "completed", completedAt: new Date(), completionDataJson: keyOnlyJson },
+        data: { status: "completed", completedAt: new Date(), completionOutcome: input.outcome, completionDataJson: keyOnlyJson },
         include: listInclude,
       }),
     ]);
@@ -1477,7 +1489,7 @@ async function finalizeInner(
     }),
     fastify.prisma.appointment.update({
       where: { id },
-      data: { status: "completed", completedAt: new Date(), completionDataJson: keyOnlyJson },
+      data: { status: "completed", completedAt: new Date(), completionOutcome: input.outcome, completionDataJson: keyOnlyJson },
       include: listInclude,
     }),
   ]);
