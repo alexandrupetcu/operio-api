@@ -46,6 +46,7 @@ import signingRoutes from "./modules/signing/signing.routes.js";
 import signingPublicRoutes from "./modules/signing/signing.public.routes.js";
 import contactRoutes from "./modules/public/contact.routes.js";
 import publicAnafRoutes from "./modules/public/anaf.routes.js";
+import tenantHostRoutes from "./modules/public/tenant-host.routes.js";
 import appointmentsRoutes from "./modules/appointments/appointments.routes.js";
 import emailInboxesRoutes from "./modules/email-inboxes/email-inboxes.routes.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
@@ -102,6 +103,10 @@ export async function buildServer() {
   // NODE_ENV. Production allows the configured FRONTEND_URL plus the marketing
   // site (its contact form posts to /api/public/contact).
   const corsOrigins: (string | RegExp)[] = [env.FRONTEND_URL, "https://operio.ro", "https://www.operio.ro"];
+  // Subdomeniile firmelor (`https://picinstall.operio.ro`) — aceeași aplicație web.
+  if (env.TENANT_BASE_DOMAIN) {
+    corsOrigins.push(new RegExp(`^https://[a-z0-9-]+\\.${env.TENANT_BASE_DOMAIN.replace(/\./g, "\\.")}$`));
+  }
   if (isDev) {
     corsOrigins.push(
       "http://localhost:8081",
@@ -272,6 +277,7 @@ export async function buildServer() {
   await fastify.register(signingPublicRoutes, { prefix: "/api/public/sign" });
   await fastify.register(contactRoutes, { prefix: "/api/public/contact" });
   await fastify.register(publicAnafRoutes, { prefix: "/api/public/anaf" });
+  await fastify.register(tenantHostRoutes, { prefix: "/api/public/tenant" });
 
   // ── Bull Board (queue monitoring UI) ──
   const serverAdapter = new FastifyAdapter();

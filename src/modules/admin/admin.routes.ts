@@ -6,6 +6,7 @@ import { requireMasterAdmin } from "../../lib/rbac.js";
 import * as adminService from "./admin.service.js";
 import emailLogsRoutes from "./email-logs.routes.js";
 import { overview, tenantCountsAndActivity, countsFor, tenantDetail } from "./admin-overview.service.js";
+import { setSubdomain } from "../tenant/subdomain.service.js";
 import { startImpersonation } from "./impersonation.js";
 
 const listDocumentsQuerySchema = z.object({
@@ -46,7 +47,7 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     const [tenants, mobile, activity] = await Promise.all([
       fastify.prisma.tenant.findMany({
         select: {
-          id: true, name: true, slug: true, cui: true, emailIngestionEnabled: true,
+          id: true, name: true, slug: true, subdomain: true, cui: true, emailIngestionEnabled: true,
           plan: true, planUntil: true, entitlementOverrides: true, createdAt: true,
           _count: { select: { users: true } },
         },
@@ -78,6 +79,12 @@ export default async function adminRoutes(fastify: FastifyInstance) {
 
   // Catalogul de planuri și funcții (din cod) — pentru ecranul de abonamente.
   fastify.get("/plans", async () => ({ plans: PLANS, features: FEATURES }));
+
+  // Subdomeniul firmei (`picinstall.operio.ro`) — doar master adminul îl activează; null = îl scoate.
+  fastify.patch<{ Params: { id: string } }>("/tenants/:id/subdomain", async (request) => {
+    const body = z.object({ subdomain: z.string().max(60).nullable() }).parse(request.body);
+    return setSubdomain(fastify, request.params.id, body.subdomain);
+  });
 
   // Abonamentul unei firme: plan, valabilitate, ajustări (pilot, add-on, preț de fondator).
   fastify.patch<{ Params: { id: string } }>("/tenants/:id/plan", async (request) => {

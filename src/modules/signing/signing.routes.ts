@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { requireRole } from "../../lib/rbac.js";
 import { getFileStream } from "../../lib/s3.js";
 import { sendSigningInvitation } from "../../lib/email.js";
+import { appUrlFor } from "../../lib/tenant-subdomain.js";
 import { env } from "../../config/env.js";
 
 const createSessionSchema = z.object({
@@ -171,11 +172,11 @@ export default async function signingRoutes(fastify: FastifyInstance) {
 
         const tenant = await fastify.prisma.tenant.findUniqueOrThrow({
           where: { id: request.tenantId },
-          select: { name: true },
+          select: { name: true, subdomain: true },
         });
 
         for (const signatory of session.signatories) {
-          const signingUrl = `${env.FRONTEND_URL}/sign/${signatory.token}`;
+          const signingUrl = `${appUrlFor(tenant.subdomain, env.TENANT_BASE_DOMAIN, env.FRONTEND_URL)}/sign/${signatory.token}`;
           await sendSigningInvitation({
             to: signatory.email,
             signatoryName: signatory.name,

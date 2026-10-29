@@ -15,6 +15,8 @@ model Tenant {
   id                   String    @id @default(cuid())
   name                 String
   slug                 String    @unique
+  // Adresa proprie `<subdomain>.operio.ro` — o activează doar master adminul (null = doar app.operio.ro).
+  subdomain            String?   @unique
   address              String?
   phone                String?
   email                String?

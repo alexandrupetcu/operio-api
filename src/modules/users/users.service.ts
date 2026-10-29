@@ -10,6 +10,7 @@ import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import type { CreateUserInput, UpdateUserInput } from "./users.schema.js";
 import { clearMobileDeviceRevoked, markMobileDeviceRevoked, markUserRevoked } from "../../lib/mobile-devices.js";
+import { appUrlFor } from "../../lib/tenant-subdomain.js";
 import { lockTenant } from "../../lib/tenant-lock.js";
 
 /** Columns the user list may be sorted by (allowlist for `sortBy`). */
@@ -53,7 +54,7 @@ export async function sendInvite(
 ): Promise<boolean> {
   const [user, tenant, inviter] = await Promise.all([
     fastify.prisma.user.findFirst({ where: { id: userId, tenantId }, select: { id: true, email: true, firstName: true, mobileAccess: true, isActive: true } }),
-    fastify.prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
+    fastify.prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, subdomain: true } }),
     fastify.prisma.user.findUnique({ where: { id: invitedByUserId }, select: { firstName: true, lastName: true } }),
   ]);
   if (!user || !user.isActive) throw fastify.httpErrors.notFound("User not found");
@@ -69,7 +70,8 @@ export async function sendInvite(
     firstName: user.firstName,
     tenantName: tenant?.name ?? "Operio",
     invitedBy: inviter ? `${inviter.firstName} ${inviter.lastName}`.trim() : "Administratorul firmei",
-    setPasswordUrl: `${env.FRONTEND_URL}/reset-password?token=${rawToken}&invite=1`,
+    // Linkul duce la adresa firmei (`picinstall.operio.ro`), dacă are una.
+    setPasswordUrl: `${appUrlFor(tenant?.subdomain, env.TENANT_BASE_DOMAIN, env.FRONTEND_URL)}/reset-password?token=${rawToken}&invite=1`,
     mobileAccess: user.mobileAccess,
   });
 }

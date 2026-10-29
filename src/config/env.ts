@@ -29,6 +29,8 @@ const envSchema = z.object({
     .default("development"),
 
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
+  // Domeniul subdomeniilor de firmă (`picinstall.operio.ro`); gol = fără subdomenii (dezvoltare).
+  TENANT_BASE_DOMAIN: z.string().regex(/^[a-z0-9.-]+$/).optional(),
   // Adresa publică a API-ului, pentru linkurile trimise clienților (ex. https://api.operio.ro).
   API_PUBLIC_URL: z.string().url().default("http://localhost:3001"),
 

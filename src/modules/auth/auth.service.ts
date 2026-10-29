@@ -17,6 +17,7 @@ import type {
 } from "./auth.schema.js";
 import { readSchedulingSettings } from "../tenant/scheduling-settings.js";
 import type { ClientKind } from "../../plugins/auth.js";
+import { appUrlFor } from "../../lib/tenant-subdomain.js";
 import { isMobileDeviceRevoked } from "../../lib/mobile-devices.js";
 
 interface SessionUser {
@@ -249,6 +250,7 @@ export async function register(fastify: FastifyInstance, input: RegisterInput) {
       id: result.tenant.id,
       name: result.tenant.name,
       slug: result.tenant.slug,
+      subdomain: result.tenant.subdomain,
       countryId: result.tenant.countryId,
       country: null,
     },
@@ -305,6 +307,7 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
           id: tenant.id,
           name: tenant.name,
           slug: tenant.slug,
+          subdomain: tenant.subdomain,
           countryId: tenant.countryId,
           country: tenant.country,
         }
@@ -409,7 +412,10 @@ export async function forgotPassword(
     },
   });
 
-  const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`;
+  const tenant = user.tenantId
+    ? await fastify.prisma.tenant.findUnique({ where: { id: user.tenantId }, select: { subdomain: true } })
+    : null;
+  const resetUrl = `${appUrlFor(tenant?.subdomain, env.TENANT_BASE_DOMAIN, env.FRONTEND_URL)}/reset-password?token=${rawToken}`;
   // Best-effort and NOT awaited: don't block the response on SMTP (timing
   // leak) and don't surface email failures to the caller.
   void sendPasswordResetEmail({
@@ -521,7 +527,7 @@ export async function impersonatedMe(
     },
     employee: null,
     scheduling: readSchedulingSettings(tenant.settingsJson),
-    tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug, countryId: tenant.countryId, country: tenant.country },
+    tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug, subdomain: tenant.subdomain, countryId: tenant.countryId, country: tenant.country },
     impersonation: {
       tenantId: tenant.id,
       tenantName: tenant.name,
@@ -570,6 +576,7 @@ export async function me(fastify: FastifyInstance, userId: string) {
           id: tenant.id,
           name: tenant.name,
           slug: tenant.slug,
+          subdomain: tenant.subdomain,
           countryId: tenant.countryId,
           country: tenant.country,
         }

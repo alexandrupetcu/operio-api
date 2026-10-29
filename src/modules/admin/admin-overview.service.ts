@@ -183,7 +183,7 @@ export async function overview(fastify: FastifyInstance, queueStats: () => Promi
 export async function tenantDetail(fastify: FastifyInstance, id: string) {
   const tenant = await fastify.prisma.tenant.findUnique({
     where: { id },
-    select: { id: true, name: true, slug: true, cui: true, plan: true, planUntil: true, entitlementOverrides: true, createdAt: true },
+    select: { id: true, name: true, slug: true, subdomain: true, cui: true, plan: true, planUntil: true, entitlementOverrides: true, createdAt: true },
   });
   if (!tenant) throw fastify.httpErrors.notFound("Firma nu există");
 
