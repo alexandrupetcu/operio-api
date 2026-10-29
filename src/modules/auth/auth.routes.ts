@@ -7,6 +7,9 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from "./auth.schema.js";
+import { z } from "zod";
+import { env } from "../../config/env.js";
+import { exchangeHandoff, startHandoff } from "./handoff.service.js";
 import * as authService from "./auth.service.js";
 
 export default async function authRoutes(fastify: FastifyInstance) {
@@ -61,6 +64,31 @@ export default async function authRoutes(fastify: FastifyInstance) {
       if (!request.user.imp) await authService.logout(fastify, request.user.sub);
       return reply.send({ message: "Logged out" });
     }
+  );
+
+  // Mutarea sesiunii pe adresa firmei (`picinstall.operio.ro`): sesiunea de pe adresa curentă
+  // se închide, iar aplicația merge la linkul cu codul de unică folosință (60 s).
+  fastify.post(
+    "/handoff",
+    { onRequest: [fastify.authenticate], config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request) => {
+      if (request.user.imp) throw fastify.httpErrors.badRequest("Vizualizarea unei firme rămâne pe adresa comună");
+      const body = z.object({ refreshToken: z.string().max(200).optional() }).parse(request.body ?? {});
+      const { url } = await startHandoff(fastify, request.user.sub, body.refreshToken ?? null, {
+        baseDomain: env.TENANT_BASE_DOMAIN,
+        frontendUrl: env.FRONTEND_URL,
+      });
+      return { url };
+    },
+  );
+
+  fastify.post(
+    "/handoff/exchange",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request) => {
+      const body = z.object({ code: z.string().regex(/^[a-f0-9]{64}$/) }).parse(request.body);
+      return exchangeHandoff(fastify, body.code, request.headers.origin);
+    },
   );
 
   // Hydrate `{ user, tenant }` for a verified access token. Used by the

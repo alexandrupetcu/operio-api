@@ -45,7 +45,7 @@ function dummyHash(): Promise<string> {
  * access token (so routes know the caller without a DB read) and stored on the
  * refresh token so rotation keeps them.
  */
-async function issueTokens(
+export async function issueTokens(
   fastify: FastifyInstance,
   user: SessionUser,
   session: { client: ClientKind; deviceId?: string },
@@ -114,7 +114,7 @@ function generateRefreshToken(): string {
  * gives the attacker working refresh tokens. The client value is hashed both at
  * write (issue) and read (refresh) so we never see plaintext in the DB.
  */
-function hashRefreshToken(token: string): string {
+export function hashRefreshToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 

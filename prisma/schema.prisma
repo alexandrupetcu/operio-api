@@ -109,6 +109,7 @@ model User {
 
   refreshTokens           RefreshToken[]
   passwordResetTokens     PasswordResetToken[]
+  sessionHandoffs         SessionHandoff[]
   documents               Document[]
   createdWorkflows        WorkflowDefinition[]     @relation("WorkflowCreatedBy")
   assignedStepInstances   WorkflowStepInstance[]   @relation("StepAssignedUser")
@@ -155,6 +156,22 @@ model RefreshToken {
 // value emailed to the user — DB compromise doesn't leak working tokens.
 // Lookups happen by hash. `usedAt` marks single-use consumption so a leaked
 // reset link can't be replayed.
+/// Mutarea sesiunii web pe adresa firmei (`picinstall.operio.ro`): cod de unică folosință,
+/// 60 s, păstrat ca SHA-256. Sesiunea se ține separat pe fiecare adresă (localStorage).
+model SessionHandoff {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  // Adresa pe care trebuie folosit codul (originea aplicației web), ex. https://picinstall.operio.ro
+  targetUrl  String
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String
