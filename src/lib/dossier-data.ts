@@ -550,7 +550,11 @@ export function teamDocVars(members: TeamMemberLike[]): Record<string, unknown> 
     data[`${m.role}_nume_familie`] = m.lastName?.trim() || (m.firstName ? "" : family ?? "");
     data[`${m.role}_prenume`] = m.firstName?.trim() || (m.lastName ? "" : given.join(" "));
     for (const f of ROLE_FIELDS) data[`${m.role}_${f}`] = m.creds[f] ?? "";
-    if (m.signatureS3Key) data[`${m.role}_signature`] = { s3Key: m.signatureS3Key, mimetype: "image/png" };
+    if (m.signatureS3Key) {
+      data[`${m.role}_signature`] = { s3Key: m.signatureS3Key, mimetype: "image/png" };
+      // Varianta mică, în rândul tabelului (celula „Semnatura” din PV-uri), nu peste text.
+      data[`${m.role}_signature_mic`] = { s3Key: m.signatureS3Key, mimetype: "image/png" };
+    }
   }
 
   if (sudori.length) {
@@ -558,11 +562,13 @@ export function teamDocVars(members: TeamMemberLike[]): Record<string, unknown> 
     const pe = [...sudori].reverse().find((m) => hasPe(m.creds)) ?? last;
     const ol = [...sudori].reverse().find((m) => hasOl(m.creds)) ?? last;
     data.sudor_pe_nume = pe.name;
+    if (pe.signatureS3Key) data.sudor_pe_signature_mic = { s3Key: pe.signatureS3Key, mimetype: "image/png" };
     data.sudor_pe_autorizatii = pe.creds.autorizatii_pe ?? pe.creds.autorizatie_pe_iscir ?? pe.creds.autorizatii ?? "";
     data.sudor_pe_poanson = pe.creds.poanson ?? "";
     data.sudor_pe_aut_iscir = pe.creds.autorizatie_pe_iscir ?? "";
     data.sudor_pe_aut_data = pe.creds.autorizatie_pe_data ?? "";
     data.sudor_ol_nume = ol.name;
+    if (ol.signatureS3Key) data.sudor_ol_signature_mic = { s3Key: ol.signatureS3Key, mimetype: "image/png" };
     data.sudor_ol_autorizatii = ol.creds.autorizatii_ol ?? ol.creds.autorizatie_ol_iscir ?? ol.creds.autorizatii ?? "";
     data.sudor_ol_poanson = ol.creds.poanson ?? "";
     data.sudor_ol_aut_iscir = ol.creds.autorizatie_ol_iscir ?? "";

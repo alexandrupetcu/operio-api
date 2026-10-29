@@ -45,4 +45,16 @@ describe("renderDocx — spațiile de nume pentru imagini", () => {
     expect(root).toContain('xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"');
     expect(root).toContain('xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"');
   });
+
+  it("mai multe imagini primesc identificatori docPr diferiți (cu același id, Word refuză PV-ul cu 3 semnături)", () => {
+    const zip = new PizZip(docx("{%a}"));
+    const paras = ["a", "b", "c"].map((k) => `<w:p><w:r><w:t>{%${k}}</w:t></w:r></w:p>`).join("");
+    zip.file("word/document.xml", zip.file("word/document.xml")!.asText().replace(/<w:body>.*<\/w:body>/, `<w:body>${paras}</w:body>`));
+    zip.file("word/_rels/document.xml.rels", '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>');
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+    const out = renderDocx(zip.generate({ type: "nodebuffer" }), { a: "x", b: "y", c: "z" }, { x: png, y: png, z: png });
+    const ids = [...new PizZip(out).file("word/document.xml")!.asText().matchAll(/<wp:docPr id="(\d+)"/g)].map((m) => m[1]);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+  });
 });

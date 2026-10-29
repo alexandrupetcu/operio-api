@@ -44,6 +44,12 @@ const SIGNATURE_SIZE: [number, number] = [200, 90]; // ~5.3 × 2.4 cm
 const roleSignatureSizes = Object.fromEntries(
   TEAM_ROLE_CODES.map((r) => [`${r}_signature`, SIGNATURE_SIZE] as const),
 );
+// `{%rte_signature_mic}` … — în celula „Semnatura” a tabelelor din PV-uri: mică și în rând
+// (inline), ca rândul să crească după ea în loc să acopere rândurile de dedesubt.
+const SIGNATURE_MIC_SIZE: [number, number] = [110, 48]; // ~2.9 × 1.3 cm
+const smallSignatureSizes = Object.fromEntries(
+  [...TEAM_ROLE_CODES, "sudor_pe", "sudor_ol"].map((r) => [`${r}_signature_mic`, SIGNATURE_MIC_SIZE] as const),
+);
 
 const STAMP_SIZE: [number, number] = [140, 140]; // ~3.7 cm square
 // The 4 stamp variables: slot 1 = legacy `tenant_stamp`, slots 2-4 = `tenant_stamp_N`.
@@ -59,6 +65,7 @@ const DOCX_IMAGE_OPTS: ImageRenderOptions = {
     project_drawing: [560, 360],
     project_drawing_mic: [520, 280], // aceeași schiță, mai joasă — schița conductei Distrigaz (schiță + tabel pe o pagină)
     ...roleSignatureSizes,
+    ...smallSignatureSizes,
   },
   defaultSize: [570, 380],
   // Signatures + stamps overlay the content below them ("In Front of Text").

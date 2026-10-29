@@ -9,6 +9,8 @@ describe("isReservedTemplateKey", () => {
     "tenant.logo",
     "rte_signature",
     "sudor_signature",
+    "rte_signature_mic",
+    "sudor_pe_signature_mic",
     "client_signature",
     "client_signature_date",
     "project_drawing",

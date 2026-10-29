@@ -223,6 +223,15 @@ describe("teamDocVars — echipa dosarului", () => {
     const v = teamDocVars([member("rts", "Badea Nicolae", {}, "sig/rts.png")]);
     expect(v.rts_signature).toEqual({ s3Key: "sig/rts.png", mimetype: "image/png" });
   });
+
+  it("semnătura mică (în celula „Semnatura” din tabelele PV): pe rol și pe sudorul PE", () => {
+    const v = teamDocVars([
+      member("rte", "Coman Gabriel", {}, "sig/rte.png"),
+      member("sudor", "Pop Ion", { autorizatii_pe: "568855" }, "sig/sudor.png"),
+    ]);
+    expect(v.rte_signature_mic).toEqual({ s3Key: "sig/rte.png", mimetype: "image/png" });
+    expect(v.sudor_pe_signature_mic).toEqual({ s3Key: "sig/sudor.png", mimetype: "image/png" });
+  });
 });
 
 describe("durata probelor ca text", () => {

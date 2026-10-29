@@ -82,6 +82,20 @@ function ensureImageNamespaces(zip: PizZip): void {
   }
 }
 
+/**
+ * Modulul de imagini dă fiecărei imagini `<wp:docPr id="2">`; cu mai multe imagini în același
+ * document (PV-ul cu 3 semnături) Word refuză uneori fișierul. Renumerotăm toate desenele
+ * (corp, antete, subsoluri) cu identificatori unici.
+ */
+function uniqueDrawingIds(zip: PizZip) {
+  let next = 1;
+  for (const name of Object.keys(zip.files).filter((n) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(n))) {
+    const xml = zip.file(name)!.asText();
+    if (!xml.includes("<wp:docPr ")) continue;
+    zip.file(name, xml.replace(/<wp:docPr id="\d+"/g, () => `<wp:docPr id="${next++}"`));
+  }
+}
+
 export function renderDocx(
   templateBuffer: Buffer,
   data: Record<string, unknown>,
@@ -123,6 +137,8 @@ export function renderDocx(
     const docXml = doc.getZip().file("word/document.xml");
     if (docXml) doc.getZip().file("word/document.xml", applyFloatInFront(docXml.asText(), floatExtents));
   }
+
+  uniqueDrawingIds(doc.getZip());
 
   return Buffer.from(
     doc.getZip().generate({

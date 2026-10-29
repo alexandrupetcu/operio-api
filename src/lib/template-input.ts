@@ -10,7 +10,7 @@
 
 const RESERVED_KEY_PATTERNS: RegExp[] = [
   /^tenant[._]/, // tenant_* (name, stamp, signature, logo…) + dot-notation tenant.*
-  /_signature$/, // rte_signature, sudor_signature, tenant_signature…
+  /_signature(_mic)?$/, // rte_signature, sudor_signature, tenant_signature… + varianta mică din tabele
   /^client_signature/, // client_signature + any suffix
   /^project_drawing(_mic)?$/,
   /^nr_inregistrare/, // nr_inregistrare, nr_inregistrare_data
