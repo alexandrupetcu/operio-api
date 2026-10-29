@@ -37,6 +37,8 @@ const createSchema = z.object({
     (v) => (typeof v === "string" && v.trim() === "" ? null : v),
     z.string().max(100).optional().nullable(),
   ),
+  // Toate funcțiile (un om poate fi instalator și șef de șantier); prima devine `position`.
+  positions: z.array(z.string().max(100)).max(20).optional(),
   phone: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? null : v),
     z.string().max(30).optional().nullable(),

@@ -37,7 +37,7 @@ export default async function projectTeamRoutes(fastify: FastifyInstance) {
 
     return fastify.prisma.projectTeamMember.findMany({
       where: { projectId: project.id },
-      include: { employee: { select: { id: true, firstName: true, lastName: true, position: true } } },
+      include: { employee: { select: { id: true, firstName: true, lastName: true, position: true, positions: true } } },
       orderBy: { createdAt: "asc" },
       take: 200,
     });
@@ -78,7 +78,7 @@ export default async function projectTeamRoutes(fastify: FastifyInstance) {
             employeeId: body.employeeId ?? null,
             credentials: credentialsValue,
           },
-          include: { employee: { select: { id: true, firstName: true, lastName: true, position: true } } },
+          include: { employee: { select: { id: true, firstName: true, lastName: true, position: true, positions: true } } },
         });
       } else {
         // Unique role — find existing and update, or create
@@ -93,7 +93,7 @@ export default async function projectTeamRoutes(fastify: FastifyInstance) {
               employeeId: body.employeeId ?? null,
               credentials: credentialsValue,
             },
-            include: { employee: { select: { id: true, firstName: true, lastName: true, position: true } } },
+            include: { employee: { select: { id: true, firstName: true, lastName: true, position: true, positions: true } } },
           });
         } else {
           member = await fastify.prisma.projectTeamMember.create({
@@ -104,7 +104,7 @@ export default async function projectTeamRoutes(fastify: FastifyInstance) {
               employeeId: body.employeeId ?? null,
               credentials: credentialsValue,
             },
-            include: { employee: { select: { id: true, firstName: true, lastName: true, position: true } } },
+            include: { employee: { select: { id: true, firstName: true, lastName: true, position: true, positions: true } } },
           });
         }
       }

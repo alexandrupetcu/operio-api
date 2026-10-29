@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { PaginationQuery } from "../../lib/pagination.js";
 import { paginationArgs, paginationMeta } from "../../lib/pagination.js";
 import { uploadFile, deleteFile, getPresignedUrl } from "../../lib/s3.js";
+import { withPositions } from "./positions.js";
 import type { CreateEmployeeInput, UpdateEmployeeInput } from "./employees.routes.js";
 
 /** Columns the employee list may be sorted by (allowlist for `sortBy`). */
@@ -44,6 +45,7 @@ export async function list(
         { firstName: { contains: query.search, mode: "insensitive" as const } },
         { lastName: { contains: query.search, mode: "insensitive" as const } },
         { position: { contains: query.search, mode: "insensitive" as const } },
+        { positions: { has: query.search.toLowerCase() } },
         { email: { contains: query.search, mode: "insensitive" as const } },
         { phone: { contains: query.search, mode: "insensitive" as const } },
       ],
@@ -191,7 +193,7 @@ export async function create(
   return fastify.prisma.employee.create({
     data: {
       tenantId,
-      ...input,
+      ...withPositions(input),
     },
   });
 }
@@ -205,7 +207,7 @@ export async function update(
   await getById(fastify, tenantId, id);
   return fastify.prisma.employee.update({
     where: { id },
-    data: input,
+    data: withPositions(input),
   });
 }
 

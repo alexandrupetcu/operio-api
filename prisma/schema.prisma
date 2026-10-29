@@ -779,7 +779,8 @@ model Employee {
   firstName      String
   lastName       String
   employeeType   String   @default("intern") // intern | colaborator
-  position       String? // instalator, proiectant, rte, diriginte, verificator, sudor
+  position       String? // funcția principală = positions[0] (ecranele vechi / mobil)
+  positions      String[] @default([]) // toate funcțiile: instalator, sef_santier, rte, proiectant, diriginte, verificator, sudor…
   phone          String?
   email          String?
   credentials    Json?
