@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { STAMP_AUTHORITIES, authorityOf } from "../../lib/certifications.js";
 import { uploadFile, deleteFile, getPresignedUrl } from "../../lib/s3.js";
-import { removeWhiteBackground } from "../../lib/image.js";
+import { prepareStampImage, type StampImageMode } from "../../lib/stamp-image.js";
 import { logAudit } from "../../lib/audit.js";
 import { invalidateReadiness } from "../tenant/readiness.js";
 
@@ -135,7 +135,7 @@ export async function deleteStamp(
   return { deleted: true };
 }
 
-/** Imaginea ștampilei (fundalul alb devine transparent, ca la ștampilele firmei). */
+/** Imaginea ștampilei: curățată (fundal, tăiere, îndreptare) sau doar cu albul transparent. */
 export async function setStampImage(
   fastify: FastifyInstance,
   tenantId: string,
@@ -143,9 +143,10 @@ export async function setStampImage(
   stampId: string,
   image: Buffer,
   actorUserId: string | null,
+  mode: StampImageMode = "clean",
 ) {
   const current = await stampOrThrow(fastify, tenantId, employeeId, stampId);
-  const png = await removeWhiteBackground(image);
+  const png = await prepareStampImage(image, mode);
   // Cheie nouă la fiecare încărcare: URL-urile din cache nu arată imaginea veche.
   const key = `${tenantId}/employees/${employeeId}/stamp-${stampId}-${Date.now()}.png`;
   await uploadFile(key, png, "image/png");

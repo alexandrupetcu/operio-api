@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { requireRole } from "../../lib/rbac.js";
 import { uploadFile, getPresignedUrl, deleteFile } from "../../lib/s3.js";
-import { removeWhiteBackground, normalizeLogo } from "../../lib/image.js";
+import { normalizeLogo } from "../../lib/image.js";
+import { cleanStampImage, prepareStampImage, stampImageMode } from "../../lib/stamp-image.js";
 import { resolveStampSlots, upsertStampSlot, STAMP_SLOTS } from "../../lib/stamps.js";
 import { getStampUsage } from "./stamp-usage.js";
 import { getSignatories, setSignatories, signatoriesUpdateSchema } from "./signatories.js";
@@ -360,6 +361,19 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
     return { slots: await getStampUsage(fastify.prisma, request.tenantId) };
   });
 
+  // Previzualizarea curățării unei ștampile, înainte de salvare (nimic nu se păstrează).
+  fastify.post("/stamp-preview", {
+    onRequest: [requireRole("ADMIN", "MANAGER")],
+    config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+    handler: async (request) => {
+      const file = await request.file();
+      if (!file) throw fastify.httpErrors.badRequest("Alege o imagine cu ștampila");
+      if (!file.mimetype.startsWith("image/")) throw fastify.httpErrors.badRequest("Ștampila trebuie să fie o imagine");
+      const png = await cleanStampImage(await file.toBuffer());
+      return { cleaned: `data:image/png;base64,${png.toString("base64")}` };
+    },
+  });
+
   // Upload a stamp image into slot 1-4. Slot 1 keeps its image on
   // `stampS3Key` (backward compat); slots 2-4 store it in brandingJson.
   fastify.post("/stamp/:slot", {
@@ -373,8 +387,8 @@ export default async function tenantRoutes(fastify: FastifyInstance) {
       }
 
       const rawBuffer = await file.toBuffer();
-      // Remove background (make white/light pixels transparent) and save as PNG
-      const buffer = await removeWhiteBackground(rawBuffer);
+      // Curățată (fundal, tăiere, îndreptare) sau, cu `?mode=original`, doar albul transparent.
+      const buffer = await prepareStampImage(rawBuffer, stampImageMode(request.query));
       const s3Key =
         slot === 1
           ? `${request.tenantId}/branding/stamp.png`

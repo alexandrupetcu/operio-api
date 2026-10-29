@@ -11,6 +11,8 @@ vi.mock("../../lib/s3.js", () => ({
   getPresignedUrl: async (key: string) => `https://s3.test/${key}`,
 }));
 vi.mock("../../lib/image.js", () => ({ removeWhiteBackground: async (b: Buffer) => b }));
+// Prelucrarea imaginii are testele ei (stamp-image.test.ts); aici contează doar ce se salvează.
+vi.mock("../../lib/stamp-image.js", () => ({ prepareStampImage: async (b: Buffer) => b, stampImageMode: () => "clean" }));
 vi.mock("../../lib/email.js", () => ({ sendNotificationEmail: vi.fn(async () => {}) }));
 vi.mock("../../lib/web-push.js", () => ({ sendWebPush: vi.fn(async () => ({ ok: true })), isWebPushConfigured: () => false }));
 vi.mock("../../lib/expo-push.js", () => ({ sendExpoPush: vi.fn(async () => ({ ok: [], invalid: [] })), isValidExpoToken: () => true }));

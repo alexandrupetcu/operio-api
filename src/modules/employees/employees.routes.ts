@@ -25,6 +25,7 @@ import {
   setStampImage,
   removeStampImage,
 } from "./stamps.service.js";
+import { stampImageMode } from "../../lib/stamp-image.js";
 import { logAudit } from "../../lib/audit.js";
 
 const listQuerySchema = paginationSchemaFor(EMPLOYEES_SORTABLE);
@@ -196,7 +197,7 @@ export default async function employeesRoutes(fastify: FastifyInstance) {
       const file = await request.file();
       if (!file) throw fastify.httpErrors.badRequest("Alege o imagine cu ștampila");
       if (!file.mimetype.startsWith("image/")) throw fastify.httpErrors.badRequest("Ștampila trebuie să fie o imagine");
-      return setStampImage(fastify, request.tenantId, request.params.id, request.params.stampId, await file.toBuffer(), request.user.sub);
+      return setStampImage(fastify, request.tenantId, request.params.id, request.params.stampId, await file.toBuffer(), request.user.sub, stampImageMode(request.query));
     },
   });
 
