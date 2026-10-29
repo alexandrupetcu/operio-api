@@ -6,11 +6,16 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  twoFactorVerifySchema,
+  twoFactorTicketSchema,
+  twoFactorSetupSchema,
+  twoFactorConfirmSchema,
 } from "./auth.schema.js";
 import { z } from "zod";
 import { env } from "../../config/env.js";
 import { exchangeHandoff, startHandoff } from "./handoff.service.js";
 import * as authService from "./auth.service.js";
+import * as twoFactor from "./two-factor.service.js";
 
 export default async function authRoutes(fastify: FastifyInstance) {
   fastify.post(
@@ -40,6 +45,68 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.send(result);
     }
   );
+
+  // ── Autentificarea în doi pași: al doilea pas al login-ului (public, cu tichetul) ──
+  fastify.post(
+    "/2fa/verify",
+    // Ca la login; în plus, fiecare tichet moare după 5 coduri greșite.
+    { config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
+    async (request) => {
+      const body = twoFactorVerifySchema.parse(request.body);
+      return twoFactor.verifyLogin(fastify, body, { userAgent: request.headers["user-agent"] });
+    },
+  );
+
+  fastify.post(
+    "/2fa/resend",
+    { config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
+    async (request) => {
+      const { ticket } = twoFactorTicketSchema.parse(request.body);
+      return twoFactor.resendLoginCode(fastify, ticket);
+    },
+  );
+
+  // ── Autentificarea în doi pași: setările contului (Setări → Contul meu → Securitate) ──
+  await fastify.register(async (scoped) => {
+    scoped.addHook("onRequest", fastify.authenticate);
+    // Vizualizarea unei firme de către administratorul platformei nu atinge contul master.
+    scoped.addHook("onRequest", async (request) => {
+      if (request.user.imp) throw fastify.httpErrors.badRequest("Indisponibil în vizualizarea unei firme");
+    });
+    const strict = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
+
+    scoped.get("/2fa", async (request) => twoFactor.status(fastify, request.user.sub));
+
+    scoped.post("/2fa/setup", strict, async (request) => {
+      const { method } = twoFactorSetupSchema.parse(request.body);
+      return twoFactor.setup(fastify, request.user.sub, method);
+    });
+
+    scoped.post("/2fa/enable", strict, async (request) => {
+      const body = twoFactorConfirmSchema.parse(request.body);
+      return twoFactor.enable(fastify, request.user.sub, body);
+    });
+
+    scoped.post("/2fa/send-code", strict, async (request) => twoFactor.sendManageCode(fastify, request.user.sub));
+
+    scoped.post("/2fa/disable", strict, async (request) => {
+      const body = twoFactorConfirmSchema.parse(request.body);
+      return twoFactor.disable(fastify, request.user.sub, body);
+    });
+
+    scoped.post("/2fa/backup-codes", strict, async (request) => {
+      const body = twoFactorConfirmSchema.parse(request.body);
+      return twoFactor.regenerateBackupCodes(fastify, request.user.sub, body);
+    });
+
+    scoped.get("/2fa/trusted-devices", async (request) => twoFactor.listTrustedDevices(fastify, request.user.sub));
+
+    scoped.delete<{ Params: { id: string } }>("/2fa/trusted-devices/:id", async (request) =>
+      twoFactor.forgetTrustedDevice(fastify, request.user.sub, request.params.id),
+    );
+
+    scoped.delete("/2fa/trusted-devices", async (request) => twoFactor.forgetAllTrustedDevices(fastify, request.user.sub));
+  });
 
   fastify.post(
     "/refresh",

@@ -59,6 +59,18 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default("mailto:noreply@operio.app"),
+
+  // Autentificarea în doi pași: cheia AES-256-GCM pentru secretele TOTP din baza de date
+  // (32 de octeți, base64 — `openssl rand -base64 32`). Lipsă → aplicația de autentificare
+  // nu se poate activa (503); codul pe e-mail merge oricum. Nu se schimbă după ce există
+  // conturi cu TOTP activ (secretele lor nu mai pot fi citite).
+  TWO_FACTOR_KEY: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z
+      .string()
+      .refine((v) => Buffer.from(v, "base64").length === 32, "TWO_FACTOR_KEY trebuie să fie 32 de octeți în base64")
+      .optional(),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;

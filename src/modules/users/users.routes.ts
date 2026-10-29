@@ -3,6 +3,7 @@ import { requireRole } from "../../lib/rbac.js";
 import { paginationSchemaFor } from "../../lib/pagination.js";
 import { createUserSchema, updateUserSchema } from "./users.schema.js";
 import * as usersService from "./users.service.js";
+import { adminReset as resetTwoFactor } from "../auth/two-factor.service.js";
 import { USERS_SORTABLE } from "./users.service.js";
 
 const listQuerySchema = paginationSchemaFor(USERS_SORTABLE);
@@ -39,6 +40,14 @@ export default async function usersRoutes(fastify: FastifyInstance) {
 
   fastify.delete<{ Params: { id: string } }>("/:id", async (request) => {
     return usersService.remove(fastify, request.tenantId, request.params.id);
+  });
+
+  // Resetează autentificarea în doi pași (telefon pierdut, fără coduri de rezervă) —
+  // doar pentru conturile firmei proprii.
+  fastify.post<{ Params: { id: string } }>("/:id/2fa/reset", async (request) => {
+    // Fără firmă (cont de platformă) scopul ar deveni global — acela trece prin /admin.
+    if (!request.tenantId) throw fastify.httpErrors.forbidden("Folosește panoul de administrare al platformei");
+    return resetTwoFactor(fastify, request.params.id, { userId: request.user.sub, tenantId: request.tenantId });
   });
 
   // ── Mobile devices (phones that logged into the technician app) ────────────

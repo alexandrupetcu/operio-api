@@ -62,6 +62,8 @@ export const loginSchema = z
     // the server then checks User.mobileAccess and registers/validates the device.
     client: z.enum(["web", "mobile"]).default("web"),
     device: mobileDeviceSchema.optional(),
+    // Web: tokenul „ține minte acest dispozitiv” (2FA) din localStorage; ignorat pe mobil.
+    trustedDevice: z.string().max(200).optional(),
   })
   .refine((v) => v.client !== "mobile" || !!v.device, {
     message: "Aplicația mobilă trebuie să trimită identitatea dispozitivului",
@@ -84,6 +86,23 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
   token: z.string().min(32).max(200),
   newPassword: passwordPolicySchema,
+});
+
+// ─── Autentificarea în doi pași ─────────────────────────────────────────────
+const twoFactorCode = z.string().trim().min(6).max(20);
+
+export const twoFactorVerifySchema = z.object({
+  ticket: z.string().regex(/^[a-f0-9]{64}$/),
+  code: twoFactorCode,
+  rememberDevice: z.boolean().optional(),
+});
+export const twoFactorTicketSchema = z.object({ ticket: z.string().regex(/^[a-f0-9]{64}$/) });
+export const twoFactorSetupSchema = z.object({ method: z.enum(["email", "totp"]) });
+export const twoFactorConfirmSchema = z.object({
+  code: twoFactorCode,
+  password: z.string().min(1).max(200),
+  // Sesiunea din care se face schimbarea rămâne deschisă (celelalte sesiuni web se închid).
+  refreshToken: z.string().max(200).optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

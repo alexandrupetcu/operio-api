@@ -20,6 +20,8 @@ process.env.JWT_REFRESH_SECRET ||= "test-jwt-refresh-secret";
 process.env.S3_ACCESS_KEY ||= "test-access-key";
 process.env.S3_SECRET_KEY ||= "test-secret-key";
 process.env.S3_BUCKET ||= "operio-test";
+// Cheie fixă de test pentru secretele TOTP (32 de octeți, base64) — nu e cheia de pe server.
+process.env.TWO_FACTOR_KEY ||= Buffer.alloc(32, 7).toString("base64");
 delete process.env.SMTP_HOST; // `verifySmtp()` nu trebuie să încerce o conexiune
 
 export interface EnqueuedJob {

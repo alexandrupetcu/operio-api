@@ -8,6 +8,7 @@ import emailLogsRoutes from "./email-logs.routes.js";
 import { overview, tenantCountsAndActivity, countsFor, tenantDetail } from "./admin-overview.service.js";
 import { setSubdomain } from "../tenant/subdomain.service.js";
 import { startImpersonation } from "./impersonation.js";
+import { adminReset as resetTwoFactor } from "../auth/two-factor.service.js";
 
 const listDocumentsQuerySchema = z.object({
   status: z.string().optional(),
@@ -108,6 +109,11 @@ export default async function adminRoutes(fastify: FastifyInstance) {
     });
     invalidateEntitlements(tenant.id);
     return { ...tenant, entitlements: serializeEntitlements(resolveEntitlements(tenant)) };
+  });
+
+  // Resetează autentificarea în doi pași a oricărui cont (administratorul platformei).
+  fastify.post<{ Params: { id: string } }>("/users/:id/2fa/reset", async (request) => {
+    return resetTwoFactor(fastify, request.params.id, { userId: request.user.sub, tenantId: null });
   });
 
   // Toggle email ingestion for a specific tenant

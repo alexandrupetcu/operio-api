@@ -341,6 +341,94 @@ export async function sendPasswordResetEmail(opts: {
   }
 }
 
+/**
+ * Codul de 6 cifre pentru autentificarea în doi pași (login, activare sau gestionare).
+ * Fără SMTP, în dezvoltare codul apare în consolă (altfel n-ar exista cum să-l folosești
+ * local); în producție nu se loghează niciodată.
+ */
+export async function sendTwoFactorCodeEmail(opts: {
+  to: string;
+  firstName: string;
+  code: string;
+  purpose: "login" | "enable" | "manage";
+}): Promise<void> {
+  const t = getTransporter();
+  if (!t) {
+    if (env.NODE_ENV === "development") {
+      console.warn(`[email] SMTP not configured — 2FA code for ${mailDomain(opts.to)}: ${opts.code}`);
+    } else {
+      console.warn("[email] SMTP not configured — skipping 2FA code to", mailDomain(opts.to));
+    }
+    return;
+  }
+  const intro = {
+    login: "Folosește codul de mai jos ca să termini autentificarea în Operio:",
+    enable: "Folosește codul de mai jos ca să confirmi activarea autentificării în doi pași:",
+    manage: "Folosește codul de mai jos ca să confirmi schimbarea setărilor de securitate:",
+  }[opts.purpose];
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:16px">Codul tău de autentificare</h2>
+      <p>Bună, <strong>${escapeHtml(opts.firstName)}</strong>,</p>
+      <p>${intro}</p>
+      <p style="font-size:32px;font-weight:700;letter-spacing:8px;font-family:'Courier New',monospace;margin:20px 0">${escapeHtml(opts.code)}</p>
+      <p style="color:#555">Codul e valabil <strong>10 minute</strong>. Nu-l spune nimănui — echipa Operio nu ți-l va cere niciodată.</p>
+      <p style="color:#888;font-size:12px;margin-top:24px">
+        Dacă nu ai încercat tu să te autentifici, cineva îți cunoaște parola: schimb-o din Setări → Contul meu → Securitate.
+      </p>
+    </div>
+  `;
+  const info = await t.sendMail({
+    from: env.SMTP_FROM,
+    ...replyTo(),
+    to: opts.to,
+    subject: `${opts.code} — codul tău de autentificare Operio`,
+    html,
+  });
+  console.log(`[email] 2FA code sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);
+}
+
+/** Anunț de securitate: autentificarea în doi pași a fost activată / dezactivată / resetată. */
+export async function sendTwoFactorChangedEmail(opts: {
+  to: string;
+  firstName: string;
+  event: "enabled" | "disabled" | "reset";
+  method?: "email" | "totp";
+}): Promise<void> {
+  const t = getTransporter();
+  if (!t) {
+    console.warn("[email] SMTP not configured — skipping 2FA notice to", mailDomain(opts.to));
+    return;
+  }
+  const methodLabel = opts.method === "totp" ? "aplicația de autentificare" : "codul primit pe e-mail";
+  const { subject, body } = {
+    enabled: {
+      subject: "Autentificarea în doi pași a fost activată",
+      body: `De acum, la autentificarea în browser îți cerem și un cod (${methodLabel}). Celelalte sesiuni web au fost închise.`,
+    },
+    disabled: {
+      subject: "Autentificarea în doi pași a fost dezactivată",
+      body: "De acum, contul tău se deschide în browser doar cu parola.",
+    },
+    reset: {
+      subject: "Autentificarea în doi pași a fost resetată",
+      body: "Un administrator a dezactivat autentificarea în doi pași pentru contul tău (de exemplu, după pierderea telefonului). O poți activa din nou din Setări → Contul meu → Securitate.",
+    },
+  }[opts.event];
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:16px">${subject}</h2>
+      <p>Bună, <strong>${escapeHtml(opts.firstName)}</strong>,</p>
+      <p>${body}</p>
+      <p style="color:#888;font-size:12px;margin-top:24px">
+        Dacă nu ai făcut tu această schimbare, schimbă-ți imediat parola și anunță administratorul firmei.
+      </p>
+    </div>
+  `;
+  const info = await t.sendMail({ from: env.SMTP_FROM, ...replyTo(), to: opts.to, subject: `Operio: ${subject.toLowerCase()}`, html });
+  console.log(`[email] 2FA notice (${opts.event}) sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);
+}
+
 /** Demo request from the marketing site → the founder's inbox, reply-to the lead. */
 export async function sendContactRequest(req: {
   name: string; company: string; phone: string; email: string; message: string;

@@ -33,6 +33,8 @@ const userSelect = {
   mobileAccess: true,
   invitePending: true,
   invitedAt: true,
+  // Autentificarea în doi pași: null | "email" | "totp" (fără secret — doar metoda).
+  twoFactorMethod: true,
   createdAt: true,
   updatedAt: true,
   employee: { select: { id: true, firstName: true, lastName: true } },

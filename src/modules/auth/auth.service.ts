@@ -19,6 +19,7 @@ import { readSchedulingSettings } from "../tenant/scheduling-settings.js";
 import type { ClientKind } from "../../plugins/auth.js";
 import { appUrlFor } from "../../lib/tenant-subdomain.js";
 import { isMobileDeviceRevoked } from "../../lib/mobile-devices.js";
+import { consumeTrustedDevice, startLoginChallenge } from "./two-factor.service.js";
 
 interface SessionUser {
   id: string;
@@ -285,22 +286,53 @@ export async function login(fastify: FastifyInstance, input: LoginInput) {
     if (tenant) await ensureEmployeeForMobileUser(fastify, { id: candidate.id, tenantId: tenant.id });
   }
 
-  const { accessToken, refreshToken } = await issueTokens(
+  // Autentificarea în doi pași (opțională, doar pe web): fără un dispozitiv ținut minte,
+  // parola nu dă încă tokenuri — doar un tichet pentru al doilea pas (POST /auth/2fa/verify).
+  if (input.client === "web" && candidate.twoFactorMethod) {
+    const trusted = await consumeTrustedDevice(fastify, candidate.id, input.trustedDevice);
+    if (!trusted) return startLoginChallenge(fastify, candidate);
+  }
+
+  const tokens = await issueTokens(
     fastify,
     { id: candidate.id, tenantId: tenant?.id ?? null, role: candidate.role },
     { client: input.client, deviceId: input.client === "mobile" ? input.device!.deviceId : undefined },
   );
 
+  return loginResponse(candidate, tokens);
+}
+
+/** Răspunsul unei autentificări reușite (login, al doilea pas): tokenuri + cont + firmă. */
+export function loginResponse(
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: SessionUser["role"];
+    mobileAccess: boolean;
+    tenant: {
+      id: string;
+      name: string;
+      slug: string;
+      subdomain: string | null;
+      countryId: number | null;
+      country: { id: number; name: string; emoji: string | null } | null;
+    } | null;
+  },
+  tokens: { accessToken: string; refreshToken: string },
+) {
+  const tenant = user.tenant;
   return {
-    accessToken,
-    refreshToken,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
     user: {
-      id: candidate.id,
-      email: candidate.email,
-      firstName: candidate.firstName,
-      lastName: candidate.lastName,
-      role: candidate.role,
-      mobileAccess: candidate.mobileAccess,
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      mobileAccess: user.mobileAccess,
     },
     tenant: tenant
       ? {

@@ -104,10 +104,20 @@ model User {
   // setează parola prin link-ul de invitație (se șterge la prima setare).
   invitePending Boolean   @default(false)
   invitedAt     DateTime?
+  // Autentificarea în doi pași (doar pe web, opțională): null | "email" | "totp".
+  twoFactorMethod     String?
+  // Secretul TOTP, criptat AES-256-GCM cu TWO_FACTOR_KEY (lib/crypto-secret.ts).
+  twoFactorSecret     String?
+  twoFactorEnabledAt  DateTime?
+  // Ultimul pas TOTP acceptat — același cod nu poate fi folosit de două ori.
+  twoFactorLastStep   Int?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   refreshTokens           RefreshToken[]
+  twoFactorChallenges     TwoFactorChallenge[]
+  twoFactorBackupCodes    TwoFactorBackupCode[]
+  trustedDevices          TrustedDevice[]
   passwordResetTokens     PasswordResetToken[]
   sessionHandoffs         SessionHandoff[]
   documents               Document[]
@@ -167,6 +177,57 @@ model SessionHandoff {
   targetUrl  String
   expiresAt  DateTime
   usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// Al doilea pas al autentificării (sau confirmarea activării 2FA). `purpose`:
+/// "login" — tichetul dat după parolă (`tokenHash` = SHA-256); "enable" — confirmarea
+/// metodei alese (pentru TOTP ține secretul propus, criptat); "manage" — cod pe e-mail
+/// cerut pentru dezactivare / coduri noi. Max 5 încercări, apoi tichetul e mort.
+model TwoFactorChallenge {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose    String
+  method     String
+  tokenHash  String?   @unique
+  // SHA-256(id:cod) al codului trimis pe e-mail.
+  codeHash   String?
+  secret     String?
+  attempts   Int       @default(0)
+  sends      Int       @default(0)
+  lastSentAt DateTime?
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// Codurile de rezervă (10, afișate o singură dată), păstrate ca SHA-256; fiecare merge o dată.
+model TwoFactorBackupCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// „Ține minte acest dispozitiv 30 de zile” pe web: tokenul stă în localStorage-ul
+/// browserului, aici doar SHA-256 al lui.
+model TrustedDevice {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  label      String
+  expiresAt  DateTime
+  lastUsedAt DateTime?
   createdAt  DateTime  @default(now())
 
   @@index([userId])
