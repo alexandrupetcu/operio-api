@@ -171,6 +171,24 @@ export const DOSSIER_TABLES: Record<string, DossierTable> = {
     ],
     rows: ["Săpătură șanț conductă", "Așternere nisip (ml)", "Tăiere (ml)", "Desfacere (mp)", "Refacere (mp)"],
   },
+  // Anexa 24 MegaConstruct (C(P) — desfacerea / refacerea suprafețelor la racord).
+  pavaj_racord: {
+    itemLabel: "operațiune",
+    columns: [
+      { key: "operatiune", label: "Operațiunea" },
+      { key: "spatiu_verde", label: "Spațiu verde" },
+      { key: "macadam", label: "Piatră spartă / macadam" },
+      { key: "pietris", label: "Pietriș" },
+      { key: "dale_pavele", label: "Dale / pavele" },
+      { key: "asfalt_carosabil_max20", label: "Asfalt carosabil ≤ 20 cm" },
+      { key: "asfalt_carosabil_peste20", label: "Asfalt carosabil > 20 cm" },
+      { key: "asfalt_trotuar_max20", label: "Asfalt trotuar ≤ 20 cm" },
+      { key: "asfalt_trotuar_peste20", label: "Asfalt trotuar > 20 cm" },
+      { key: "beton_max20", label: "Beton ≤ 20 cm" },
+      { key: "beton_peste20", label: "Beton > 20 cm" },
+    ],
+    rows: ["Tăiere (ml)", "Desfacere (mp)", "Necesar refacere (mp)", "Pavele / dale / piatră cubică (mp)"],
+  },
   subtraversari: {
     itemLabel: "subtraversare",
     columns: [
@@ -242,6 +260,61 @@ function fitinguriVars(meta: Meta): Record<string, string> {
     out[`fol_${slugOf(tip)}_q`] = r?.cantitate ?? "";
   }
   return out;
+}
+
+/** Coloanele de diametre din Anexa 24 MegaConstruct: racordul și conducta în care se cuplează. */
+const A24_RACORD_DN = ["32", "40", "50", "63", "75", "90", "110", "125"];
+const A24_CUPLARE_DN = ["63", "75", "90", "110", "125", "160", "180", "225", "250", "280"];
+/** Câmpurile din grila Anexei 24: o celulă goală rămâne albă (nu „..........”, care se rupe pe două rânduri). */
+export const A24_CELL_KEYS = [
+  "firida_tip", "firida_buc", "robinet_diametru", "robinet_bucati", "groapa_cuplare_buc", "tub_reiser_dn", "tub_reiser_ml",
+  "rasuflatori_sv_buc", "rasuflatori_carosabil_buc", "capac_gn_mic_buc", "capac_gn_mare_buc", "post_reglare_qmax",
+  "groapa_foraj_buc", "subtraversare_ml", "tp_ol_dn", "tp_ol_m", "tp_pe_dn", "tp_pe_ml", "tp_pvc_dn", "tp_pvc_ml",
+];
+const PAVAJ_OPS: [RegExp, string][] = [[/t[ăa]iere/i, "taiere"], [/desfacere/i, "desfacere"], [/refacere/i, "necesar_refacere"], [/pavele|dale|piatr/i, "pavele"]];
+
+/** Anexa 24 (PV cu cantități pentru racord): X-urile din grilă, materialele racordului, pavajul. */
+function anexa24Vars(meta: Meta, totalLength: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  // „Ltotala − 1m” (L stand = 1 m), cu zecimalele lungimii totale.
+  const total = num(totalLength);
+  out.a24_lungime_minus1 = total !== null ? Math.max(0, total - 1).toFixed(decimals(totalLength)) : "";
+  for (const k of A24_CELL_KEYS) out[`a24_${k}`] = filled(meta[k]) ? String(meta[k]).trim() : "";
+  const post = str(meta.post_reglare_tip).toUpperCase();
+  for (const t of ["SRM", "PRM", "PR", "PM"]) out[`a24_post_${t.toLowerCase()}`] = post === t ? "X" : "";
+  const firstNum = (v: unknown) => /\d+/.exec(str(v))?.[0] ?? "";
+  const racord = firstNum(meta.project_dn);
+  const cuplare = firstNum(meta.teu_dn);
+  for (const d of A24_RACORD_DN) out[`a24_racord_dn_${d}`] = racord === d ? "X" : "";
+  for (const d of A24_CUPLARE_DN) out[`a24_cuplare_dn_${d}`] = cuplare === d ? "X" : "";
+  const tip = str(meta.racord_tip).toLowerCase();
+  out.a24_racord_nou = tip.startsWith("nou") ? "X" : "";
+  out.a24_racord_existent = tip.startsWith("exist") ? "X" : "";
+
+  const mat = parseDossierTable(DOSSIER_TABLES.materiale, meta.materiale);
+  const pick = (re: RegExp, key: string) => {
+    const r = mat.find((m) => re.test(m.denumire));
+    out[`a24_${key}_dn`] = r?.diametru ?? "";
+    out[`a24_${key}_buc`] = r ? firstNum(r.cantitate) : "";
+  };
+  pick(/r[ae]iser|cap[ăa]t/i, "reiser");
+  pick(/muf/i, "mufe");
+  pick(/teu/i, "teu");
+
+  const pavaj = filled(meta.pavaj_racord) ? parseDossierTable(DOSSIER_TABLES.pavaj_racord, meta.pavaj_racord) : [];
+  const surfaces = DOSSIER_TABLES.pavaj_racord.columns.slice(1).map((c) => c.key);
+  for (const [re, op] of PAVAJ_OPS) {
+    const row = pavaj.find((r) => re.test(r.operatiune) && !(op === "necesar_refacere" && /desfacere/i.test(r.operatiune)));
+    for (const s of surfaces) out[`pr_${op}_${s}`] = row?.[s] ?? "";
+  }
+  return out;
+}
+
+/** „19.08.2025” → ziua / luna / anul, pentru PV-urile scrise „Încheiat astăzi, ziua … luna … anul …”. */
+function dateParts(key: string, v: unknown): Record<string, string> {
+  const m = /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/.exec(str(v));
+  if (!m) return {};
+  return { [`${key}_ziua`]: m[1].padStart(2, "0"), [`${key}_luna`]: m[2].padStart(2, "0"), [`${key}_anul`]: m[3] };
 }
 
 /** Diametrele PE tipărite ca coloane în anexele cu tronsoane (ex. Ø90 / Ø63 / Ø32). */
@@ -398,7 +471,7 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
   if (total !== null) out.project_length_km = (total / 1000).toFixed(3).replace(".", ",");
 
   for (const [key, table] of Object.entries(DOSSIER_TABLES)) {
-    if (!["suduri_tabel", "tronsoane", "subtraversari", "fitinguri_pe", "fitinguri_ol"].includes(key)) out[key] = parseDossierTable(table, meta[key]);
+    if (!["suduri_tabel", "tronsoane", "subtraversari", "fitinguri_pe", "fitinguri_ol", "pavaj_racord"].includes(key)) out[key] = parseDossierTable(table, meta[key]);
   }
   if (filled(meta.suduri_tabel)) {
     out.suduri = parseDossierTable(DOSSIER_TABLES.suduri_tabel, meta.suduri_tabel).map((r) => ({ ...r, rezultat: "ADMIS" }));
@@ -421,6 +494,7 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
     .map((text) => ({ text }));
   out.subtraversari = parseDossierTable(DOSSIER_TABLES.subtraversari, meta.subtraversari);
   Object.assign(out, fitinguriVars(meta));
+  Object.assign(out, anexa24Vars(meta, out.bransament_lungime_totala ?? meta.bransament_lungime_totala));
   // Proba de casă: implicit presiunea și durata probei de rezistență.
   if (!filled(meta.proba_casa_presiune) && !filled(meta.proba_casa_timp)) {
     if (filled(meta.proba_rezistenta_presiune)) out.proba_casa_presiune = str(String(meta.proba_rezistenta_presiune));
@@ -449,6 +523,8 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
     const v = differ && filled(meta[key]) ? str(meta[key]) : str(meta.pv_data);
     if (v) out[key] = v;
   }
+  // „ziua … luna … anul …” (MegaConstruct: lucrări ascunse, recepție, punere în funcțiune).
+  for (const key of ["pv_lucrari_ascunse_data", "data_pv_rt", "data_pif"]) Object.assign(out, dateParts(key, out[key] ?? meta[key]));
   // RTE-ul poate fi al altei firme (NEOGAS: „Executant (RTE), ACTIVITATI DE INGINERIE…”).
   if (!filled(meta.rte_firma) && filled(meta.tenant_name)) out.rte_firma = str(meta.tenant_name);
   // Durata probelor se completează în minute; documentele o scriu „1 oră și 20 min”.

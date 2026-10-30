@@ -8,7 +8,7 @@
  * numerele de registratură) se completează singure din date existente.
  */
 
-import { DOSSIER_TABLES, PV_DATES, derivedDossierVars, type DossierTableColumn } from "./dossier-data.js";
+import { A24_CELL_KEYS, DOSSIER_TABLES, PV_DATES, derivedDossierVars, type DossierTableColumn } from "./dossier-data.js";
 
 export type DossierStep = "work" | "permits" | "materials";
 /**
@@ -189,6 +189,9 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "reiser_furnizor", label: "Furnizorul reiserului", help: "ex. EUROMILLING", step: "materials", section: "Reiser și firidă", type: "text" },
   { key: "reiser_lot", label: "Lotul reiserului", help: "ex. 2373/2024", step: "materials", section: "Reiser și firidă", type: "text" },
   { key: "firida_tip", label: "Tipul firidei", help: "ex. PRM S300", step: "materials", section: "Reiser și firidă", type: "text" },
+  { key: "firida_buc", label: "Firide (buc)", step: "materials", section: "Reiser și firidă", type: "number" },
+  { key: "tub_reiser_dn", label: "Tub protecție reiser PE — Dn (mm)", step: "materials", section: "Reiser și firidă", type: "text" },
+  { key: "tub_reiser_ml", label: "Tub protecție reiser PE — ml", step: "materials", section: "Reiser și firidă", type: "number" },
   { key: "materiale", label: "Materialele racordului", help: "Câte un rând pe material: furnizor, certificat de calitate și declarație de conformitate.", step: "materials", section: "Materialele racordului", ...table("materiale") },
   { key: "materiale_conducta", label: "Materialele conductei", help: "Câte un rând pe material: diametru, cantitate, furnizor, certificat de calitate și declarație de conformitate.", step: "materials", section: "Materialele conductei", ...table("materiale_conducta") },
   { key: "materiale_srm", label: "Materialele postului de reglare", step: "materials", section: "Materialele postului de reglare", ...table("materiale_srm") },
@@ -228,6 +231,16 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "tp_pvc_dn", label: "Tub protecție PVC — Dn (mm)", step: "materials", section: "Lucrări speciale", type: "text" },
   { key: "tp_pvc_ml", label: "Tub protecție PVC — ml", step: "materials", section: "Lucrări speciale", type: "number" },
   { key: "alte_situatii", label: "Alte situații particulare", step: "materials", section: "Lucrări speciale", type: "textarea" },
+  { key: "subtraversare_ml", label: "Subtraversare (ml)", step: "materials", section: "Lucrări speciale", type: "number" },
+  // Anexa 24 MegaConstruct — PV cu cantități pentru racord și PRM.
+  { key: "racord_tip", label: "Racordul este", step: "materials", section: "Cantități (Anexa 24)", type: "select", options: ["Nou", "Existent"], default: "Nou" },
+  { key: "rasuflatori_sv_buc", label: "Răsuflători spațiu verde (buc)", step: "materials", section: "Cantități (Anexa 24)", type: "number" },
+  { key: "rasuflatori_carosabil_buc", label: "Răsuflători carosabil (buc)", step: "materials", section: "Cantități (Anexa 24)", type: "number" },
+  { key: "capac_gn_mic_buc", label: "Capace GN mici (buc)", step: "materials", section: "Cantități (Anexa 24)", type: "number" },
+  { key: "capac_gn_mare_buc", label: "Capace GN mari (buc)", step: "materials", section: "Cantități (Anexa 24)", type: "number" },
+  { key: "post_reglare_tip", label: "Postul de reglare-măsurare", step: "materials", section: "Cantități (Anexa 24)", type: "select", options: ["SRM", "PRM", "PR", "PM"] },
+  { key: "post_reglare_qmax", label: "Qmax", step: "materials", section: "Cantități (Anexa 24)", type: "number", unit: "Nmc/h" },
+  { key: "pavaj_racord", label: "Desfacere și refacere pavaj", help: "Metrii pe fiecare tip de suprafață, pentru tăiere, desfacere, refacere și pavele.", step: "materials", section: "Cantități (Anexa 24)", ...table("pavaj_racord") },
   { key: "proba_casa_presiune", label: "Presiunea de probă", help: "Lasă gol: se ia presiunea probei de rezistență.", step: "materials", section: "Proba de casă", type: "number", unit: PRESSURE_UNIT },
   { key: "proba_casa_timp", label: "Durata probei", help: "Lasă gol: se ia durata probei de rezistență.", step: "materials", section: "Proba de casă", type: "number", unit: "minute" },
   { key: "proba_etanseitate_presiune", label: "Presiunea de probă", step: "materials", section: "Proba de etanșeitate", type: "number", unit: PRESSURE_UNIT },
@@ -268,6 +281,25 @@ const SUDURI_TABEL_ONLY = ["sudor", "procedeu", "omologare"];
 const ROLE_KEY = new RegExp(`^(${DOSSIER_ROLES.join("|")})_([a-z_]+)$`);
 
 const PV_DATE_KEYS = new Set(PV_DATES.map((d) => d.key));
+/** Celule calculate → câmpul din care vin (ca pagina Dosare să-l ceară). */
+const DERIVED_SOURCE: [RegExp, string | ((m: RegExpExecArray) => string)][] = [
+  [/^a24_racord_dn_\d+$/, "project_dn"],
+  [/^a24_cuplare_dn_\d+$/, "teu_dn"],
+  [/^a24_racord_(nou|existent)$/, "racord_tip"],
+  [/^a24_lungime_minus1$/, "bransament_lungime_totala"],
+  [new RegExp(`^a24_(${A24_CELL_KEYS.join("|")})$`), (m) => m[1]],
+  [/^a24_post_(srm|prm|pr|pm)$/, "post_reglare_tip"],
+  [/^a24_(reiser|mufe|teu)_(dn|buc)$/, "materiale"],
+  [/^pr_[a-z0-9_]+$/, "pavaj_racord"],
+  [/^(.+_data|data_[a-z_]+)_(ziua|luna|anul)$/, (m) => m[1]],
+];
+function derivedSource(key: string): string | null {
+  for (const [re, src] of DERIVED_SOURCE) {
+    const m = re.exec(key);
+    if (m) return typeof src === "string" ? src : src(m);
+  }
+  return null;
+}
 const BY_KEY = new Map<string, DossierField>();
 for (const f of DOSSIER_FIELDS) for (const k of [f.key, ...(f.aliases ?? [])]) BY_KEY.set(k, f);
 
@@ -332,7 +364,7 @@ export function fieldsForPlaceholders(docs: { name: string; placeholders: Set<st
       // Tabelul de suduri și totalul vin din „Sudurile executate”: tabelul complet
       // (NEOGAS: sudor, procedeu, omologare) sau doar lista codurilor (Distrigaz).
       const sudKey = SUDURI_TABEL_ONLY.some((c) => doc.placeholders.has(c)) ? "suduri_tabel" : "suduri_lista";
-      const field = BY_KEY.get(key === "suduri" || key === "total_suduri" ? sudKey : key);
+      const field = BY_KEY.get(key === "suduri" || key === "total_suduri" ? sudKey : derivedSource(key) ?? key);
       if (field) {
         const e = fieldDocs.get(field.key) ?? { field, docs: new Set() };
         e.docs.add(doc.name);

@@ -57,4 +57,15 @@ describe("renderDocx — spațiile de nume pentru imagini", () => {
     expect(ids).toHaveLength(3);
     expect(new Set(ids).size).toBe(3);
   });
+
+  it("un subsol gol (<w:ftr …/>) rămâne XML valid după adăugarea declarațiilor", () => {
+    const zip = new PizZip(docx("{%a}"));
+    zip.file("word/footer1.xml", '<?xml version="1.0"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>');
+    zip.file("word/_rels/document.xml.rels", '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>');
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+    const out = renderDocx(zip.generate({ type: "nodebuffer" }), { a: "x" }, { x: png });
+    const footer = new PizZip(out).file("word/footer1.xml")!.asText();
+    expect(footer).toMatch(/<w:ftr [^>]*xmlns:r="[^"]+"[^>]*\/>$/);
+    expect(footer).not.toContain('/ xmlns');
+  });
 });

@@ -77,7 +77,8 @@ function ensureImageNamespaces(zip: PizZip): void {
     if (!m) continue;
     const missing = IMAGE_NAMESPACES.filter(([p]) => !new RegExp(`\\sxmlns:${p}=`).test(m[0]));
     if (!missing.length) continue;
-    const root = m[0].replace(/>$/, missing.map(([p, uri]) => ` xmlns:${p}="${uri}"`).join("") + ">");
+    // Rădăcina poate fi goală și auto-închisă (`<w:ftr …/>`, subsol gol): declarațiile intră înainte de `/>`.
+    const root = m[0].replace(/\s*(\/?)>$/, (_, slash) => missing.map(([p, uri]) => ` xmlns:${p}="${uri}"`).join("") + `${slash}>`);
     zip.file(name, xml.slice(0, m.index) + root + xml.slice(m.index + m[0].length));
   }
 }

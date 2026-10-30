@@ -24,6 +24,27 @@ describe("dossier fields", () => {
     expect(plan.usesSudoriTable).toBe(true);
   });
 
+  it("Anexa 24 MegaConstruct: câmpurile noi au secțiunea lor, celulele calculate nu se cer", () => {
+    const plan = fieldsForPlaceholders([
+      {
+        name: "Anexa 24",
+        placeholders: new Set([
+          "racord_tip", "firida_buc", "tub_reiser_dn", "tub_reiser_ml", "rasuflatori_sv_buc", "rasuflatori_carosabil_buc",
+          "capac_gn_mic_buc", "capac_gn_mare_buc", "post_reglare_tip", "post_reglare_qmax", "subtraversare_ml",
+          "a24_racord_dn_63", "a24_cuplare_dn_125", "a24_racord_nou", "a24_reiser_dn", "pr_taiere_spatiu_verde",
+          "pv_lucrari_ascunse_data_ziua", "data_pif_anul", "a24_lungime_minus1", "a24_post_prm", "a24_tp_pvc_ml", "a24_firida_tip",
+        ]),
+      },
+    ]);
+    const keys = plan.fields.map((f) => f.field.key);
+    expect(keys.sort()).toEqual(
+      ["capac_gn_mare_buc", "capac_gn_mic_buc", "firida_buc", "pavaj_racord", "post_reglare_qmax", "post_reglare_tip", "racord_tip",
+        "rasuflatori_carosabil_buc", "rasuflatori_sv_buc", "subtraversare_ml", "tub_reiser_dn", "tub_reiser_ml",
+        "pv_lucrari_ascunse_data", "pv_data", "pv_date_diferite", "data_pif", "materiale", "project_dn", "teu_dn", "bransament_lungime_totala", "tp_pvc_ml", "firida_tip"].sort(),
+    );
+    expect(plan.fields.every((f) => f.field.section !== "Alte câmpuri")).toBe(true);
+  });
+
   it("pressure unit depends on category", () => {
     const f = fieldForKey("proba_rezistenta_presiune")!;
     expect(unitFor(f, "DOSAR_ISCIR")).toBe("bar");

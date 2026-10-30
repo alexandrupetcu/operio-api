@@ -1491,6 +1491,24 @@ def op_drop_trailing_empty_rows(doc: Docx, op, log):
     log.append(f"dropped {n} empty rows at the bottom of table {op['table']}")
 
 
+def op_drop_empty_before_table(doc: Docx, op, log):
+    """Remove the empty body paragraphs right above the n-th top-level table (and, with
+    `alsoBlankLines`, the ones holding only spaces anywhere above it): the room keeps a
+    one-page form on one page after the A4 / 10 mm margin normalisation."""
+    body = doc.part("word/document.xml").find(w("body"))
+    tables = [k for k in body if k.tag == w("tbl")]
+    tbl = tables[op.get("table", 1) - 1]
+    n = 0
+    for k in list(body):
+        if k is tbl:
+            break
+        if k.tag == w("p") and not visible_text(k).strip() and k.find(f".//{w('drawing')}") is None \
+                and k.find(f".//{w('pict')}") is None and k.find(f".//{w('sectPr')}") is None:
+            body.remove(k)
+            n += 1
+    log.append(f"{n} empty paragraphs above table {op.get('table', 1)} removed")
+
+
 def op_python(doc: Docx, op, log, member, ctx):
     fn = HOOKS[op["hook"]]
     fn(doc, op, log, member, ctx)
@@ -1499,6 +1517,7 @@ def op_python(doc: Docx, op, log, member, ctx):
 OPS = {
     "collapse": op_collapse,
     "delete_paragraph": op_delete_paragraph,
+    "drop_empty_before_table": op_drop_empty_before_table,
     "delete_range": op_delete_range,
     "vml_fallback": op_vml_fallback,
     "numbering_to_text": op_numbering_to_text,

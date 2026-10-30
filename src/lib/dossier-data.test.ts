@@ -359,3 +359,53 @@ describe("derivedDossierVars — MegaConstruct conductă (etape, Anexa 25)", () 
     expect(ter[0]).toMatchObject({ operatiune: "Săpătură șanț conductă", lungime: "67", spatiu_verde: "7", asfalt_carosabil: "60" });
   });
 });
+
+describe("MegaConstruct — Anexa 24 (PV cu cantități pentru racord) și datele PV-urilor", () => {
+  it("X sub diametrul racordului și sub conducta în care se cuplează; racord nou / existent", () => {
+    const v = derivedDossierVars({ project_dn: "63", teu_dn: "125 / 63", racord_tip: "Nou" });
+    expect(v.a24_racord_dn_63).toBe("X");
+    expect(v.a24_racord_dn_32).toBe("");
+    expect(v.a24_cuplare_dn_125).toBe("X");
+    expect(v.a24_cuplare_dn_63).toBe("");
+    expect(v.a24_racord_nou).toBe("X");
+    expect(v.a24_racord_existent).toBe("");
+  });
+
+  it("reiserul, mufele și teul vin din tabelul de materiale (Dn + bucăți)", () => {
+    const v = derivedDossierVars({
+      materiale: ["Raiser PE-OL | 63 | 1buc x 1.3ml | EUROMILLING", "Mufa PE | 63 | 2 | PACEGO", "Teu BR. PE | 125 / 63 | 1 | GEORG FISCHER"].join("\n"),
+    });
+    expect([v.a24_reiser_dn, v.a24_reiser_buc]).toEqual(["63", "1"]);
+    expect([v.a24_mufe_dn, v.a24_mufe_buc]).toEqual(["63", "2"]);
+    expect([v.a24_teu_dn, v.a24_teu_buc]).toEqual(["125 / 63", "1"]);
+  });
+
+  it("tabelul de pavaj devine celule fixe pe operațiune și suprafață", () => {
+    const v = derivedDossierVars({ pavaj_racord: ["Tăiere (ml) | 2", "Desfacere (mp) | 2", "Necesar refacere (mp) | 2 | | | 3"].join("\n") });
+    expect(v.pr_taiere_spatiu_verde).toBe("2");
+    expect(v.pr_necesar_refacere_spatiu_verde).toBe("2");
+    expect(v.pr_necesar_refacere_dale_pavele).toBe("3");
+    expect(v.pr_pavele_spatiu_verde).toBe("");
+  });
+
+  it("celulele grilei rămân albe când câmpul e gol (nu „..........”)", () => {
+    const v = derivedDossierVars({ tub_reiser_dn: "", capac_gn_mic_buc: "2", tp_ol_dn: "" });
+    expect(v.a24_tub_reiser_dn).toBe("");
+    expect(v.a24_capac_gn_mic_buc).toBe("2");
+    expect(v.a24_tp_ol_dn).toBe("");
+    expect(v.a24_firida_tip).toBe("");
+  });
+
+  it("Ltotală − 1 m și X-ul postului de reglare", () => {
+    const v = derivedDossierVars({ project_length: "2.00", bransament_lungime_reiser: "1.30", post_reglare_tip: "PRM" });
+    expect(v.a24_lungime_minus1).toBe("2.30");
+    expect([v.a24_post_srm, v.a24_post_prm, v.a24_post_pr, v.a24_post_pm]).toEqual(["", "X", "", ""]);
+  });
+
+  it("ziua / luna / anul pentru PV-urile scrise „ziua … luna … anul …”", () => {
+    const v = derivedDossierVars({ pv_data: "19.08.2025", data_pif: "20.08.2025", data_pv_rt: "19.08.2025" });
+    expect([v.pv_lucrari_ascunse_data_ziua, v.pv_lucrari_ascunse_data_luna, v.pv_lucrari_ascunse_data_anul]).toEqual(["19", "08", "2025"]);
+    expect([v.data_pif_ziua, v.data_pif_luna, v.data_pif_anul]).toEqual(["20", "08", "2025"]);
+    expect(v.data_pv_rt_ziua).toBe("19");
+  });
+});
