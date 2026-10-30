@@ -208,6 +208,8 @@ export async function sendFisaRegisteredEmail(opts: {
   registeredAt: Date;
   address: string | null;
   pdf?: { filename: string; buffer: Buffer } | null;
+  /** Restul documentelor vizitei (PV, buletin, contract) — clientul le primește abia acum. */
+  extraPdfs?: { filename: string; buffer: Buffer }[];
   /** `iscir` = raportul reviziei de centrală (nu fișa ANRE a instalației). */
   document?: "fisa" | "iscir";
 }): Promise<void> {
@@ -233,7 +235,7 @@ export async function sendFisaRegisteredEmail(opts: {
       <h2 style="color:#1a1a1a;margin-bottom:16px">${heading}</h2>
       <p>Bună ziua, <strong>${escapeHtml(opts.clientName)}</strong>,</p>
       ${body}
-      ${opts.pdf ? `<p>Găsiți atașat exemplarul dumneavoastră. Vă recomandăm să îl păstrați împreună cu documentele ${iscir ? "centralei" : "instalației"}.</p>` : ""}
+      ${opts.pdf ? `<p>Găsiți atașat exemplarul dumneavoastră${opts.extraPdfs?.length ? ", împreună cu celelalte documente ale vizitei" : ""}. Vă recomandăm să le păstrați împreună cu documentele ${iscir ? "centralei" : "instalației"}.</p>` : ""}
       <p style="color:#888;font-size:12px;margin-top:24px">${footer}</p>
     </div>
   `;
@@ -246,7 +248,7 @@ export async function sendFisaRegisteredEmail(opts: {
       : `Fișa de ${opts.workLabel} — înregistrată la ${os} nr. ${opts.registrationNumber}`,
     html,
     attachments: opts.pdf
-      ? [{ filename: opts.pdf.filename, content: opts.pdf.buffer, contentType: "application/pdf" }]
+      ? [opts.pdf, ...(opts.extraPdfs ?? [])].map((a) => ({ filename: a.filename, content: a.buffer, contentType: "application/pdf" }))
       : undefined,
   });
   console.log(`[email] OS-registration email sent to ${mailDomain(opts.to)} — messageId: ${info.messageId}`);

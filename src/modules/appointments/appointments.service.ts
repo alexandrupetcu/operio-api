@@ -371,7 +371,7 @@ export async function regenerateInstalatieDocuments(
     appointment.clientId,
     appointment.installationId,
     report,
-    (report.clientSignature as { clientEmail?: string } | undefined)?.clientEmail ?? undefined,
+    // Regenerarea nu trimite nimic clientului — documentele pleacă după numărul de la OS.
   );
   await enqueueGenerateJobs(jobs);
   return { status: "queued" as const };
@@ -591,8 +591,8 @@ async function finalizeInstalatie(
     if (clientId) {
       jobs.push(
         ...(await prepareInstalatieDocuments(
+          // Fără e-mail la finalizare: setul ajunge la client după numărul de la OS.
           tx, tenantId, appointmentId, appointment.type, clientId, installationId, report,
-          sigData?.clientEmail ?? undefined
         )),
       );
     }
@@ -1385,7 +1385,8 @@ async function finalizeInner(
       // Generate ISCIR only when BOTH sources are available (manual report + PDF from email)
       // If PDF hasn't arrived yet, email-ingestion worker will trigger generation when it does
       if (revisionId && revisionHasPdfData) {
-        jobs.push(...(await prepareIscirDocument(tx, tenantId, revisionId, sigData?.clientEmail ?? undefined)));
+        // Raportul ISCIR ajunge la client după numărul de la OS (e-mailul de înregistrare).
+        jobs.push(...(await prepareIscirDocument(tx, tenantId, revisionId)));
       }
 
       // Auto-generate GDPR document if client consented AND doesn't already have one

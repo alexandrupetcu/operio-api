@@ -34,6 +34,18 @@ export const HAS_REPORT_WHERE = {
 
 const NO_REPORT_MESSAGE = "Vizita a fost închisă fără raport (revenire / programare nouă) — completează întâi raportul";
 
+/**
+ * Restul documentelor vizitei (PV, buletin, contract), gata generate, care pleacă la
+ * client împreună cu fișa / raportul înregistrat la OS — înainte de număr nu primește nimic.
+ */
+export async function osRegistrationAttachments(db: PrismaClient, tenantId: string, appointmentId: string, excludeDocumentId: string) {
+  return db.document.findMany({
+    where: { tenantId, appointmentId, status: "COMPLETED", s3Key: { endsWith: ".pdf" }, id: { not: excludeDocumentId } },
+    select: { id: true, name: true, s3Key: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
 export function clientDisplayName(c: { companyName: string | null; firstName: string | null; lastName: string | null } | null): string {
   if (!c) return "—";
   return c.companyName || [c.firstName, c.lastName].filter(Boolean).join(" ") || "—";

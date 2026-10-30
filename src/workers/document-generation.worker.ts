@@ -3,7 +3,7 @@ import { legacyCredentialsFromCerts } from "../lib/certifications.js";
 import { pathToFileURL } from "node:url";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { redisConnection } from "../config/redis.js";
-import { getFileStream, uploadFile, getPresignedUrl } from "../lib/s3.js";
+import { getFileStream, getFileBuffer, uploadFile, getPresignedUrl } from "../lib/s3.js";
 import { renderDocx, type ImageRenderOptions } from "../lib/docx-engine.js";
 import PizZip from "pizzip";
 import { ensureBucket } from "../lib/s3.js";
@@ -1803,7 +1803,7 @@ async function processJob(job: Job<DocumentJobData>) {
     // art. 9 alin. 7). Flag-ul e pus de setOsRegistration; îl consumăm o singură dată.
     if (docCtx?.osRegistrationNotify && docCtx?.appointmentId && contentType === "application/pdf") {
       try {
-        await notifyClientOsRegistration(tenantId, docCtx.appointmentId as string, template.name || "Fișă de evidență", outputBuffer);
+        await notifyClientOsRegistration(tenantId, docCtx.appointmentId as string, documentId, template.name || "Fișă de evidență", outputBuffer);
       } catch (err) {
         console.error("[doc-worker] OS-registration client email failed:", err);
       } finally {
@@ -1974,8 +1974,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 }
 
 
-/** Trimite clientului fișa cu numărul de înregistrare de la OS și reține momentul. */
-async function notifyClientOsRegistration(tenantId: string, appointmentId: string, docName: string, pdf: Buffer) {
+/**
+ * Trimite clientului fișa (raportul ISCIR) cu numărul de la OS, plus restul documentelor
+ * vizitei — până la număr clientul nu primește nimic. Reține momentul trimiterii.
+ */
+async function notifyClientOsRegistration(tenantId: string, appointmentId: string, documentId: string, docName: string, pdf: Buffer) {
   const appt = await prisma.appointment.findFirst({
     where: { id: appointmentId, tenantId },
     include: {
@@ -1987,7 +1990,16 @@ async function notifyClientOsRegistration(tenantId: string, appointmentId: strin
   });
   if (!appt?.osRegistrationNumber || !appt.client?.email) return;
   const { sendFisaRegisteredEmail } = await import("../lib/email.js");
-  const { WORK_LABEL, clientDisplayName } = await import("../modules/appointments/os-registration.js");
+  const { WORK_LABEL, clientDisplayName, osRegistrationAttachments } = await import("../modules/appointments/os-registration.js");
+  const extraPdfs: { filename: string; buffer: Buffer }[] = [];
+  for (const d of await osRegistrationAttachments(prisma, tenantId, appointmentId, documentId)) {
+    if (!d.s3Key || !assertTenantKey(tenantId, d.s3Key, "OS attachment")) continue;
+    try {
+      extraPdfs.push({ filename: `${d.name}.pdf`, buffer: await getFileBuffer(d.s3Key) });
+    } catch (err) {
+      console.error("[doc-worker] OS attachment download failed:", d.id, err);
+    }
+  }
   await sendFisaRegisteredEmail({
     to: appt.client.email,
     clientName: clientDisplayName(appt.client),
@@ -1999,6 +2011,7 @@ async function notifyClientOsRegistration(tenantId: string, appointmentId: strin
     registeredAt: appt.osRegisteredAt ?? new Date(),
     address: appt.clientAddress?.address ?? null,
     pdf: { filename: `${docName} - nr. OS ${appt.osRegistrationNumber}.pdf`, buffer: pdf },
+    extraPdfs,
   });
   await prisma.appointment.update({ where: { id: appointmentId }, data: { osClientNotifiedAt: new Date() } });
 }
