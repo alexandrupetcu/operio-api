@@ -93,10 +93,16 @@ describe("derivedDossierVars — dosarul NEOGAS (contract 28.10, partea a doua)"
   it("tabelul sudurilor completat → bucla suduri[] cu sudor, autorizație, procedeu, omologare", () => {
     const v = derivedDossierVars({ suduri_tabel: "S1 | Ivan Florin | 567380 | 111/BW | 89C-1150\nS3-46 | Mihaescu Florin | 568856 | SRM/SW | 052-946 / 04.09.2024", suduri_lista: "S79" });
     expect(v.suduri).toEqual([
-      { nr_crt: "1", cod: "S1", sudor: "Ivan Florin", autorizatie: "567380", procedeu: "111/BW", omologare: "89C-1150", rezultat: "ADMIS" },
-      { nr_crt: "2", cod: "S3-46", sudor: "Mihaescu Florin", autorizatie: "568856", procedeu: "SRM/SW", omologare: "052-946 / 04.09.2024", rezultat: "ADMIS" },
+      { nr_crt: "1", cod: "S1", sudor: "Ivan Florin", autorizatie: "567380", procedeu: "111/BW", omologare: "89C-1150", aparat: "", rezultat: "ADMIS" },
+      { nr_crt: "2", cod: "S3-46", sudor: "Mihaescu Florin", autorizatie: "568856", procedeu: "SRM/SW", omologare: "052-946 / 04.09.2024", aparat: "", rezultat: "ADMIS" },
     ]);
     expect(v.total_suduri).toBe("2");
+  });
+
+  it("fiecare sudură are aparatul ei; fără aparat pe rând se ia aparatul dosarului", () => {
+    const v = derivedDossierVars({ suduri_tabel: "S1 | Ivan | 1 | SRM-SW | 89C | ZEEN 800 #0026\nS2 | Ivan | 1 | SRS-SS | 89C", aparat_sudura: "Hürner AF 160" });
+    expect((v.suduri as { aparat: string }[]).map((r) => r.aparat)).toEqual(["ZEEN 800 #0026", "Hürner AF 160"]);
+    expect((v.suduri as { procedeu: string }[]).map((r) => r.procedeu)).toEqual(["SRM-SW", "SRS-SS"]);
   });
 
   it("lungimea în km pentru anexa PVRTL: 5.00 m → „0,005”", () => {

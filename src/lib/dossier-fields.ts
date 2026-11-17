@@ -276,8 +276,6 @@ export const ASSIGNMENT_FIELDS = ["decizie_nr", "decizie_data"] as const;
 const AUTO_KEY = /^(tenant_|client_|current_|nr_inregistrare|data_inregistrare|project_(type|status|street)$|project_drawing(_mic)?$|project_sudori$|project_length_km$|teava_(cc|dc)_an$|conducta_lungime_totala$|conducta_dn_(lungimi_)?text$|lungimi_dn$|lungime_dn_[a-z0-9_]+$|ldn_[0-9_]+$|proba_(casa|rezistenta|etanseitate)_durata_text$|dn_[12]$|lungime_[12]$|suduri_coduri_text$|tronsoane_text$|documente_materiale_linii$|lungime_total_(pe|ol)$|etape$|nr_etapa$|sufix$|lungime_etapa$|dn_etapa$|tronsoane_etapa_text$|fpe_[a-z0-9_]+$|fol_[a-z0-9_]+$|bransament_presiune_abr$|conducta_stradala_dn$|adresa_detalii_text$|nr_crt$|sudor_(ol|pe)_|sudori_autorizatii$|suduri$|total_suduri$|cod$|rezultat$|year$)/;
 /** Coloanele tabelelor (și ale buclei `sudori_autorizatii`) — nu se cer separat. */
 const TABLE_COLUMN_KEYS = new Set([...Object.values(DOSSIER_TABLES).flatMap((t) => t.columns.map((c) => c.key)), "nume", "text"]);
-/** Coloane care există doar în tabelul sudurilor NEOGAS — o buclă `suduri` care le folosește cere tabelul. */
-const SUDURI_TABEL_ONLY = ["sudor", "procedeu", "omologare"];
 const ROLE_KEY = new RegExp(`^(${DOSSIER_ROLES.join("|")})_([a-z_]+)$`);
 
 const PV_DATE_KEYS = new Set(PV_DATES.map((d) => d.key));
@@ -363,7 +361,9 @@ export function fieldsForPlaceholders(docs: { name: string; placeholders: Set<st
       }
       // Tabelul de suduri și totalul vin din „Sudurile executate”: tabelul complet
       // (NEOGAS: sudor, procedeu, omologare) sau doar lista codurilor (Distrigaz).
-      const sudKey = SUDURI_TABEL_ONLY.some((c) => doc.placeholders.has(c)) ? "suduri_tabel" : "suduri_lista";
+      // Sudurile se introduc mereu ca tabel — câte una, cu sudorul, procedeul și aparatul ei
+      // (cererea clientului, 11.2026); lista veche de coduri („S79, S80”) se citește în continuare.
+      const sudKey = "suduri_tabel";
       const field = BY_KEY.get(key === "suduri" || key === "total_suduri" ? sudKey : derivedSource(key) ?? key);
       if (field) {
         const e = fieldDocs.get(field.key) ?? { field, docs: new Set() };

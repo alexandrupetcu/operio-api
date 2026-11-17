@@ -122,11 +122,11 @@ describe("dossier fields", () => {
 });
 
 describe("dossier fields — dosarele de branșament (contract 28.10)", () => {
-  it("tabelul de suduri cere „Sudurile executate”; coloanele lui și totalul se completează singure", () => {
+  it("tabelul de suduri cere „Sudurile executate” ca tabel (câte o sudură, cu procedeu și aparat); totalul se completează singur", () => {
     const plan = fieldsForPlaceholders([
       { name: "Tabel suduri", placeholders: new Set(["#suduri", "nr_crt", "cod", "rezultat", "/suduri", "total_suduri"]) },
     ]);
-    expect(plan.fields.map((f) => f.field.key)).toEqual(["suduri_lista"]);
+    expect(plan.fields.map((f) => f.field.key)).toEqual(["suduri_tabel"]);
     expect(plan.fields[0].docs).toEqual(["Tabel suduri"]);
   });
 

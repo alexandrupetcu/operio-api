@@ -207,6 +207,8 @@ export const DOSSIER_TABLES: Record<string, DossierTable> = {
       { key: "autorizatie", label: "Poanson / autorizație" },
       { key: "procedeu", label: "Tip / procedeu (ex. SRM/SW)" },
       { key: "omologare", label: "Fișa de omologare a procedeului" },
+      // La final, ca rândurile salvate înainte (fără aparat) să-și păstreze coloanele.
+      { key: "aparat", label: "Aparatul de sudură (marcă, serie)" },
     ],
   },
 };
@@ -474,7 +476,12 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
     if (!["suduri_tabel", "tronsoane", "subtraversari", "fitinguri_pe", "fitinguri_ol", "pavaj_racord"].includes(key)) out[key] = parseDossierTable(table, meta[key]);
   }
   if (filled(meta.suduri_tabel)) {
-    out.suduri = parseDossierTable(DOSSIER_TABLES.suduri_tabel, meta.suduri_tabel).map((r) => ({ ...r, rezultat: "ADMIS" }));
+    // Fiecare sudură cu procedeul și aparatul ei; fără aparat pe rând, aparatul dosarului.
+    out.suduri = parseDossierTable(DOSSIER_TABLES.suduri_tabel, meta.suduri_tabel).map((r) => ({
+      ...r,
+      aparat: r.aparat || str(meta.aparat_sudura),
+      rezultat: "ADMIS",
+    }));
   } else {
     const codes = str(meta.suduri_lista)
       .split(/[,;\n]+/)
