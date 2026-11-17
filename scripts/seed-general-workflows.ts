@@ -3,7 +3,7 @@
  *
  *   - „Branșament gaze naturale” (tip `bransament`, orice distribuitor): certificat de urbanism →
  *     avize → autorizație de construire → schița → carte tehnică (setul distribuitorului
- *     proiectului) → cu participare ISC: date tehnice ISCIR → Dosar ISCIR.
+ *     proiectului) → cu participare ISC: date tehnice ISC → Dosar ISC.
  *   - „Conductă gaze naturale” (tip `conducta`): aceiași pași, apoi cartea tehnică de conductă.
  *
  * Se construiesc din vechiul `bransament_gaz_distrigaz` (pașii, formularele, termenele, acțiunile),
@@ -38,14 +38,14 @@ const PLANS: { code: string; name: string; description: string; projectTypeCode:
   {
     code: "bransament_gaze_naturale",
     name: "Branșament gaze naturale",
-    description: "Workflow general pentru branșamente: urbanism, avize, autorizație de construire, schiță, carte tehnică (setul distribuitorului proiectului), Dosar ISCIR la participare ISC.",
+    description: "Workflow general pentru branșamente: urbanism, avize, autorizație de construire, schiță, carte tehnică (setul distribuitorului proiectului), Dosar ISC la participare ISC.",
     projectTypeCode: "bransament",
     steps: [
       ...COMMON.map((code) => ({ code })),
       { code: "participare_isc", from: "generare_carte_tehnica", name: "Participare ISC?", isTerminal: false, configJson: { conditionField: "project.participareISC" } },
       { code: "carte_tehnica_isc", from: "step_mpl8jtky", name: "Generare Carte Tehnică Branșament", configJson: { dossierCategory: "CARTE_BRANSAMENT" } },
       { code: "date_tehnice_iscir" },
-      { code: "generare_dosar_isc", name: "Generare Dosar ISCIR", configJson: { dossierCategory: "DOSAR_ISCIR" } },
+      { code: "generare_dosar_isc", name: "Generare Dosar ISC", configJson: { dossierCategory: "DOSAR_ISCIR" } },
       { code: "carte_tehnica", from: "step_mpl8lnp5", name: "Generare Carte Tehnică Branșament", configJson: { dossierCategory: "CARTE_BRANSAMENT" } },
     ],
     transitions: [

@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 
 /**
  * Tipurile de proiect de bază ale fiecărei firme. Dosarele (Carte Branșament /
- * Conductă / ISCIR) și asistentul de proiect le caută după `code`, deci orice firmă
+ * Conductă / ISC) și asistentul de proiect le caută după `code`, deci orice firmă
  * trebuie să le aibă — nu doar cea din seed. Aceeași listă e în migrarea
  * `20261021090000_default_project_types` (firmele existente).
  */
@@ -10,7 +10,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 export const DEFAULT_PROJECT_TYPES = [
   { code: "bransament", name: "Branșament Gaz", description: "Proiecte de branșament la rețeaua de gaze naturale" },
   { code: "conducta", name: "Extindere Conductă", description: "Proiecte de extindere a conductei de gaze" },
-  { code: "dosar_iscir", name: "Dosar ISCIR", description: "Dosare pentru inspecții ISCIR" },
+  { code: "dosar_iscir", name: "Dosar ISC", description: "Dosarul de șantier pentru ISC (Inspectoratul de Stat în Construcții)" },
 ] as const;
 
 /** Creează tipurile lipsă; cele existente (și eventual redenumite de firmă) rămân neatinse. */

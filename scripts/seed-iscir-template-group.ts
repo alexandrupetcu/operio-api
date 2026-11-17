@@ -17,7 +17,7 @@ import { uploadFile, ensureBucket, deleteFile } from "../src/lib/s3.js";
 const prisma = new PrismaClient();
 
 const CATEGORY_CODE = "DOSAR_ISCIR";
-const GROUP_NAME = "Dosar ISCIR Template";
+const GROUP_NAME = "Dosar ISC";
 const FOLDER = join(process.cwd(), "..", "documente", "Dosar ISCIR Template");
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 

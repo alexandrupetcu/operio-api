@@ -1,5 +1,5 @@
 /**
- * Insert a "Date tehnice ISCIR" human_task (with a form schema for the measured
+ * Insert a "Date tehnice ISC" human_task (with a form schema for the measured
  * field values) immediately BEFORE the "Generare Dosar ISC" document_generation
  * step, and point that step at the "Dosar ISCIR Template" DOCX group.
  *
@@ -62,7 +62,7 @@ async function main() {
 
   // 2. Point the generation step at the populated group.
   const group = await prisma.documentTemplate.findFirst({
-    where: { tenantId: null, type: "group", name: "Dosar ISCIR Template" },
+    where: { tenantId: null, type: "group", name: "Dosar ISC" },
   });
   if (group) {
     await prisma.workflowStep.update({
@@ -71,10 +71,10 @@ async function main() {
     });
     console.log(`Generare Dosar ISC → templateRef = ${group.id}`);
   } else {
-    console.warn('Group "Dosar ISCIR Template" not found — run seed-iscir-template-group.ts first.');
+    console.warn('Group "Dosar ISC" not found — run seed-iscir-template-group.ts first.');
   }
 
-  // 3. Create the "Date tehnice ISCIR" step (idempotent).
+  // 3. Create the "Date tehnice ISC" step (idempotent).
   let newStep = await prisma.workflowStep.findFirst({
     where: { workflowDefinitionId: defId, code: NEW_STEP_CODE },
   });
@@ -84,7 +84,7 @@ async function main() {
         tenantId: genStep.tenantId,
         workflowDefinitionId: defId,
         code: NEW_STEP_CODE,
-        name: "Date tehnice ISCIR",
+        name: "Date tehnice ISC",
         stepType: "human_task",
         orderIndex: genStep.orderIndex,
         isStart: false,
@@ -93,13 +93,13 @@ async function main() {
         formSchemaJson: formSchema as unknown as Prisma.InputJsonValue,
       },
     });
-    console.log(`Created step "Date tehnice ISCIR" (${newStep.id})`);
+    console.log(`Created step "Date tehnice ISC" (${newStep.id})`);
   } else {
     await prisma.workflowStep.update({
       where: { id: newStep.id },
       data: { formSchemaJson: formSchema as unknown as Prisma.InputJsonValue },
     });
-    console.log(`Step "Date tehnice ISCIR" exists (${newStep.id}) — form schema refreshed`);
+    console.log(`Step "Date tehnice ISC" exists (${newStep.id}) — form schema refreshed`);
   }
 
   // 4. Rewire transitions: <pred> → genStep  becomes  <pred> → newStep → genStep.

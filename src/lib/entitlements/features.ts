@@ -11,7 +11,7 @@ export const FEATURES = {
   "projects.workflows": "Proiecte cu workflow pe distribuitor",
   "projects.permits": "Avize în paralel + extragere din Certificatul de Urbanism (AI)",
   "projects.drawings": "Schițe tehnice",
-  "documents.dossiers": "Carte Branșament / Carte Conductă / Dosar ISCIR",
+  "documents.dossiers": "Carte Branșament / Carte Conductă / Dosar ISC",
   "integrations.email": "Ingestie e-mail (Gmail)",
   "admin.workflow-builder": "Builder vizual de workflow",
 } as const;

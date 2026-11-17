@@ -1,5 +1,5 @@
 /**
- * Registrul câmpurilor de dosar (Carte Branșament / Carte Conductă / Dosar ISCIR):
+ * Registrul câmpurilor de dosar (Carte Branșament / Carte Conductă / Dosar ISC):
  * fiecare variabilă din șabloane pe care o completează omul, cu o etichetă pe
  * înțelesul unui operator, pasul și secțiunea în care apare în pagina „Dosare”.
  *
@@ -172,12 +172,12 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "pv_tub_protectie_nr", label: "PV de lucrări ascunse — tub de protecție — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
   { key: "pv_receptie_calitativa_nr", label: "PV de recepție calitativă a montării — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
   { key: "raport_lucrari_nr", label: "Raportul de lucrări executate — nr.", step: "permits", section: "Numerele documentelor", type: "text" },
-  { key: "nr_convocare_faza", label: "Nr. convocare pentru faza determinantă", step: "permits", section: "ISCIR", type: "text" },
+  { key: "nr_convocare_faza", label: "Nr. convocare pentru faza determinantă", step: "permits", section: "ISC", type: "text" },
   { key: "fisa_racord_nr", label: "Fișa tehnică a racordului — nr.", help: "ex. 1 / 2025", step: "permits", section: "Numerele documentelor", type: "text" },
   { key: "fisa_srm_nr", label: "Fișa tehnică a postului de reglare — nr.", help: "ex. 2 / 2025", step: "permits", section: "Numerele documentelor", type: "text" },
   { key: "rte_firma", label: "Firma responsabilului tehnic cu execuția", help: "Lasă gol dacă RTE-ul e al firmei care execută.", step: "permits", section: "Echipa", type: "text" },
-  { key: "nr_comunicare_incepere", label: "Nr. comunicare de începere a lucrărilor", step: "permits", section: "ISCIR", type: "text" },
-  { key: "nr_program_control", label: "Nr. program de control al calității", step: "permits", section: "ISCIR", type: "text" },
+  { key: "nr_comunicare_incepere", label: "Nr. comunicare de începere a lucrărilor", step: "permits", section: "ISC", type: "text" },
+  { key: "nr_program_control", label: "Nr. program de control al calității", step: "permits", section: "ISC", type: "text" },
 
   // ── Materiale și probe ────────────────────────────────────────────────────
   { key: "teava_furnizor", label: "Furnizorul țevii", step: "materials", section: "Țeava", type: "text" },
