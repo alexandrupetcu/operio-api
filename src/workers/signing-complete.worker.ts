@@ -8,6 +8,7 @@ import { sendSigningComplete } from "../lib/email.js";
 import { extractPdfMarkers } from "../lib/pdf-footer.js";
 import { withPage, closeBrowser } from "../lib/browser.js";
 import { escapeHtml } from "../lib/html-escape.js";
+import { penBlue } from "../lib/image.js";
 import { assertTenantKey, isTenantKey } from "../lib/s3-guard.js";
 
 interface SigningCompleteJobData {
@@ -205,7 +206,9 @@ async function processJob(job: Job<SigningCompleteJobData>) {
       ) {
         const sigStream = await getFileStream(signatory.signatureS3Key);
         if (sigStream) {
-          const sigBuffer = await streamToBuffer(sigStream);
+          const raw = await streamToBuffer(sigStream);
+          // Ca scrisă cu pixul, la fel ca semnăturile din documentele generate.
+          const sigBuffer = await penBlue(raw).catch(() => raw);
           const base64 = `data:image/png;base64,${sigBuffer.toString("base64")}`;
           signatoryData.push({
             name: signatory.name,

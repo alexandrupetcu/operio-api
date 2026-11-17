@@ -39,3 +39,25 @@ export async function removeWhiteBackground(input: Buffer): Promise<Buffer> {
     .png()
     .toBuffer();
 }
+
+/** Albastrul unui pix cu bilă — culoarea semnăturilor în documentele generate. */
+export const PEN_BLUE = [24, 52, 150] as const;
+
+/**
+ * Semnătura „scrisă cu pixul”: fiecare pixel trece de la alb (hârtie) la albastru după cât
+ * de închis e, cu transparența păstrată — cerneala neagră devine albastră, marginile
+ * netezite rămân netede, fundalul alb sau transparent nu se schimbă.
+ */
+export async function penBlue(input: Buffer): Promise<Buffer> {
+  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const pixels = new Uint8Array(data);
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (pixels[i + 3] === 0) continue;
+    const lum = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+    const ink = 1 - lum / 255; // 0 = alb, 1 = negru
+    for (let c = 0; c < 3; c++) pixels[i + c] = Math.round(255 - ink * (255 - PEN_BLUE[c]));
+  }
+  return sharp(Buffer.from(pixels), { raw: { width: info.width, height: info.height, channels: 4 } })
+    .png()
+    .toBuffer();
+}

@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { redisConnection } from "../config/redis.js";
 import { getFileStream, getFileBuffer, uploadFile, getPresignedUrl } from "../lib/s3.js";
+import { penBlue } from "../lib/image.js";
 import { renderDocx, type ImageRenderOptions } from "../lib/docx-engine.js";
 import PizZip from "pizzip";
 import { ensureBucket } from "../lib/s3.js";
@@ -394,7 +395,7 @@ async function buildAppointmentReportData(report: unknown, tenantId: string): Pr
       for await (const chunk of stream as AsyncIterable<Uint8Array>) {
         chunks.push(chunk);
       }
-      const buf = Buffer.concat(chunks);
+      const buf = await penBlue(Buffer.concat(chunks)).catch(() => Buffer.concat(chunks));
       const base64 = buf.toString("base64");
       result.client_signature = `<img src="data:image/png;base64,${base64}" style="max-height:60px">`;
     } catch {
@@ -901,7 +902,8 @@ export async function buildInstalatieReportData(
     try {
       const stream = await getFileStream(sigKey);
       if (stream) {
-        const buf = await streamToBuffer(stream);
+        const raw = await streamToBuffer(stream);
+        const buf = await penBlue(raw).catch(() => raw);
         out.client_signature = inkOverlay(
           `<img src="data:image/png;base64,${buf.toString("base64")}" style="height:48px">`
         );
@@ -972,7 +974,7 @@ export async function buildHtmlTemplateData(
     stampUrl = escapeHtml(data["tenant.stampUrl"]);
   }
   if (tenant.signatureS3Key && assertTenantKey(tenantId, tenant.signatureS3Key, "tenant signature")) {
-    data["tenant.signatureUrl"] = await getPresignedUrl(tenant.signatureS3Key);
+    data["tenant.signatureUrl"] = await blueSignatureSrc(tenant.signatureS3Key);
     signatureUrl = escapeHtml(data["tenant.signatureUrl"]);
   }
 
@@ -1065,6 +1067,15 @@ function inkOverlay(inner: string): string {
   );
 }
 
+/** Semnătura de pe S3 ca data-URI albastru (ca scrisă cu pixul); la eroare, linkul semnat al originalului. */
+async function blueSignatureSrc(s3Key: string): Promise<string> {
+  try {
+    return `data:image/png;base64,${(await penBlue(await getFileBuffer(s3Key))).toString("base64")}`;
+  } catch {
+    return getPresignedUrl(s3Key);
+  }
+}
+
 /**
  * Ștampila personală (cu semnătura persoanei peste ea) a unui semnatar rezolvat,
  * ca fragment HTML suprapus. Cheile S3 se verifică pe prefixul firmei.
@@ -1075,7 +1086,7 @@ async function personStampHtml(tenantId: string, who: ResolvedSignatory | null, 
     who.stampS3Key && assertTenantKey(tenantId, who.stampS3Key, `${alt} stamp`) ? await getPresignedUrl(who.stampS3Key) : null;
   const sigUrl =
     who.signatureS3Key && assertTenantKey(tenantId, who.signatureS3Key, `${alt} signature`)
-      ? await getPresignedUrl(who.signatureS3Key)
+      ? await blueSignatureSrc(who.signatureS3Key)
       : null;
   const html = stampWithSignatureHtml(stampUrl, sigUrl, { alt });
   return html ? inkOverlay(html) : null;
@@ -1622,7 +1633,7 @@ async function processJob(job: Job<DocumentJobData>) {
           for await (const chunk of stream as AsyncIterable<Uint8Array>) {
             chunks.push(chunk);
           }
-          const buf = Buffer.concat(chunks);
+          const buf = await penBlue(Buffer.concat(chunks)).catch(() => Buffer.concat(chunks));
           htmlData.client_signature = inkOverlay(
             `<img src="data:image/png;base64,${buf.toString("base64")}" style="height:48px">`
           );
@@ -1695,7 +1706,9 @@ async function processJob(job: Job<DocumentJobData>) {
             }
             const imgStream = await getFileStream(ref.s3Key);
             if (imgStream) {
-              images[key] = await streamToBuffer(imgStream);
+              const buf = await streamToBuffer(imgStream);
+              // Semnăturile ies albastre, ca scrise cu pixul (firma, angajații, varianta mică din tabele).
+              images[key] = /_signature(_mic)?$/.test(key) ? await penBlue(buf).catch(() => buf) : buf;
               data[key] = key;
             }
           }
