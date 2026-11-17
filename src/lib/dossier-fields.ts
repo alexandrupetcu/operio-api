@@ -32,6 +32,8 @@ export interface DossierField {
   /** Alte chei din șabloane cu același înțeles — primesc aceeași valoare. */
   aliases?: string[];
   default?: string;
+  /** Câmp de evidență: apare la aceste categorii de dosar chiar dacă nu-l tipărește niciun document. */
+  alwaysFor?: string[];
   /** `project` = coloană a dosarului (nume, adresă), nu `metadata`. */
   source?: "metadata" | "project";
   /** Doar pentru `table`: coloanele și rândurile implicite (prima coloană). */
@@ -142,6 +144,7 @@ export const DOSSIER_FIELDS: DossierField[] = [
   { key: "osd_delegat_nume", label: "Delegatul distribuitorului", help: "Numele delegatului OSD care semnează PV-urile de recepție calitativă.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "osd_director", label: "Directorul care aprobă recepția", help: "ex. „IONIȚĂ Ion – Director Executiv”. Din Setări → Distribuitori; completează aici doar ca să schimbi valoarea pe acest dosar.", step: "permits", section: "Distribuitorul (OSD)", type: "text" },
   { key: "cod_atr", label: "Număr ATR / aviz tehnic de racordare", step: "permits", section: "Acte și avize", type: "text" },
+  { key: "avize", label: "Avizele lucrării", help: "Câte un rând pe aviz (Electrica, Apă-Canal, Telekom…). Rămân în dosar, ca evidență.", step: "permits", section: "Acte și avize", ...table("avize"), alwaysFor: ["CARTE_BRANSAMENT"] },
   { key: "ordin_lucru", label: "Ordin de lucru — număr", step: "permits", section: "Acte și avize", type: "text" },
   { key: "data_ol", label: "Ordin de lucru — data", step: "permits", section: "Acte și avize", type: "date" },
   { key: "autorizatie_construire_nr", label: "Autorizație de construire / acord — număr", step: "permits", section: "Acte și avize", type: "text" },
@@ -332,7 +335,10 @@ export interface GroupFieldPlan {
  * Un placeholder care nu e nici în registru, nici completat automat, nici de rol,
  * ajunge la „Alte câmpuri”, cu cheia drept etichetă (șabloane încărcate de firmă).
  */
-export function fieldsForPlaceholders(docs: { name: string; placeholders: Set<string> }[]): GroupFieldPlan {
+export function fieldsForPlaceholders(
+  docs: { name: string; placeholders: Set<string> }[],
+  opts: { categoryCode?: string | null } = {},
+): GroupFieldPlan {
   const fieldDocs = new Map<string, { field: DossierField; docs: Set<string> }>();
   const roleDocs = new Map<string, { docs: Set<string>; assignment: Set<string> }>();
   let needsDrawing = false;
@@ -396,6 +402,11 @@ export function fieldsForPlaceholders(docs: { name: string; placeholders: Set<st
     }
   }
 
+  // Câmpurile de evidență ale categoriei (ex. avizele la branșament), fără documente.
+  for (const f of DOSSIER_FIELDS) {
+    if (opts.categoryCode && f.alwaysFor?.includes(opts.categoryCode) && !fieldDocs.has(f.key)) fieldDocs.set(f.key, { field: f, docs: new Set() });
+  }
+
   const order = new Map(DOSSIER_FIELDS.map((f, i) => [f.key, i]));
   const fields = [...fieldDocs.values()]
     .sort((a, b) => (order.get(a.field.key) ?? 1e6) - (order.get(b.field.key) ?? 1e6) || a.field.key.localeCompare(b.field.key))
@@ -436,7 +447,8 @@ export function dossierCompletion(
   let filled = 0;
   // Câmpurile calculate (ex. lungimea totală) nu se cer dacă se pot deduce.
   values = { ...values, ...derivedDossierVars(values) };
-  const counted = plan.fields.filter((f) => f.field.type !== "checkbox");
+  // Bifele și câmpurile de evidență (fără document care să le tipărească) nu se cer.
+  const counted = plan.fields.filter((f) => f.field.type !== "checkbox" && f.docs.length > 0);
   for (const { field, docs } of counted) {
     const v = values[field.key];
     if (v !== undefined && v !== null && String(v).trim() !== "") filled++;

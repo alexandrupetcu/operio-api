@@ -171,6 +171,16 @@ export const DOSSIER_TABLES: Record<string, DossierTable> = {
     ],
     rows: ["Săpătură șanț conductă", "Așternere nisip (ml)", "Tăiere (ml)", "Desfacere (mp)", "Refacere (mp)"],
   },
+  // Avizele lucrării — evidență în dosar (nu se tipăresc).
+  avize: {
+    itemLabel: "aviz",
+    columns: [
+      { key: "denumire", label: "Avizul (ex. Aviz Electrica)" },
+      { key: "emitent", label: "Emis de" },
+      { key: "nr", label: "Număr" },
+      { key: "data", label: "Data" },
+    ],
+  },
   // Anexa 24 MegaConstruct (C(P) — desfacerea / refacerea suprafețelor la racord).
   pavaj_racord: {
     itemLabel: "operațiune",

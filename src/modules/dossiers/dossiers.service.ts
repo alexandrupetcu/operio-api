@@ -97,7 +97,7 @@ export async function groupPlan(
       fastify.log.warn({ err, templateId: m.id }, "dossier fields: cannot read member DOCX");
     }
   }
-  return { ...fieldsForPlaceholders(docs), group };
+  return { ...fieldsForPlaceholders(docs, { categoryCode: group.categoryCode }), group };
 }
 
 /** Răspunsul pentru pagină: câmpurile grupului, cu unitatea pentru categoria lui. */

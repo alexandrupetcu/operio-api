@@ -145,3 +145,21 @@ describe("dossier fields — dosarele de branșament (contract 28.10)", () => {
     expect(c.missing).toEqual([]);
   });
 });
+
+describe("avizele lucrării (evidență, la dosarele de branșament)", () => {
+  it("apar la Carte branșament chiar dacă nu le tipărește niciun document; nu la ISC", () => {
+    const br = fieldsForPlaceholders([], { categoryCode: "CARTE_BRANSAMENT" });
+    const avize = br.fields.find((f) => f.field.key === "avize");
+    expect(avize?.field.section).toBe("Acte și avize");
+    expect(avize?.field.type).toBe("table");
+    expect(avize?.docs).toEqual([]);
+    expect(fieldsForPlaceholders([], { categoryCode: "DOSAR_ISCIR" }).fields.map((f) => f.field.key)).not.toContain("avize");
+  });
+
+  it("nu intră la „lipsește” (nu blochează completarea dosarului)", () => {
+    const plan = fieldsForPlaceholders([], { categoryCode: "CARTE_BRANSAMENT" });
+    const c = dossierCompletion(plan, {}, new Set());
+    expect(c.missing.map((m) => m.key)).not.toContain("avize");
+    expect(c.total).toBe(0);
+  });
+});
