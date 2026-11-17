@@ -171,6 +171,14 @@ export const DOSSIER_TABLES: Record<string, DossierTable> = {
     ],
     rows: ["Săpătură șanț conductă", "Așternere nisip (ml)", "Tăiere (ml)", "Desfacere (mp)", "Refacere (mp)"],
   },
+  // Dosarul ISC: conducta pe diametre (un rând pe Dn).
+  dimensiuni_conducta: {
+    itemLabel: "diametru",
+    columns: [
+      { key: "dn", label: "Diametru (mm)" },
+      { key: "lungime", label: "Lungime (ml)" },
+    ],
+  },
   // Avizele lucrării — evidență în dosar (nu se tipăresc).
   avize: {
     itemLabel: "aviz",
@@ -320,6 +328,26 @@ function anexa24Vars(meta: Meta, totalLength: unknown): Record<string, string> {
     for (const s of surfaces) out[`pr_${op}_${s}`] = row?.[s] ?? "";
   }
   return out;
+}
+
+/**
+ * Dosarul ISC: „Dn 90 mm, L = 50 ml, Dn 63 mm, L = 29.70 ml”, „90 / 63” și lungimea totală, din
+ * „Dimensiunile conductei”; fără tabel, din diametrul și lungimea de până acum.
+ */
+function iscVars(meta: Meta): Record<string, string> {
+  let rows = filled(meta.dimensiuni_conducta)
+    ? parseDossierTable(DOSSIER_TABLES.dimensiuni_conducta, meta.dimensiuni_conducta).filter((r) => r.dn || r.lungime)
+    : [];
+  if (!rows.length && (filled(meta.project_dn) || filled(meta.project_length))) {
+    rows = [{ nr_crt: "1", dn: str(String(meta.project_dn ?? "")), lungime: str(String(meta.project_length ?? "")) }];
+  }
+  if (!rows.length) return {};
+  const total = rows.length === 1 ? rows[0].lungime : sumLengths(rows.map((r) => r.lungime)) ?? "";
+  return {
+    isc_dn_l_text: rows.map((r) => `Dn ${r.dn} mm, L = ${r.lungime} ml`).join(", "),
+    isc_dn_text: rows.map((r) => r.dn).join(" / "),
+    isc_lungime: total,
+  };
 }
 
 /** „19.08.2025” → ziua / luna / anul, pentru PV-urile scrise „Încheiat astăzi, ziua … luna … anul …”. */
@@ -512,6 +540,7 @@ export function derivedDossierVars(meta: Meta): Record<string, unknown> {
   out.subtraversari = parseDossierTable(DOSSIER_TABLES.subtraversari, meta.subtraversari);
   Object.assign(out, fitinguriVars(meta));
   Object.assign(out, anexa24Vars(meta, out.bransament_lungime_totala ?? meta.bransament_lungime_totala));
+  Object.assign(out, iscVars(meta));
   // Proba de casă: implicit presiunea și durata probei de rezistență.
   if (!filled(meta.proba_casa_presiune) && !filled(meta.proba_casa_timp)) {
     if (filled(meta.proba_rezistenta_presiune)) out.proba_casa_presiune = str(String(meta.proba_rezistenta_presiune));

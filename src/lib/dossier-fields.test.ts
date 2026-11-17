@@ -163,3 +163,12 @@ describe("avizele lucrării (evidență, la dosarele de branșament)", () => {
     expect(c.total).toBe(0);
   });
 });
+
+describe("dosarul ISC — dimensiunile conductei", () => {
+  it("textele calculate cer tabelul „Dimensiunile conductei”", () => {
+    const plan = fieldsForPlaceholders([{ name: "PV probe", placeholders: new Set(["isc_dn_l_text", "isc_dn_text", "isc_lungime", "project_material"]) }]);
+    expect(plan.fields.map((f) => f.field.key)).toEqual(expect.arrayContaining(["dimensiuni_conducta", "project_material"]));
+    expect(plan.fields.find((f) => f.field.key === "dimensiuni_conducta")?.field.type).toBe("table");
+    expect(plan.fields.every((f) => f.field.section !== "Alte câmpuri")).toBe(true);
+  });
+});

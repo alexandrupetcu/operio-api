@@ -415,3 +415,19 @@ describe("MegaConstruct — Anexa 24 (PV cu cantități pentru racord) și datel
     expect(v.data_pv_rt_ziua).toBe("19");
   });
 });
+
+describe("dosarul ISC — conducta cu mai multe diametre", () => {
+  it("toate dimensiunile pe rând, diametrele cu „/” și lungimea totală", () => {
+    const v = derivedDossierVars({ dimensiuni_conducta: "90 | 50\n63 | 29.70" });
+    expect(v.isc_dn_l_text).toBe("Dn 90 mm, L = 50 ml, Dn 63 mm, L = 29.70 ml");
+    expect(v.isc_dn_text).toBe("90 / 63");
+    expect(v.isc_lungime).toBe("79.70");
+  });
+
+  it("fără tabel: diametrul și lungimea de până acum (dosarele vechi ies la fel)", () => {
+    const v = derivedDossierVars({ project_dn: "90", project_length: "79.70" });
+    expect(v.isc_dn_l_text).toBe("Dn 90 mm, L = 79.70 ml");
+    expect(v.isc_dn_text).toBe("90");
+    expect(v.isc_lungime).toBe("79.70");
+  });
+});
