@@ -442,12 +442,12 @@ export async function update(fastify: FastifyInstance, tenantId: string, id: str
   return get(fastify, tenantId, id);
 }
 
-export async function generate(fastify: FastifyInstance, tenantId: string, userId: string, id: string) {
+export async function generate(fastify: FastifyInstance, tenantId: string, userId: string, id: string, opts: { highlightValues?: boolean } = {}) {
   const d = await fastify.prisma.project.findFirst({ where: { id, tenantId }, select: { id: true, templateGroupId: true } });
   if (!d) throw fastify.httpErrors.notFound("Dosarul nu a fost găsit");
   if (!d.templateGroupId) throw fastify.httpErrors.badRequest("Dosarul nu are ales un grup de documente");
   // Grupul se generează ca un singur ZIP; worker-ul îl desface pe membri.
-  return documentsGenerate(fastify, tenantId, d.id, [d.templateGroupId], userId);
+  return documentsGenerate(fastify, tenantId, d.id, [d.templateGroupId], userId, opts);
 }
 
 export async function remove(fastify: FastifyInstance, tenantId: string, id: string) {

@@ -206,6 +206,15 @@ describe("dosare — izolarea între firme", () => {
     expect(await dossiers.list(app, f.a.id)).toHaveLength(0);
   });
 
+  it("generarea „cu roșu” ajunge la worker prin contextJson; implicit nu", async () => {
+    const d = await newDossier(f.a.id, f.a.clientId);
+    const [red] = await dossiers.generate(app, f.a.id, f.a.admin.id, d.id, { highlightValues: true });
+    const [plain] = await dossiers.generate(app, f.a.id, f.a.admin.id, d.id);
+    const ctx = async (id: string) => (await prisma.document.findUniqueOrThrow({ where: { id } })).contextJson as Record<string, unknown> | null;
+    expect(await ctx(red.id)).toMatchObject({ highlightValues: true });
+    expect((await ctx(plain.id))?.highlightValues).toBeFalsy();
+  });
+
   it("clientul, angajatul sau grupul altei firme → respins", async () => {
     expect((await expectReject(() => newDossier(f.a.id, f.b.clientId))).status).toBe(404);
     const d = await newDossier(f.a.id, f.a.clientId);

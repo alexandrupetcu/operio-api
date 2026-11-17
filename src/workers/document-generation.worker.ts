@@ -1682,6 +1682,8 @@ async function processJob(job: Job<DocumentJobData>) {
       await uploadFile(htmlS3Key, Buffer.from(renderedHtml, "utf-8"), "text/html");
     } else {
       // DOCX: a single template, or a "group" → ZIP bundling all rendered members.
+      // „Cu roșu” (bifa de la generarea dosarului): valorile completate se colorează, pentru verificare.
+      const docxOpts = docCtx?.highlightValues ? { ...DOCX_IMAGE_OPTS, highlightValues: true } : DOCX_IMAGE_OPTS;
       const clientName = clientRecord
         ? (clientRecord.companyName || `${clientRecord.firstName ?? ""} ${clientRecord.lastName ?? ""}`.trim())
         : "";
@@ -1752,7 +1754,7 @@ async function processJob(job: Job<DocumentJobData>) {
           if (!memberStream) throw new Error(`Group member file not found in S3: ${member.name}`);
           const memberBuffer = await streamToBuffer(memberStream);
           await allocIfNeeded(memberBuffer, member);
-          const rendered = renderDocx(memberBuffer, data, images, DOCX_IMAGE_OPTS);
+          const rendered = renderDocx(memberBuffer, data, images, docxOpts);
           zip.file(entries[i], rendered);
         }
         outputBuffer = Buffer.from(zip.generate({ type: "nodebuffer", compression: "DEFLATE" }));
@@ -1763,7 +1765,7 @@ async function processJob(job: Job<DocumentJobData>) {
         if (!templateStream) throw new Error("Template file not found in S3");
         const templateBuffer = await streamToBuffer(templateStream);
         await allocIfNeeded(templateBuffer, template);
-        outputBuffer = renderDocx(templateBuffer, data, images, DOCX_IMAGE_OPTS);
+        outputBuffer = renderDocx(templateBuffer, data, images, docxOpts);
         contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
       }
     }

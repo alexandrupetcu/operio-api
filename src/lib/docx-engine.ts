@@ -30,6 +30,8 @@ export interface ImageRenderOptions {
    * images.
    */
   floatTags?: string[];
+  /** Valorile completate ies cu roșu (verificarea dosarului înainte de tipărire). */
+  highlightValues?: boolean;
 }
 
 const POSITIONING =
@@ -97,6 +99,36 @@ function uniqueDrawingIds(zip: PizZip) {
   }
 }
 
+// Ordinea elementelor din w:rPr (ECMA-376): culoarea stă înaintea acestora.
+const RPR_AFTER_COLOR = ["spacing", "w", "kern", "position", "sz", "szCs", "highlight", "u", "effect", "bdr", "shd", "fitText", "vertAlign", "rtl", "cs", "em", "lang", "eastAsianLayout", "specVanish", "oMath"];
+
+function redRpr(rPr: string): string {
+  const red = '<w:color w:val="FF0000"/>';
+  if (!rPr) return `<w:rPr>${red}</w:rPr>`;
+  if (/<w:color\b[^>]*\/>/.test(rPr)) return rPr.replace(/<w:color\b[^>]*\/>/, red);
+  const after = new RegExp(`<w:(?:${RPR_AFTER_COLOR.join("|")})\\b`);
+  const m = after.exec(rPr);
+  return m ? rPr.slice(0, m.index) + red + rPr.slice(m.index) : rPr.replace("</w:rPr>", `${red}</w:rPr>`);
+}
+
+/**
+ * Pune fiecare variabilă simplă (`{rte_nume}`) în run-ul ei, colorat roșu; textul fix din
+ * același run rămâne cu formatarea lui. Buclele, condițiile și imaginile nu se ating.
+ */
+function highlightPlaceholders(xml: string): string {
+  return xml.replace(/<w:r(\s[^>]*)?>((?:(?!<\/w:r>)[\s\S])*?)<\/w:r>/g, (run, attrs = "", inner: string) => {
+    const t = /^((?:<w:rPr>[\s\S]*?<\/w:rPr>)?)<w:t(\s[^>]*)?>([^<]*)<\/w:t>$/.exec(inner);
+    if (!t) return run;
+    const [, rPr, , text] = t;
+    const parts = text.split(/(\{[A-Za-z0-9_.]+\})/);
+    if (parts.length === 1) return run;
+    return parts
+      .filter((p) => p !== "")
+      .map((p) => `<w:r${attrs}>${/^\{[A-Za-z0-9_.]+\}$/.test(p) ? redRpr(rPr) : rPr}<w:t xml:space="preserve">${p}</w:t></w:r>`)
+      .join("");
+  });
+}
+
 export function renderDocx(
   templateBuffer: Buffer,
   data: Record<string, unknown>,
@@ -105,6 +137,11 @@ export function renderDocx(
 ): Buffer {
   const zip = new PizZip(templateBuffer);
   ensureImageNamespaces(zip);
+  if (imageOpts?.highlightValues) {
+    for (const name of Object.keys(zip.files).filter((n) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(n))) {
+      zip.file(name, highlightPlaceholders(zip.file(name)!.asText()));
+    }
+  }
 
   const modules: any[] = [];
   if (images && Object.keys(images).length > 0) {

@@ -55,7 +55,9 @@ export async function generate(
   tenantId: string,
   projectId: string,
   templateIds: string[],
-  userId: string
+  userId: string,
+  /** `highlightValues`: valorile completate ies cu roșu (verificarea înainte de tipărire). */
+  opts: { highlightValues?: boolean } = {},
 ) {
   const project = await fastify.prisma.project.findFirst({
     where: { id: projectId, tenantId },
@@ -83,6 +85,7 @@ export async function generate(
           generatedById: userId,
           name: template.name,
           status: "PENDING",
+          ...(opts.highlightValues && { contextJson: { highlightValues: true } }),
           projects: {
             create: { projectId },
           },

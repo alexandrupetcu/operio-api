@@ -34,7 +34,8 @@ export default async function dossiersRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post<{ Params: { id: string } }>("/:id/generate", WRITE, async (request, reply) => {
-    const docs = await dossiersService.generate(fastify, request.tenantId, request.user.sub, request.params.id);
+    const { highlightValues } = z.object({ highlightValues: z.boolean().optional() }).parse(request.body ?? {});
+    const docs = await dossiersService.generate(fastify, request.tenantId, request.user.sub, request.params.id, { highlightValues });
     return reply.status(202).send({ documents: docs });
   });
 

@@ -69,3 +69,19 @@ describe("renderDocx — spațiile de nume pentru imagini", () => {
     expect(footer).not.toContain('/ xmlns');
   });
 });
+
+describe("renderDocx — valorile completate cu roșu (opțiune la generare)", () => {
+  const runs = (buf: Buffer) =>
+    [...new PizZip(buf).file("word/document.xml")!.asText().matchAll(/<w:r>(?:<w:rPr>(.*?)<\/w:rPr>)?<w:t[^>]*>([^<]*)<\/w:t><\/w:r>/g)].map((m) => ({ red: /w:color w:val="FF0000"/.test(m[1] ?? ""), text: m[2] }));
+
+  it("doar valoarea e roșie, textul fix din jur rămâne negru", () => {
+    const out = runs(renderDocx(docx("Ing. {rte_nume}, autorizația {nr}"), { rte_nume: "Ion Pop" }, undefined, { highlightValues: true }));
+    expect(out.filter((r) => r.red).map((r) => r.text)).toEqual(["Ion Pop", EMPTY_FIELD]);
+    expect(out.filter((r) => !r.red).map((r) => r.text).join("")).toBe("Ing. , autorizația ");
+  });
+
+  it("fără opțiune nu se colorează nimic", () => {
+    expect(runs(renderDocx(docx("Ing. {rte_nume}"), { rte_nume: "Ion" })).some((r) => r.red)).toBe(false);
+  });
+});
+
