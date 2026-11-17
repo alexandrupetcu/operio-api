@@ -95,7 +95,9 @@ describe("dosare — echipa", () => {
 describe("dosare — câmpuri și completare", () => {
   it("câmpurile grupului vin din DOCX-urile lui; necunoscutele la „Alte câmpuri”", async () => {
     const r = await dossiers.getFields(app, f.a.id, groupId);
-    expect(r.fields.map((x) => x.key)).toEqual(["cod_atr", "proiect_nr", "camp_firma"]);
+    // „avize” = câmp de evidență al dosarelor de branșament (fără document care să-l tipărească).
+    expect(r.fields.map((x) => x.key)).toEqual(["cod_atr", "avize", "proiect_nr", "camp_firma"]);
+    expect(r.fields.find((x) => x.key === "avize")!.docs).toEqual([]);
     expect(r.fields.find((x) => x.key === "camp_firma")!.section).toBe("Alte câmpuri");
     expect(r.fields.find((x) => x.key === "cod_atr")!.docs).toEqual(["Test dosar PV"]);
     expect(r.roles.map((x) => x.role)).toEqual(["rte", "sudor"]);
