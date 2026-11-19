@@ -1,3 +1,6 @@
+import { env } from "../../config/env.js";
+import { appUrl } from "../../lib/app-url.js";
+import { appUrlFor } from "../../lib/tenant-subdomain.js";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { sendWebPush } from "../../lib/web-push.js";
 import { sendExpoPush } from "../../lib/expo-push.js";
@@ -102,7 +105,10 @@ export async function dispatch(
     let providerResponseJson: Prisma.InputJsonValue | undefined;
     if (user?.email) {
       try {
-        await sendNotificationEmail({ to: user.email, subject: ev.subject, body: ev.body, url: ev.url });
+        // Linkul duce pe adresa firmei (subdomeniu) dacă o are — acolo e sesiunea; altfel pe app.
+        const tenant = ev.url ? await prisma.tenant.findUnique({ where: { id: tenantId }, select: { subdomain: true } }) : null;
+        const url = ev.url ? appUrl(ev.url, appUrlFor(tenant?.subdomain, env.TENANT_BASE_DOMAIN, env.FRONTEND_URL)) : undefined;
+        await sendNotificationEmail({ to: user.email, subject: ev.subject, body: ev.body, url });
       } catch (e) {
         status = "failed";
         providerResponseJson = { error: e instanceof Error ? e.message : String(e) };

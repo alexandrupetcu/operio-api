@@ -1,3 +1,4 @@
+import { appUrl } from "./app-url.js";
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { env } from "../config/env.js";
@@ -77,7 +78,7 @@ export async function sendNotificationEmail(opts: {
       ${
         opts.url
           ? `<p style="margin-top:20px">
-               <a href="${opts.url}"
+               <a href="${escapeHtml(appUrl(opts.url, env.FRONTEND_URL))}"
                   style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">
                  Deschide în Operio
                </a>
