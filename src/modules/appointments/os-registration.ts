@@ -145,6 +145,24 @@ export async function setOsSubmission(
   return updated;
 }
 
+/**
+ * Revizii → „Marchează depuse”: aceeași regulă ca pentru o singură fișă (tip OS, finalizată,
+ * cu raport, a firmei), pe fiecare id; ce nu se poate marca se întoarce cu motivul.
+ */
+export async function bulkOsSubmission(fastify: FastifyInstance, tenantId: string, ids: string[], submittedAt: string) {
+  const marked: string[] = [];
+  const skipped: { id: string; reason: string }[] = [];
+  for (const id of [...new Set(ids)]) {
+    try {
+      await setOsSubmission(fastify, tenantId, id, { submittedAt });
+      marked.push(id);
+    } catch (err) {
+      skipped.push({ id, reason: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return { marked, skipped };
+}
+
 const osSelect = {
   id: true,
   status: true,

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
 import {
@@ -10,7 +11,7 @@ import {
   osRegistrationSchema,
   osSubmissionSchema,
 } from "./appointments.schema.js";
-import { setOsRegistration, setOsSubmission } from "./os-registration.js";
+import { setOsRegistration, setOsSubmission, bulkOsSubmission } from "./os-registration.js";
 import * as appointmentsService from "./appointments.service.js";
 import { resolveApptScope, canSeeEmployee, requesterEmployeeId } from "./scope.js";
 import { NO_OVERLAP } from "./overlap.js";
@@ -264,6 +265,16 @@ export default async function appointmentsRoutes(fastify: FastifyInstance) {
     async (request) => {
       const body = osRegistrationSchema.parse(request.body);
       return setOsRegistration(fastify, request.tenantId, request.params.id, body);
+    }
+  );
+
+  // Revizii → mai multe fișe marcate „depuse la OS” cu aceeași dată.
+  fastify.post(
+    "/os-submission/bulk",
+    { onRequest: [requireRole("ADMIN", "MANAGER", "OPERATOR")] },
+    async (request) => {
+      const body = z.object({ ids: z.array(z.string().cuid()).min(1).max(200), submittedAt: z.string().datetime() }).parse(request.body);
+      return bulkOsSubmission(fastify, request.tenantId, body.ids, body.submittedAt);
     }
   );
 
