@@ -348,3 +348,20 @@ describe("zipUncompressedSize — apărare împotriva unui „zip bomb”", () =
     expect(zipUncompressedSize(eocd)).toBeNull();
   });
 });
+
+describe("modelul de import (Excel și CSV)", () => {
+  it("reîncărcat, fiecare coloană se potrivește singură pe câmpul ei, iar exemplele se citesc", async () => {
+    const { importTemplateXlsx, importTemplateCsv } = await import("./clients-import-template.js");
+    for (const [buf, name, mime] of [
+      [await importTemplateXlsx(), "model.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+      [importTemplateCsv(), "model.csv", "text/csv"],
+    ] as const) {
+      const sheet = await parseUpload(buf, name, mime);
+      expect(suggestMapping(sheet.headers), name).toEqual(Object.fromEntries(TARGET_FIELDS.map((f, i) => [f, i])));
+      expect(sheet.rows.length, name).toBe(2);
+      const m = suggestMapping(sheet.headers);
+      expect(parseImportDate(sheet.rows[0][m.lastRevisionDate!]), name).not.toBeNull();
+      expect(sheet.rows[1][m.cui!], name).toMatch(/^RO\d+/);
+    }
+  });
+});

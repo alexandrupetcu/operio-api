@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { requireFeature } from "../../lib/entitlements/index.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { requireRole } from "../../lib/rbac.js";
@@ -12,6 +13,7 @@ import {
   updateQuickDossierSchema,
 } from "./clients.schema.js";
 import * as clientsService from "./clients.service.js";
+import { importTemplateCsv, importTemplateXlsx } from "./clients-import-template.js";
 import { CLIENTS_SORTABLE } from "./clients.service.js";
 import {
   ImportFileError,
@@ -65,6 +67,16 @@ export default async function clientsRoutes(fastify: FastifyInstance) {
   fastify.addHook("onRequest", fastify.authenticate);
 
   // === Import din Excel/CSV (onboarding) ===
+  // Modelul de completat: coloanele recunoscute automat + două rânduri de exemplu.
+  fastify.get("/import/template", { onRequest: [requireRole("ADMIN", "MANAGER")] }, async (request, reply) => {
+    const { format } = z.object({ format: z.enum(["xlsx", "csv"]).default("xlsx") }).parse(request.query);
+    const xlsx = format === "xlsx";
+    return reply
+      .header("Content-Type", xlsx ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv; charset=utf-8")
+      .header("Content-Disposition", `attachment; filename="model-import-clienti.${format}"`)
+      .send(xlsx ? await importTemplateXlsx() : importTemplateCsv());
+  });
+
   // Previzualizare: antet, primele rânduri și maparea propusă a coloanelor.
   fastify.post(
     "/import/preview",
