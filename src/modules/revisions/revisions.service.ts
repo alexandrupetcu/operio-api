@@ -3,6 +3,10 @@ import type { Prisma } from "@prisma/client";
 import * as appointmentsService from "../appointments/appointments.service.js";
 import { apptVisibilityWhere, type ApptScope } from "../appointments/scope.js";
 import { REVISION_TYPES, type CreateDirectRevisionInput, type ListRevisionsQuery, type RevisionType } from "./revisions.schema.js";
+import { daysUntil, osRegistrationDeadline } from "../../lib/working-days.js";
+import { getAlertWindows } from "../tenant/alert-settings.js";
+import { isNoReportOutcome } from "../appointments/appointments.service.js";
+import { OS_REGISTRATION_TYPES } from "../appointments/os-registration.js";
 
 /**
  * Secțiunea „Revizii”: toate reviziile firmei la un loc — de centrală (ISCIR) și de
@@ -39,6 +43,42 @@ export interface RevisionRow {
     osClientNotifiedAt: Date | null;
   } | null;
   revision: { id: string; equipmentId: string; status: string; hasPdf: boolean; iscirDocumentId: string | null } | null;
+  /** Unde e la OS: termen depășit / de depus / depus, așteaptă număr / înregistrat / nu e cazul. */
+  osState?: OsState;
+  /** Termenul de depunere (zile lucrătoare de la finalizare), când e de depus. */
+  osDeadline?: Date | null;
+}
+
+export type OsState = "overdue" | "to_submit" | "submitted" | "registered" | "none";
+
+function osStateOf(r: RevisionRow, workingDays: number): { osState: OsState; osDeadline: Date | null } {
+  const a = r.appointment;
+  if (!a || a.status !== "completed" || !(OS_REGISTRATION_TYPES as readonly string[]).includes(a.type) || isNoReportOutcome(a.completionOutcome)) {
+    return { osState: "none", osDeadline: null };
+  }
+  if (a.osRegistrationNumber) return { osState: "registered", osDeadline: null };
+  if (a.osSubmittedAt) return { osState: "submitted", osDeadline: null };
+  const deadline = osRegistrationDeadline(a.completedAt ?? a.date, workingDays);
+  return { osState: daysUntil(deadline) < 0 ? "overdue" : "to_submit", osDeadline: deadline };
+}
+
+const missingPdf = (r: RevisionRow) => r.kind === "centrala" && r.status === "completed" && !!r.appointment && !!r.revision && !r.revision.hasPdf;
+const OS_RANK: Record<OsState, number> = { overdue: 0, to_submit: 1, submitted: 2, registered: 3, none: 3 };
+
+/**
+ * Ce e urgent, sus: termen OS depășit (cel mai vechi termen întâi) → de depus (cel mai
+ * apropiat termen) → depuse, așteaptă număr (cele mai vechi depuneri) → restul, după dată.
+ * „De făcut”: după dată, crescător — cele rămase în urmă primele, apoi cele mai apropiate.
+ */
+function byUrgency(status: ListRevisionsQuery["status"]) {
+  return (a: RevisionRow, b: RevisionRow) => {
+    if (status === "scheduled") return a.date.getTime() - b.date.getTime();
+    const ra = OS_RANK[a.osState ?? "none"], rb = OS_RANK[b.osState ?? "none"];
+    if (ra !== rb) return ra - rb;
+    if (ra <= 1) return (a.osDeadline?.getTime() ?? 0) - (b.osDeadline?.getTime() ?? 0) || a.date.getTime() - b.date.getTime();
+    if (ra === 2) return (a.appointment?.osSubmittedAt?.getTime() ?? 0) - (b.appointment?.osSubmittedAt?.getTime() ?? 0);
+    return b.date.getTime() - a.date.getTime();
+  };
 }
 
 const INSTALATIE_TYPES: RevisionType[] = ["revizie_instalatie", "verificare_instalatie"];
@@ -230,12 +270,25 @@ export async function list(fastify: FastifyInstance, tenantId: string, q: ListRe
         revision: { id: r.id, equipmentId: r.equipmentId, status: r.status, hasPdf: !!r.s3Key, iscirDocumentId: r.iscirDocumentId },
       });
     }
-    rows.sort((a, b) => b.date.getTime() - a.date.getTime());
   }
 
-  const total = rows.length;
+  const { osRegistrationWorkingDays } = await getAlertWindows(fastify.prisma, tenantId);
+  for (const r of rows) Object.assign(r, osStateOf(r, osRegistrationWorkingDays));
+  // Contoarele din capul paginii: pe filtrele curente, fără filtrul OS.
+  const counts = {
+    overdue: rows.filter((r) => r.osState === "overdue").length,
+    toSubmit: rows.filter((r) => r.osState === "to_submit").length,
+    submitted: rows.filter((r) => r.osState === "submitted").length,
+    missingPdf: rows.filter(missingPdf).length,
+  };
+  const shown = q.os
+    ? rows.filter((r) => (q.os === "missing_pdf" ? missingPdf(r) : r.osState === (q.os === "to_submit" ? "to_submit" : q.os)))
+    : rows;
+  shown.sort(byUrgency(q.status));
+
+  const total = shown.length;
   const start = (q.page - 1) * q.limit;
-  return { data: rows.slice(start, start + q.limit), meta: { total, page: q.page, limit: q.limit, totalPages: Math.max(1, Math.ceil(total / q.limit)) } };
+  return { data: shown.slice(start, start + q.limit), counts, meta: { total, page: q.page, limit: q.limit, totalPages: Math.max(1, Math.ceil(total / q.limit)) } };
 }
 
 const TITLE_BY_TYPE: Record<RevisionType, string> = {

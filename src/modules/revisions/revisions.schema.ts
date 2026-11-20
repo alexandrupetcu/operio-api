@@ -13,6 +13,8 @@ export const listRevisionsQuerySchema = z.object({
   /** Beneficiar, adresă, POD / cod client, echipament. */
   q: z.string().trim().max(100).optional(),
   clientId: z.string().cuid().optional(),
+  /** Doar o grupă de înregistrare la OS (contoarele din capul paginii). */
+  os: z.enum(["overdue", "to_submit", "submitted", "missing_pdf"]).optional(),
   from: z.string().date().optional(),
   to: z.string().date().optional(),
   page: z.coerce.number().int().min(1).default(1),

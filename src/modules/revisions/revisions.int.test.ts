@@ -59,11 +59,13 @@ describe("lista reviziilor firmei", () => {
 
     const all = await revisions.list(app, f.a.id, q());
     expect(all.meta.total).toBe(3);
-    expect(all.data.map((r) => r.id)).toEqual([`rev:${orphan.id}`, centrala.id, inst.id]); // după dată, descrescător
+    // Finalizate în octombrie, nedepuse la OS → termen depășit, sus (cel mai vechi termen întâi);
+    // revizia doar din PDF (fără vizită) n-are ce depune → după ele.
+    expect(all.data.map((r) => r.id)).toEqual([inst.id, centrala.id, `rev:${orphan.id}`]);
     expect(all.data[1]).toMatchObject({ kind: "centrala", decision: "admis", subject: "Centrală fixture", client: { name: "Ion ClientA" } });
-    expect(all.data[2]).toMatchObject({ kind: "instalatie", decision: "respins", subject: "POD-a", address: expect.stringContaining("Str. Fixture a") });
-    expect(all.data[0].appointment).toBeNull();
-    expect(all.data[0].revision?.id).toBe(orphan.id);
+    expect(all.data[0]).toMatchObject({ kind: "instalatie", decision: "respins", subject: "POD-a", address: expect.stringContaining("Str. Fixture a"), osState: "overdue" });
+    expect(all.data[2].appointment).toBeNull();
+    expect(all.data[2].revision?.id).toBe(orphan.id);
 
     // Programarea „revizie” din fixture e doar programată: apare la `scheduled` / `all`, nu implicit.
     expect((await revisions.list(app, f.a.id, q({ status: "scheduled" }))).data.map((r) => r.id)).toEqual([f.a.appointmentId]);
@@ -94,7 +96,8 @@ describe("lista reviziilor firmei", () => {
     await completedVisit(f.a, { installationId: f.a.installationId, employeeId: null, date: new Date(2026, 9, 9, 9) });
     await completedVisit(f.a, { installationId: f.a.installationId, employeeId: colleague.id, date: new Date(2026, 9, 8, 9) });
     const own = await revisions.list(app, f.a.id, q(), { kind: "own", employeeId: f.a.employeeId });
-    expect(own.data.map((r) => r.employee?.id ?? null)).toEqual([f.a.employeeId, null]);
+    expect(own.data.map((r) => r.employee?.id ?? null)).toEqual(expect.arrayContaining([f.a.employeeId, null]));
+    expect(own.data).toHaveLength(2);
   });
 });
 
@@ -176,5 +179,46 @@ describe("revizie directă — tehnicianul implicit", () => {
     });
     const appt = await revisions.createDirect(app, f.a.id, body, "direct-emp", { defaultEmployeeId: f.a.employeeId });
     expect(appt.employee?.id).toBe(f.a.employeeId);
+  });
+});
+
+describe("ordinea pe urgență, contoarele și filtrul OS", () => {
+  const day = 86_400_000;
+  const ago = (d: number) => new Date(Date.now() - d * day);
+  const report = { completionOutcome: "raport_complet", completionDataJson: { reportKind: "verificare_instalatie", decizie: "admis" } };
+
+  async function seed() {
+    const registered = await completedVisit(f.a, { ...report, date: ago(1), completedAt: ago(1), osSubmittedAt: ago(1), osRegistrationNumber: "OS-1", osRegisteredAt: ago(1) });
+    const submitted = await completedVisit(f.a, { ...report, date: ago(20), completedAt: ago(20), osSubmittedAt: ago(15) });
+    const toSubmit = await completedVisit(f.a, { ...report, date: ago(0), completedAt: ago(0) });
+    const overdue = await completedVisit(f.a, { ...report, date: ago(30), completedAt: ago(30) });
+    const noReport = await completedVisit(f.a, { completionOutcome: "revenire", date: ago(40), completedAt: ago(40) });
+    return { registered, submitted, toSubmit, overdue, noReport };
+  }
+
+  it("termen depășit → de depus → așteaptă număr → restul (după dată)", async () => {
+    const s = await seed();
+    const r = await revisions.list(app, f.a.id, q());
+    expect(r.data.map((x) => x.id)).toEqual([s.overdue.id, s.toSubmit.id, s.submitted.id, s.registered.id, s.noReport.id]);
+    expect(r.data.map((x) => x.osState)).toEqual(["overdue", "to_submit", "submitted", "registered", "none"]);
+  });
+
+  it("contoarele pe filtrele curente și filtrul OS", async () => {
+    const s = await seed();
+    const r = await revisions.list(app, f.a.id, q());
+    expect(r.counts).toEqual({ overdue: 1, toSubmit: 1, submitted: 1, missingPdf: 0 });
+    expect((await revisions.list(app, f.a.id, q({ os: "overdue" }))).data.map((x) => x.id)).toEqual([s.overdue.id]);
+    expect((await revisions.list(app, f.a.id, q({ os: "submitted" }))).data.map((x) => x.id)).toEqual([s.submitted.id]);
+    // Contoarele nu țin cont de filtrul OS (arată ce e în fiecare grupă).
+    expect((await revisions.list(app, f.a.id, q({ os: "submitted" }))).counts.overdue).toBe(1);
+  });
+
+  it("„De făcut”: programările rămase în urmă sus, apoi cele viitoare, cele mai apropiate întâi", async () => {
+    const late = await completedVisit(f.a, { status: "scheduled", completedAt: null, date: ago(3) });
+    const soon = await completedVisit(f.a, { status: "scheduled", completedAt: null, date: new Date(Date.now() + 2 * day) });
+    const later = await completedVisit(f.a, { status: "scheduled", completedAt: null, date: new Date(Date.now() + 9 * day) });
+    const r = await revisions.list(app, f.a.id, q({ status: "scheduled" }));
+    const mine = r.data.map((x) => x.id).filter((id) => [late.id, soon.id, later.id].includes(id));
+    expect(mine).toEqual([late.id, soon.id, later.id]);
   });
 });
