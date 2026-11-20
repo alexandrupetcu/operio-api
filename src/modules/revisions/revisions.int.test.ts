@@ -222,3 +222,20 @@ describe("ordinea pe urgență, contoarele și filtrul OS", () => {
     expect(mine).toEqual([late.id, soon.id, later.id]);
   });
 });
+
+describe("exportul Excel al listei", () => {
+  it("toate rândurile filtrate (fără paginare), în ordinea listei, cu starea OS în cuvinte", async () => {
+    const { exportRevisionsXlsx } = await import("./revisions-export.js");
+    const ExcelJS = (await import("exceljs")).default;
+    for (let i = 0; i < 3; i++) await completedVisit(f.a, { completionOutcome: "raport_complet", completionDataJson: { decizie: "admis" }, osSubmittedAt: new Date(), osRegistrationNumber: `OS-${i}` });
+    await completedVisit(f.b, { installationId: f.b.installationId });
+    const buf = await exportRevisionsXlsx(app, f.a.id, q({ limit: 1 }));
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    const ws = wb.worksheets[0];
+    expect(ws.getRow(1).getCell(1).value).toBe("Data");
+    const rows = ws.getRows(2, ws.rowCount - 1)!.map((r) => r.values as unknown[]);
+    expect(rows).toHaveLength(3);
+    expect(rows.every((r) => r.includes("Înregistrat"))).toBe(true);
+  });
+});

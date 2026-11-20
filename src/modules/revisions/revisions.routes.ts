@@ -5,6 +5,7 @@ import { resolveApptScope, requesterEmployeeId } from "../appointments/scope.js"
 import { previewReportFile } from "../appointments/import-report.js";
 import { reportFileKind, ACCEPTED_REPORT_FILES_MESSAGE, REPORT_FILE_CANONICAL_MIME } from "../../lib/report-sources/index.js";
 import * as revisionsService from "./revisions.service.js";
+import { exportRevisionsXlsx } from "./revisions-export.js";
 import { createDirectRevisionSchema, listRevisionsQuerySchema, REVISION_TYPES } from "./revisions.schema.js";
 
 const PARSE_REPORT_MAX_BYTES = 20 * 1024 * 1024;
@@ -16,6 +17,17 @@ export default async function revisionsRoutes(fastify: FastifyInstance) {
   fastify.get("/", async (request) => {
     const scope = await resolveApptScope(fastify, request);
     return revisionsService.list(fastify, request.tenantId, listRevisionsQuerySchema.parse(request.query), scope);
+  });
+
+  // Lista curentă (aceleași filtre, fără paginare) ca Excel.
+  fastify.get("/export.xlsx", async (request, reply) => {
+    const scope = await resolveApptScope(fastify, request);
+    const buf = await exportRevisionsXlsx(fastify, request.tenantId, listRevisionsQuerySchema.parse(request.query), scope);
+    const filename = `Revizii-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    return reply
+      .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .header("Content-Disposition", `attachment; filename="${filename}"`)
+      .send(buf);
   });
 
   // Precompletarea din web: citește raportul analizorului înainte ca vizita să existe
