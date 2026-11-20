@@ -40,7 +40,7 @@ export interface ParsePermitsResult {
  * return an empty `output_text` when the response has reasoning-summary
  * items mixed in with the message.
  */
-function collectOutputText(response: {
+export function collectOutputText(response: {
   output_text?: string | null;
   output?: unknown;
 }): string {
@@ -70,7 +70,7 @@ function collectOutputText(response: {
  *   3. models adding a natural-language preamble/postscript ("Iată rezultatul: {...}")
  * For (3) we grab everything between the first `{` and the matching last `}`.
  */
-function extractJsonBlock(rawText: string): string {
+export function extractJsonBlock(rawText: string): string {
   // Strip fences first — cheap and covers the common case.
   const fencedMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = (fencedMatch?.[1] ?? rawText).trim();
