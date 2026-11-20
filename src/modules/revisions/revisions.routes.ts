@@ -6,6 +6,7 @@ import { previewReportFile } from "../appointments/import-report.js";
 import { reportFileKind, ACCEPTED_REPORT_FILES_MESSAGE, REPORT_FILE_CANONICAL_MIME } from "../../lib/report-sources/index.js";
 import * as revisionsService from "./revisions.service.js";
 import { exportRevisionsXlsx } from "./revisions-export.js";
+import { dueRevisions } from "./revisions-due.js";
 import { createDirectRevisionSchema, listRevisionsQuerySchema, REVISION_TYPES } from "./revisions.schema.js";
 
 const PARSE_REPORT_MAX_BYTES = 20 * 1024 * 1024;
@@ -17,6 +18,12 @@ export default async function revisionsRoutes(fastify: FastifyInstance) {
   fastify.get("/", async (request) => {
     const scope = await resolveApptScope(fastify, request);
     return revisionsService.list(fastify, request.tenantId, listRevisionsQuerySchema.parse(request.query), scope);
+  });
+
+  // Ce trebuie programat: centrale și instalații cu revizia / verificarea următoare în `days` zile.
+  fastify.get("/due", async (request) => {
+    const { days } = z.object({ days: z.coerce.number().int().min(1).max(365).default(60) }).parse(request.query);
+    return dueRevisions(fastify, request.tenantId, days);
   });
 
   // Lista curentă (aceleași filtre, fără paginare) ca Excel.

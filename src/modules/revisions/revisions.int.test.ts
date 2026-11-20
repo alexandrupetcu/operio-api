@@ -231,7 +231,7 @@ describe("exportul Excel al listei", () => {
     await completedVisit(f.b, { installationId: f.b.installationId });
     const buf = await exportRevisionsXlsx(app, f.a.id, q({ limit: 1 }));
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    await wb.xlsx.load(buf as unknown as ArrayBuffer);
     const ws = wb.worksheets[0];
     expect(ws.getRow(1).getCell(1).value).toBe("Data");
     const rows = ws.getRows(2, ws.rowCount - 1)!.map((r) => r.values as unknown[]);
